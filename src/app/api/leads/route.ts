@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
-import type { Lead } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -22,12 +21,12 @@ export async function GET(req: NextRequest) {
       name: name || undefined,
     });
 
-    const leads: Lead[] = await prisma.lead.findMany({
+    const leads = await prisma.lead.findMany({
       where: { userId: user.id },
       orderBy: { dataEntrada: "desc" },
     });
 
-    const payload = leads.map((l: Lead) => ({
+    const payload = leads.map((l: (typeof leads)[number]) => ({
       id: l.id,
       nome: l.nome,
       origem: l.origem,
