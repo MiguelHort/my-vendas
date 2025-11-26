@@ -1,11 +1,13 @@
 // prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"          // novo generator do Prisma 7
+  output   = "../src/generated/prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
+  // a URL vem do prisma.config.ts / .env
 }
 
 model User {
