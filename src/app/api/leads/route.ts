@@ -1,7 +1,7 @@
-// app/api/leads/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
+import type { Lead } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
       name: name || undefined,
     });
 
-    const leads = await prisma.lead.findMany({
+    const leads: Lead[] = await prisma.lead.findMany({
       where: { userId: user.id },
       orderBy: { dataEntrada: "desc" },
     });
 
-    const payload = leads.map((l) => ({
+    const payload = leads.map((l: Lead) => ({
       id: l.id,
       nome: l.nome,
       origem: l.origem,
@@ -106,9 +106,7 @@ export async function POST(req: NextRequest) {
 
   if (!lote_producao_id) {
     return NextResponse.json(
-      {
-        error: "Todo lead precisa estar vinculado a um lote de produção",
-      },
+      { error: "Todo lead precisa estar vinculado a um lote de produção" },
       { status: 400 }
     );
   }
@@ -133,7 +131,9 @@ export async function POST(req: NextRequest) {
         temPlanoAnterior:
           tem_plano_anterior !== null ? !!tem_plano_anterior : null,
         operadoraAnterior:
-          tem_plano_anterior && operadora_anterior ? operadora_anterior : null,
+          tem_plano_anterior && operadora_anterior
+            ? operadora_anterior
+            : null,
         tempoPlanoAnterior:
           tem_plano_anterior && tempo_plano_anterior
             ? tempo_plano_anterior
@@ -156,6 +156,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Erro ao criar lead" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erro ao criar lead" },
+      { status: 500 }
+    );
   }
 }
