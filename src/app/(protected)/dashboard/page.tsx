@@ -1,0 +1,653 @@
+// app/dashboard/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "@/lib/firebase";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Layout } from "@/components/Layout";
+import {
+  TrendingUp,
+  Users,
+  DollarSign,
+  Target,
+  ThumbsUp,
+  CheckCircle2,
+  MapPin,
+  Package,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+
+type Lead = {
+  id: string;
+  origem: string;
+  status: string;
+  valor_comissao: number | null;
+  data_entrada: string;
+  estado: string;
+};
+
+type LoteProducaoResumo = {
+  volume_total_chamado: number | null;
+  qtd_leads_novos: number | null;
+  qtd_retrabalhos: number | null;
+  qtd_ligacao: number | null;
+  qtd_indicacao: number | null;
+  qtd_presencial: number | null;
+};
+
+const DashboardPage = () => {
+  const [firebaseUser, loadingAuth] = useAuthState(auth);
+
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [volumeProducao, setVolumeProducao] = useState<number>(0);
+  const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
+  const [loading, setLoading] = useState(true);
+
+  // ----------------- helpers -----------------
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate = new Date();
+    let endDate = new Date();
+
+    switch (filtroPeriodo) {
+      case "este-mes":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59
+        );
+        break;
+      case "mes-passado":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          0,
+          23,
+          59,
+          59
+        );
+        break;
+      case "ultimos-90":
+        const past = new Date();
+        past.setDate(past.getDate() - 90);
+        startDate = past;
+        endDate = new Date();
+        break;
+    }
+
+    return { startDate, endDate };
+  };
+
+  // ----------------- fetch Leads -----------------
+  const fetchLeads = async () => {
+    if (!firebaseUser) return;
+
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+      });
+
+      const res = await fetch(`/api/dashboard/leads?${params.toString()}`);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(
+          "Erro ao carregar dados de leads: " + (body.error || res.statusText)
+        );
+        return;
+      }
+
+      const data: Lead[] = await res.json();
+      setLeads(data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao carregar dados de leads");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ----------------- fetch Volume Produção -----------------
+  const fetchVolumeProducao = async () => {
+    if (!firebaseUser) return;
+
+    const { startDate, endDate } = getDateRange();
+
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      });
+
+      const res = await fetch(
+        `/api/dashboard/lotes-producao?${params.toString()}`
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("Erro ao carregar volume de produção:", body);
+        setVolumeProducao(0);
+        return;
+      }
+
+      const data: LoteProducaoResumo[] = await res.json();
+
+      let total = 0;
+
+      if (!data || data.length === 0) {
+        total = 0;
+      } else {
+        switch (filtroOrigem) {
+          case "Todos":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.volume_total_chamado || 0),
+              0
+            );
+            break;
+          case "Lead Novo":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_leads_novos || 0),
+              0
+            );
+            break;
+          case "Retrabalho":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_retrabalhos || 0),
+              0
+            );
+            break;
+          case "Ligação":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_ligacao || 0),
+              0
+            );
+            break;
+          case "Indicação":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_indicacao || 0),
+              0
+            );
+            break;
+          case "Presencial":
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_presencial || 0),
+              0
+            );
+            break;
+          default:
+            total = data.reduce(
+              (sum, lote) => sum + (lote.volume_total_chamado || 0),
+              0
+            );
+        }
+      }
+
+      setVolumeProducao(total);
+    } catch (error) {
+      console.error("Erro ao carregar volume de produção:", error);
+      setVolumeProducao(0);
+    }
+  };
+
+  // ----------------- effects -----------------
+  useEffect(() => {
+    if (!firebaseUser || loadingAuth) return;
+    fetchLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, loadingAuth]);
+
+  useEffect(() => {
+    if (!firebaseUser || loadingAuth) return;
+    fetchVolumeProducao();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem]);
+
+  // ----------------- cálculos de métricas -----------------
+  const filteredLeads = leads.filter((lead) => {
+    const leadDate = new Date(lead.data_entrada);
+    const { startDate } = getDateRange();
+
+    const dentroDataRange = leadDate >= startDate;
+    const origemMatch = filtroOrigem === "Todos" || lead.origem === filtroOrigem;
+
+    return dentroDataRange && origemMatch;
+  });
+
+  const totalLeads = filteredLeads.length;
+  const vendasFechadas = filteredLeads.filter(
+    (l) => l.status === "Concluído"
+  ).length;
+  const totalComissoes = filteredLeads
+    .filter((l) => l.status === "Concluído")
+    .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
+
+  const leadEmAndamento = filteredLeads.filter(
+    (l) => l.status === "Avaliando"
+  ).length;
+  const leadSemInteresse = filteredLeads.filter(
+    (l) => l.status === "Dispensado"
+  ).length;
+
+  const taxaResposta =
+    totalLeads > 0
+      ? ((leadEmAndamento + leadSemInteresse) / totalLeads) * 100
+      : 0;
+
+  const taxaQualificacao =
+    totalLeads > 0 ? (leadEmAndamento / totalLeads) * 100 : 0;
+
+  const taxaFechamento =
+    leadEmAndamento > 0 ? (vendasFechadas / leadEmAndamento) * 100 : 0;
+
+  const metrics = [
+    {
+      title: "Volume Total de Produção",
+      value: volumeProducao,
+      icon: Package,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
+    },
+    {
+      title: "Total de Leads Abordados",
+      value: totalLeads,
+      icon: Users,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      title: "Vendas Fechadas",
+      value: vendasFechadas,
+      icon: CheckCircle2,
+      color: "text-success",
+      bgColor: "bg-success/10",
+    },
+    {
+      title: "Total em Comissões",
+      value: `R$ ${totalComissoes.toFixed(2)}`,
+      icon: DollarSign,
+      color: "text-success",
+      bgColor: "bg-success/10",
+    },
+    {
+      title: "Taxa de Resposta",
+      value: `${taxaResposta.toFixed(1)}%`,
+      icon: ThumbsUp,
+      color: "text-accent",
+      bgColor: "bg-accent/10",
+    },
+    {
+      title: "Taxa de Qualificação",
+      value: `${taxaQualificacao.toFixed(1)}%`,
+      icon: Target,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      title: "Taxa de Fechamento",
+      value: `${taxaFechamento.toFixed(1)}%`,
+      icon: TrendingUp,
+      color: "text-success",
+      bgColor: "bg-success/10",
+    },
+  ];
+
+  // ----------------- estados de loading / sem login -----------------
+  if (loadingAuth) {
+    return (
+      <Layout>
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!firebaseUser) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-12 gap-2">
+          <p className="text-lg font-semibold">
+            Você precisa estar logado para ver o dashboard.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Acesse a tela de login e entre com sua conta.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard de Performance</h1>
+          <p className="text-muted-foreground mt-1">
+            Análise completa das suas métricas de vendas
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Filtrar por Origem</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={filtroOrigem}
+                onValueChange={setFiltroOrigem}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione a origem" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  <SelectItem value="Lead Novo">Apenas Leads Novos</SelectItem>
+                  <SelectItem value="Retrabalho">Apenas Retrabalhos</SelectItem>
+                  <SelectItem value="Ligação">Apenas Ligações</SelectItem>
+                  <SelectItem value="Indicação">Apenas Indicações</SelectItem>
+                  <SelectItem value="Presencial">Apenas Presenciais</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Período</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={filtroPeriodo}
+                onValueChange={setFiltroPeriodo}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="este-mes">Este Mês</SelectItem>
+                  <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                  <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {metrics.map((metric, index) => {
+            const Icon = metric.icon;
+            return (
+              <Card
+                key={index}
+                className="shadow-sm hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {metric.title}
+                      </p>
+                      <p className={`text-3xl font-bold ${metric.color}`}>
+                        {metric.value}
+                      </p>
+                    </div>
+                    <div className={`${metric.bgColor} p-3 rounded-lg`}>
+                      <Icon className={`w-6 h-6 ${metric.color}`} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        <Card className="bg-linerar-to-br from-primary/5 to-success/5 border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">
+                  Entenda suas métricas
+                </h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>
+                    <strong>Taxa de Resposta:</strong> % de leads que
+                    responderam (Avaliando + Dispensado)
+                  </li>
+                  <li>
+                    <strong>Taxa de Qualificação:</strong> % de leads que
+                    entraram em Avaliando
+                  </li>
+                  <li>
+                    <strong>Taxa de Fechamento:</strong> % de Vendas
+                    Concluídas sobre leads em Avaliando
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Top 10 Estados por Volume de Vendas</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Estados com mais vendas fechadas no período
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={(() => {
+                    const vendasPorEstado = filteredLeads
+                      .filter((l) => l.status === "Concluído")
+                      .reduce((acc, lead) => {
+                        const key = lead.estado || "N/D";
+                        acc[key] = (acc[key] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                    return Object.entries(vendasPorEstado)
+                      .map(([estado, vendas]) => ({ estado, vendas }))
+                      .sort((a, b) => b.vendas - a.vendas)
+                      .slice(0, 10);
+                  })()}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="estado" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar dataKey="vendas" radius={[8, 8, 0, 0]}>
+                    {(() => {
+                      const data = filteredLeads
+                        .filter((l) => l.status === "Concluído")
+                        .reduce((acc, lead) => {
+                          const key = lead.estado || "N/D";
+                          acc[key] = (acc[key] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>);
+
+                      return Object.entries(data)
+                        .map(([estado, vendas]) => ({ estado, vendas }))
+                        .sort((a, b) => b.vendas - a.vendas)
+                        .slice(0, 10)
+                        .map((entry, index) => {
+                          const colors = [
+                            "hsl(var(--success))",
+                            "hsl(var(--primary))",
+                            "hsl(var(--accent))",
+                          ];
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={colors[index % colors.length]}
+                            />
+                          );
+                        });
+                    })()}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <CardTitle>Taxa de Fechamento por Estado</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Eficiência de conversão em cada estado
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto max-h-[400px]">
+                <table className="w-full text-sm">
+                  <thead className="border-b sticky top-0 bg-background">
+                    <tr>
+                      <th className="text-left py-3 px-2 font-semibold">
+                        Estado
+                      </th>
+                      <th className="text-center py-3 px-2 font-semibold">
+                        Avaliando
+                      </th>
+                      <th className="text-center py-3 px-2 font-semibold">
+                        Vendas Concluídas
+                      </th>
+                      <th className="text-center py-3 px-2 font-semibold">
+                        Taxa de Fechamento
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const estadosData = filteredLeads.reduce((acc, lead) => {
+                        const key = lead.estado || "N/D";
+                        if (!acc[key]) {
+                          acc[key] = { andamento: 0, vendas: 0 };
+                        }
+                        if (lead.status === "Avaliando") {
+                          acc[key].andamento++;
+                        }
+                        if (lead.status === "Concluído") {
+                          acc[key].vendas++;
+                        }
+                        return acc;
+                      }, {} as Record<string, { andamento: number; vendas: number }>);
+
+                      return Object.entries(estadosData)
+                        .map(([estado, data]) => ({
+                          estado,
+                          andamento: data.andamento,
+                          vendas: data.vendas,
+                          taxa:
+                            data.andamento > 0
+                              ? (data.vendas / data.andamento) * 100
+                              : 0,
+                        }))
+                        .sort((a, b) => b.taxa - a.taxa)
+                        .map((row, index) => (
+                          <tr
+                            key={row.estado}
+                            className={index % 2 === 0 ? "bg-muted/20" : ""}
+                          >
+                            <td className="py-3 px-2 font-medium">
+                              {row.estado}
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              {row.andamento}
+                            </td>
+                            <td className="py-3 px-2 text-center text-success font-semibold">
+                              {row.vendas}
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <span
+                                className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-semibold ${
+                                  row.taxa >= 20
+                                    ? "bg-success/10 text-success"
+                                    : row.taxa >= 10
+                                    ? "bg-accent/10 text-accent"
+                                    : "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {row.taxa.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default DashboardPage;

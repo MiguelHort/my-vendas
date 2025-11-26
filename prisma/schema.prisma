@@ -1,0 +1,81 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String         @id @default(uuid()) @db.Uuid
+  firebaseUid String         @unique @map("firebase_uid")
+  email       String
+  name        String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  leads         Lead[]
+  lotesProducao LoteProducao[]
+
+  @@map("users")
+}
+
+model Lead {
+  id                 String    @id @default(uuid()) @db.Uuid
+  nome               String
+  dataEntrada        DateTime  @map("data_entrada") @db.Timestamptz(6)
+  origem             String
+  status             String
+  valorComissao      Decimal?  @map("valor_comissao") // removido @db.Numeric
+  dataVenda          DateTime? @map("data_venda") @db.Timestamptz(6)
+  userId             String    @map("user_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  estado             String?   @db.Text
+  loteProducaoId     String?   @map("lote_producao_id") @db.Uuid
+  cidade             String?   @db.Text
+  qtdVidas           Int       @map("qtd_vidas")
+  idades             String?   @db.Text
+  possuiCnpj         Boolean?  @map("possui_cnpj")
+  temPlanoAnterior   Boolean?  @map("tem_plano_anterior")
+  operadoraAnterior  String?   @map("operadora_anterior") @db.Text
+  tempoPlanoAnterior String?   @map("tempo_plano_anterior") @db.Text
+  modalidade         String?   @db.Text
+  operadoraOfertada  String?   @map("operadora_ofertada") @db.Text
+  acomodacao         String?   @db.Text
+  valorMensalidade   Decimal?  @map("valor_mensalidade") // removido @db.Numeric
+  coparticipacao     String?   @db.Text
+  motivoDispensa     String?   @map("motivo_dispensa") @db.Text
+  telefone           String?   @db.Text
+
+  user         User?         @relation(fields: [userId], references: [id])
+  loteProducao LoteProducao? @relation(fields: [loteProducaoId], references: [id])
+
+  @@index([userId])
+  @@index([loteProducaoId])
+  @@map("leads")
+}
+
+model LoteProducao {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  dataAcao            DateTime @map("data_acao") @db.Timestamptz(6)
+  volumeTotalChamado  Int      @map("volume_total_chamado")
+  estadoRegiao        String   @map("estado_regiao") @db.Text
+  observacoes         String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  qtdLigacao          Int      @map("qtd_ligacao")
+  qtdLeadsNovos       Int      @map("qtd_leads_novos")
+  qtdRetrabalhos      Int      @map("qtd_retrabalhos")
+  qtdIndicacao        Int      @map("qtd_indicacao")
+  qtdPresencial       Int      @map("qtd_presencial")
+
+  user  User @relation(fields: [userId], references: [id])
+  leads Lead[]
+
+  @@index([userId])
+  @@map("lotes_producao")
+}
