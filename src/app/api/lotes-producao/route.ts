@@ -30,11 +30,11 @@ export async function GET(req: NextRequest) {
       orderBy: { dataAcao: "desc" },
     });
 
-    const payload = lotes.map((lote) => ({
-      id: lote.id,
-      data_acao: lote.dataAcao.toISOString(),
-      estado_regiao: lote.estadoRegiao,
-      volume_total_chamado: lote.volumeTotalChamado,
+    const payload = lotes.map((l: (typeof lotes)[number]) => ({
+      id: l.id,
+      data_acao: l.dataAcao.toISOString(),
+      estado_regiao: l.estadoRegiao,
+      volume_total_chamado: l.volumeTotalChamado,
     }));
 
     return NextResponse.json(payload);
