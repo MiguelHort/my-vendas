@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const payload = lotes.map((l) => ({
+    const payload = lotes.map((l: (typeof lotes)[number]) => ({
       volume_total_chamado: l.volumeTotalChamado,
       qtd_leads_novos: l.qtdLeadsNovos,
       qtd_retrabalhos: l.qtdRetrabalhos,
