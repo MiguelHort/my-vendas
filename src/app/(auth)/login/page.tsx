@@ -42,7 +42,7 @@ export default function LoginPage() {
         }),
       });
 
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error(err);
       setError("Erro ao entrar com Google");
