@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       id: l.id,
       origem: l.origem,
       status: l.status,
-      valor_comissao: l.valorComissao,
+      valor_comissao: Number(l.valorComissao),
       data_entrada: l.dataEntrada ? l.dataEntrada.toISOString() : "",
       estado: l.estado ?? "",
     }));

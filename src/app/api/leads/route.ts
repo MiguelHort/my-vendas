@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
       coparticipacao: l.coparticipacao,
       motivo_dispensa: l.motivoDispensa,
       updated_at: l.updatedAt.toISOString(),
+      valor_comissao: l.valorComissao ? Number(l.valorComissao) : null,
+      data_venda: l.dataVenda ? l.dataVenda.toISOString() : null,
     }));
 
     return NextResponse.json(payload);
@@ -94,6 +96,8 @@ export async function POST(req: NextRequest) {
     coparticipacao,
     status,
     lote_producao_id,
+    valor_comissao,
+    data_venda,
   } = body;
 
   if (!nome || !origem || !estado || !cidade || !qtd_vidas || !idades) {
@@ -149,6 +153,11 @@ export async function POST(req: NextRequest) {
         dataEntrada: new Date(),
         userId: user.id,
         loteProducaoId: lote_producao_id,
+        valorComissao:
+          valor_comissao !== null && valor_comissao !== undefined
+            ? Number(valor_comissao)
+            : null,
+        dataVenda: data_venda ? new Date(data_venda) : null,
       },
     });
 

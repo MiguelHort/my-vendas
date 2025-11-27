@@ -44,6 +44,8 @@ export async function PUT(req: NextRequest) {
     acomodacao,
     valor_mensalidade,
     coparticipacao,
+    valor_comissao,
+    data_venda,
   } = body;
 
   try {
@@ -54,6 +56,8 @@ export async function PUT(req: NextRequest) {
     });
 
     const data: any = {};
+
+    console.log("Dados recebidos para atualização:", body);
 
     if (nome !== undefined) data.nome = nome;
     if (origem !== undefined) data.origem = origem;
@@ -80,6 +84,10 @@ export async function PUT(req: NextRequest) {
           : null;
     if (coparticipacao !== undefined)
       data.coparticipacao = coparticipacao;
+    if (valor_comissao !== undefined)
+      data.valorComissao =
+        valor_comissao !== null ? Number(valor_comissao) : null;
+    if (data_venda !== undefined) data.dataVenda = data_venda;
 
     await prisma.lead.update({
       where: {
