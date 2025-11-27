@@ -60,6 +60,9 @@ type Lead = {
   coparticipacao: string | null;
   motivo_dispensa: string | null;
   updated_at: string;
+  // novos campos
+  valor_comissao: number | null;
+  data_venda: string | null; // ISO string (DateTime no Prisma)
 };
 
 const statusColumns = [
@@ -109,11 +112,17 @@ const FunilPage = () => {
   const [dispensaLeadId, setDispensaLeadId] = React.useState<string>("");
   const [motivoDispensa, setMotivoDispensa] = React.useState<string>("");
 
+  // Modal de conclusão (comissão + data)
+  const [showConclusaoModal, setShowConclusaoModal] = React.useState(false);
+  const [conclusaoLeadId, setConclusaoLeadId] = React.useState<string>("");
+  const [valorComissaoInput, setValorComissaoInput] =
+    React.useState<string>("");
+  const [dataVendaInput, setDataVendaInput] = React.useState<string>("");
+
   // Modal de edição
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
-  const [editFormData, setEditFormData] =
-    React.useState<Partial<Lead>>({});
+  const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
 
   const getFilterDate = () => {
     const now = new Date();
@@ -129,11 +138,7 @@ const FunilPage = () => {
         return d.toISOString();
       }
       case "este-mes":
-        return new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          1
-        ).toISOString();
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       case "3-meses": {
         const d = new Date(now);
         d.setMonth(d.getMonth() - 3);
@@ -142,11 +147,7 @@ const FunilPage = () => {
       case "todo-historico":
         return null;
       default:
-        return new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          1
-        ).toISOString();
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     }
   };
 
@@ -228,17 +229,28 @@ const FunilPage = () => {
     const newStatus = destination.droppableId;
     const leadId = draggableId;
 
-    // Se arrastar para "Dispensado", abrir modal
+    // Se arrastar para "Dispensado", abrir modal de dispensa
     if (newStatus === "Dispensado") {
       setDispensaLeadId(leadId);
       setShowDispensaModal(true);
       return;
     }
 
+    // Se arrastar para "Concluído", abrir modal de comissão + data
+    if (newStatus === "Concluído") {
+      setConclusaoLeadId(leadId);
+      setValorComissaoInput("");
+      setDataVendaInput("");
+      setShowConclusaoModal(true);
+      return;
+    }  
+
     if (!firebaseUser) return;
 
-    // Atualização otimista
+    // Atualização otimista para outros status
     const previousLeads = [...leads];
+    const previousAllLeads = [...allLeads];
+
     setLeads((prevLeads) =>
       prevLeads.map((lead) =>
         lead.id === leadId ? { ...lead, status: newStatus } : lead
@@ -252,24 +264,21 @@ const FunilPage = () => {
         name: firebaseUser.displayName || "",
       });
 
-      const res = await fetch(
-        `/api/leads/status?${params.toString()}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: leadId, status: newStatus }),
-        }
-      );
+      const res = await fetch(`/api/leads/status?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadId, status: newStatus }),
+      });
 
       if (!res.ok) {
         setLeads(previousLeads);
+        setAllLeads(previousAllLeads);
         const body = await res.json().catch(() => ({}));
         toast.error(
           "Erro ao atualizar status: " + (body.error || res.statusText)
         );
       } else {
         toast.success("Status atualizado com sucesso!");
-        // Atualiza allLeads também pra manter consistente
         setAllLeads((prev) =>
           prev.map((lead) =>
             lead.id === leadId ? { ...lead, status: newStatus } : lead
@@ -279,6 +288,7 @@ const FunilPage = () => {
     } catch (error) {
       console.error(error);
       setLeads(previousLeads);
+      setAllLeads(previousAllLeads);
       toast.error("Erro ao atualizar status do lead");
     }
   };
@@ -291,10 +301,22 @@ const FunilPage = () => {
     if (!firebaseUser) return;
 
     const previousLeads = [...leads];
+    const previousAllLeads = [...allLeads];
 
     // Atualização otimista
     setLeads((prevLeads) =>
       prevLeads.map((lead) =>
+        lead.id === dispensaLeadId
+          ? {
+              ...lead,
+              status: "Dispensado",
+              motivo_dispensa: motivoDispensa,
+            }
+          : lead
+      )
+    );
+    setAllLeads((prev) =>
+      prev.map((lead) =>
         lead.id === dispensaLeadId
           ? {
               ...lead,
@@ -318,43 +340,133 @@ const FunilPage = () => {
         name: firebaseUser.displayName || "",
       });
 
-      const res = await fetch(
-        `/api/leads/dispensa?${params.toString()}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: tempLeadId,
-            motivo_dispensa: tempMotivoDispensa,
-          }),
-        }
-      );
+      const res = await fetch(`/api/leads/dispensa?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: tempLeadId,
+          motivo_dispensa: tempMotivoDispensa,
+        }),
+      });
 
       if (!res.ok) {
         setLeads(previousLeads);
+        setAllLeads(previousAllLeads);
         const body = await res.json().catch(() => ({}));
         toast.error(
           "Erro ao dispensar lead: " + (body.error || res.statusText)
         );
       } else {
         toast.success("Lead dispensado com sucesso!");
-        // Atualiza allLeads também
-        setAllLeads((prev) =>
-          prev.map((lead) =>
-            lead.id === tempLeadId
-              ? {
-                  ...lead,
-                  status: "Dispensado",
-                  motivo_dispensa: tempMotivoDispensa,
-                }
-              : lead
-          )
-        );
       }
     } catch (error) {
       console.error(error);
       setLeads(previousLeads);
+      setAllLeads(previousAllLeads);
       toast.error("Erro ao dispensar lead");
+    }
+  };
+
+  const handleConfirmConclusao = async () => {
+    if (!valorComissaoInput.trim() || !dataVendaInput.trim()) {
+      toast.error("Informe o valor da comissão e a data da venda.");
+      return;
+    }
+    if (!firebaseUser) return;
+
+    const previousLeads = [...leads];
+    const previousAllLeads = [...allLeads];
+
+    const tempLeadId = conclusaoLeadId;
+    const valorNumber = parseFloat(
+      valorComissaoInput.replace(".", "").replace(",", ".")
+    );
+
+    // converte "YYYY-MM-DD" para ISO (DateTime)
+    const dataVendaISO = dataVendaInput
+      ? new Date(dataVendaInput + "T00:00:00").toISOString()
+      : null;
+
+    setShowConclusaoModal(false);
+    setConclusaoLeadId("");
+    setValorComissaoInput("");
+    setDataVendaInput("");
+
+    // Atualização otimista
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id === tempLeadId
+          ? {
+              ...lead,
+              status: "Concluído",
+              valor_comissao: isNaN(valorNumber) ? null : valorNumber,
+              data_venda: dataVendaISO,
+            }
+          : lead
+      )
+    );
+
+    setAllLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === tempLeadId
+          ? {
+              ...lead,
+              status: "Concluído",
+              valor_comissao: isNaN(valorNumber) ? null : valorNumber,
+              data_venda: dataVendaISO,
+            }
+          : lead
+      )
+    );
+
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+      });
+
+      // 1) Atualiza STATUS no /status
+      const resStatus = await fetch(`/api/leads/status?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: tempLeadId,
+          status: "Concluído",
+        }),
+      });
+
+      // 2) Atualiza COMISSÃO + DATA no /update
+      const resUpdate = await fetch(`/api/leads/update?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: tempLeadId,
+          valor_comissao: isNaN(valorNumber) ? null : valorNumber,
+          data_venda: dataVendaISO,
+        }),
+      });
+
+      if (!resStatus.ok || !resUpdate.ok) {
+        setLeads(previousLeads);
+        setAllLeads(previousAllLeads);
+
+        const badRes = !resStatus.ok ? resStatus : resUpdate;
+        const body = await badRes.json().catch(() => ({}));
+
+        toast.error(
+          "Erro ao concluir lead: " + (body.error || badRes.statusText)
+        );
+      } else {
+        toast.success("Lead concluído com sucesso!");
+        // se quiser garantir sincronização total com o banco:
+        // await fetchLeads();
+      }
+    } catch (error) {
+      console.error(error);
+      setLeads(previousLeads);
+      setAllLeads(previousAllLeads);
+      toast.error("Erro ao concluir lead");
     }
   };
 
@@ -377,6 +489,9 @@ const FunilPage = () => {
       acomodacao: lead.acomodacao,
       valor_mensalidade: lead.valor_mensalidade,
       coparticipacao: lead.coparticipacao,
+      // novos campos
+      valor_comissao: lead.valor_comissao,
+      data_venda: lead.data_venda,
     });
     setShowEditModal(true);
   };
@@ -391,17 +506,16 @@ const FunilPage = () => {
         name: firebaseUser.displayName || "",
       });
 
-      const res = await fetch(
-        `/api/leads/update?${params.toString()}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: editingLead.id,
-            ...editFormData,
-          }),
-        }
-      );
+      const res = await fetch(`/api/leads/update?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingLead.id,
+          ...editFormData,
+          valor_comissao: editFormData.valor_comissao ?? null,
+          data_venda: editFormData.data_venda ?? null,
+        }),
+      });
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -413,8 +527,6 @@ const FunilPage = () => {
         setShowEditModal(false);
         setEditingLead(null);
         setEditFormData({});
-
-        // Recarrega os leads para refletir as mudanças
         fetchLeads();
       }
     } catch (error) {
@@ -429,12 +541,8 @@ const FunilPage = () => {
   const getHiddenCount = (status: string) => {
     if (!["Dispensado", "Concluído"].includes(status)) return 0;
 
-    const allStatusLeads = allLeads.filter(
-      (lead) => lead.status === status
-    );
-    const visibleStatusLeads = leads.filter(
-      (lead) => lead.status === status
-    );
+    const allStatusLeads = allLeads.filter((lead) => lead.status === status);
+    const visibleStatusLeads = leads.filter((lead) => lead.status === status);
 
     return allStatusLeads.length - visibleStatusLeads.length;
   };
@@ -501,9 +609,7 @@ const FunilPage = () => {
                 <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
                 <SelectItem value="este-mes">Este Mês</SelectItem>
                 <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
-                <SelectItem value="todo-historico">
-                  Todo o Histórico
-                </SelectItem>
+                <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -519,9 +625,7 @@ const FunilPage = () => {
                     className={`${column.color} p-3 rounded-lg`}
                     title={column.tooltip}
                   >
-                    <h3 className="font-semibold text-sm">
-                      {column.title}
-                    </h3>
+                    <h3 className="font-semibold text-sm">{column.title}</h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       {getLeadsByStatus(column.id).length} leads
                       {hiddenCount > 0 && (
@@ -539,72 +643,69 @@ const FunilPage = () => {
                         ref={provided.innerRef}
                         className="space-y-2 min-h-[200px]"
                       >
-                        {getLeadsByStatus(column.id).map(
-                          (lead, index) => (
-                            <Draggable
-                              key={lead.id}
-                              draggableId={lead.id}
-                              index={index}
-                            >
-                              {(provided) => (
-                                <Card
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className="cursor-move p-0 hover:shadow-md transition-shadow relative group"
-                                >
-                                  <CardContent className="p-5">
-                                    <div className="flex justify-between items-start mb-2">
-                                      <p className="font-medium text-sm">
-                                        {lead.nome}
-                                      </p>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenEditModal(lead);
-                                        }}
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <div className="flex gap-2 flex-wrap mb-2">
-                                      <Badge
-                                        variant="outline"
-                                        className="text-xs"
-                                      >
-                                        {lead.origem}
-                                      </Badge>
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-xs"
-                                      >
-                                        {lead.estado}
-                                      </Badge>
-                                      {lead.operadora_ofertada && (
-                                        <Badge
-                                          variant="default"
-                                          className="text-xs bg-muted text-foreground"
-                                        >
-                                          {
-                                            lead.operadora_ofertada
-                                          }
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                      {new Date(
-                                        lead.data_entrada
-                                      ).toLocaleDateString("pt-BR")}
+                        {getLeadsByStatus(column.id).map((lead, index) => (
+                          <Draggable
+                            key={lead.id}
+                            draggableId={lead.id}
+                            index={index}
+                            isDragDisabled={lead.status === "Concluído"}
+                          >
+                            {(provided) => (
+                              <Card
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="cursor-move p-0 hover:shadow-md transition-shadow relative group"
+                              >
+                                <CardContent className="p-5">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <p className="font-medium text-sm">
+                                      {lead.nome}
                                     </p>
-                                  </CardContent>
-                                </Card>
-                              )}
-                            </Draggable>
-                          )
-                        )}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditModal(lead);
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                  <div className="flex gap-2 flex-wrap mb-2">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {lead.origem}
+                                    </Badge>
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {lead.estado}
+                                    </Badge>
+                                    {lead.operadora_ofertada && (
+                                      <Badge
+                                        variant="default"
+                                        className="text-xs bg-muted text-foreground"
+                                      >
+                                        {lead.operadora_ofertada}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    {new Date(
+                                      lead.data_entrada
+                                    ).toLocaleDateString("pt-BR")}
+                                  </p>
+                                </CardContent>
+                              </Card>
+                            )}
+                          </Draggable>
+                        ))}
                         {provided.placeholder}
                       </div>
                     )}
@@ -616,16 +717,13 @@ const FunilPage = () => {
         </DragDropContext>
 
         {/* Modal de Motivo da Dispensa */}
-        <Dialog
-          open={showDispensaModal}
-          onOpenChange={setShowDispensaModal}
-        >
+        <Dialog open={showDispensaModal} onOpenChange={setShowDispensaModal}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Motivo da Dispensa</DialogTitle>
               <DialogDescription>
-                Por favor, informe o motivo pelo qual este lead está
-                sendo dispensado.
+                Por favor, informe o motivo pelo qual este lead está sendo
+                dispensado.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -650,11 +748,51 @@ const FunilPage = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Modal de Conclusão (Comissão + Data de Venda) */}
+        <Dialog open={showConclusaoModal} onOpenChange={setShowConclusaoModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Concluir Venda</DialogTitle>
+              <DialogDescription>
+                Informe o valor da comissão recebida e a data da venda.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Valor da Comissão (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex: 350.00"
+                  value={valorComissaoInput}
+                  onChange={(e) => setValorComissaoInput(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data da Venda</Label>
+                <Input
+                  type="date"
+                  value={dataVendaInput}
+                  onChange={(e) => setDataVendaInput(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowConclusaoModal(false)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmConclusao}>
+                Confirmar Conclusão
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Modal de Edição de Lead */}
-        <Dialog
-          open={showEditModal}
-          onOpenChange={setShowEditModal}
-        >
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Editar Lead</DialogTitle>
@@ -692,21 +830,11 @@ const FunilPage = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="Lead Novo">
-                        Lead Novo
-                      </SelectItem>
-                      <SelectItem value="Retrabalho">
-                        Retrabalho
-                      </SelectItem>
-                      <SelectItem value="Ligação">
-                        Ligação
-                      </SelectItem>
-                      <SelectItem value="Indicação">
-                        Indicação
-                      </SelectItem>
-                      <SelectItem value="Presencial">
-                        Presencial
-                      </SelectItem>
+                      <SelectItem value="Lead Novo">Lead Novo</SelectItem>
+                      <SelectItem value="Retrabalho">Retrabalho</SelectItem>
+                      <SelectItem value="Ligação">Ligação</SelectItem>
+                      <SelectItem value="Indicação">Indicação</SelectItem>
+                      <SelectItem value="Presencial">Presencial</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -727,42 +855,24 @@ const FunilPage = () => {
                     </SelectTrigger>
                     <SelectContent className="bg-popover max-h-[300px]">
                       <SelectItem value="SP">São Paulo</SelectItem>
-                      <SelectItem value="RJ">
-                        Rio de Janeiro
-                      </SelectItem>
-                      <SelectItem value="MG">
-                        Minas Gerais
-                      </SelectItem>
+                      <SelectItem value="RJ">Rio de Janeiro</SelectItem>
+                      <SelectItem value="MG">Minas Gerais</SelectItem>
                       <SelectItem value="BA">Bahia</SelectItem>
                       <SelectItem value="PR">Paraná</SelectItem>
-                      <SelectItem value="RS">
-                        Rio Grande do Sul
-                      </SelectItem>
+                      <SelectItem value="RS">Rio Grande do Sul</SelectItem>
                       <SelectItem value="PE">Pernambuco</SelectItem>
                       <SelectItem value="CE">Ceará</SelectItem>
-                      <SelectItem value="SC">
-                        Santa Catarina
-                      </SelectItem>
+                      <SelectItem value="SC">Santa Catarina</SelectItem>
                       <SelectItem value="GO">Goiás</SelectItem>
                       <SelectItem value="MA">Maranhão</SelectItem>
-                      <SelectItem value="ES">
-                        Espírito Santo
-                      </SelectItem>
+                      <SelectItem value="ES">Espírito Santo</SelectItem>
                       <SelectItem value="PB">Paraíba</SelectItem>
-                      <SelectItem value="RN">
-                        Rio Grande do Norte
-                      </SelectItem>
-                      <SelectItem value="MT">
-                        Mato Grosso
-                      </SelectItem>
+                      <SelectItem value="RN">Rio Grande do Norte</SelectItem>
+                      <SelectItem value="MT">Mato Grosso</SelectItem>
                       <SelectItem value="AL">Alagoas</SelectItem>
                       <SelectItem value="PI">Piauí</SelectItem>
-                      <SelectItem value="DF">
-                        Distrito Federal
-                      </SelectItem>
-                      <SelectItem value="MS">
-                        Mato Grosso do Sul
-                      </SelectItem>
+                      <SelectItem value="DF">Distrito Federal</SelectItem>
+                      <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
                       <SelectItem value="SE">Sergipe</SelectItem>
                       <SelectItem value="RO">Rondônia</SelectItem>
                       <SelectItem value="TO">Tocantins</SelectItem>
@@ -798,9 +908,7 @@ const FunilPage = () => {
                   onChange={(e) =>
                     setEditFormData({
                       ...editFormData,
-                      telefone: formatPhoneNumber(
-                        e.target.value
-                      ),
+                      telefone: formatPhoneNumber(e.target.value),
                     })
                   }
                   maxLength={15}
@@ -881,9 +989,7 @@ const FunilPage = () => {
                   <div className="space-y-2">
                     <Label>Tempo no Plano Anterior</Label>
                     <Input
-                      value={
-                        editFormData.tempo_plano_anterior || ""
-                      }
+                      value={editFormData.tempo_plano_anterior || ""}
                       onChange={(e) =>
                         setEditFormData({
                           ...editFormData,
@@ -913,9 +1019,7 @@ const FunilPage = () => {
                   <SelectContent className="bg-popover">
                     <SelectItem value="PF">PF</SelectItem>
                     <SelectItem value="Adesão">Adesão</SelectItem>
-                    <SelectItem value="Empresarial">
-                      Empresarial
-                    </SelectItem>
+                    <SelectItem value="Empresarial">Empresarial</SelectItem>
                     <SelectItem value="PME">PME</SelectItem>
                   </SelectContent>
                 </Select>
@@ -949,15 +1053,9 @@ const FunilPage = () => {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    <SelectItem value="Enfermaria">
-                      Enfermaria
-                    </SelectItem>
-                    <SelectItem value="Apartamento">
-                      Apartamento
-                    </SelectItem>
-                    <SelectItem value="Ambulatorial">
-                      Ambulatorial
-                    </SelectItem>
+                    <SelectItem value="Enfermaria">Enfermaria</SelectItem>
+                    <SelectItem value="Apartamento">Apartamento</SelectItem>
+                    <SelectItem value="Ambulatorial">Ambulatorial</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -996,27 +1094,60 @@ const FunilPage = () => {
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
                       <SelectItem value="Total">Total</SelectItem>
-                      <SelectItem value="Parcial">
-                        Parcial
-                      </SelectItem>
-                      <SelectItem value="Isenta">
-                        Isenta
-                      </SelectItem>
+                      <SelectItem value="Parcial">Parcial</SelectItem>
+                      <SelectItem value="Isenta">Isenta</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
+              {/* NOVOS CAMPOS NO MODAL DE EDIÇÃO */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Valor Comissão (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editFormData.valor_comissao ?? ""}
+                    disabled={editFormData.status !== "Concluído"}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        valor_comissao: e.target.value
+                          ? parseFloat(e.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data da Venda</Label>
+                  <Input
+                    type="date"
+                    value={
+                      editFormData.data_venda
+                        ? editFormData.data_venda.substring(0, 10)
+                        : ""
+                    }
+                    disabled={editFormData.status !== "Concluído"}
+                    onChange={(e) => {
+                      const value = e.target.value; // YYYY-MM-DD
+                      setEditFormData({
+                        ...editFormData,
+                        data_venda: value
+                          ? new Date(value + "T00:00:00").toISOString()
+                          : null,
+                      });
+                    }}
+                  />
+                </div>
+              </div>
             </div>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowEditModal(false)}
-              >
+              <Button variant="outline" onClick={() => setShowEditModal(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSaveEdit}>
-                Salvar Alterações
-              </Button>
+              <Button onClick={handleSaveEdit}>Salvar Alterações</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
