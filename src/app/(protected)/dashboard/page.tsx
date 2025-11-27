@@ -464,16 +464,19 @@ const DashboardPage = () => {
                 </h3>
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   <li>
-                    <strong>Taxa de Resposta:</strong> % de leads que
-                    responderam (Avaliando + Dispensado)
+                    <strong>Taxa de Resposta:</strong> % de leads que geraram
+                    algum retorno (Avaliando, Dispensado ou Concluído) em
+                    relação ao total de leads no período.
                   </li>
                   <li>
                     <strong>Taxa de Qualificação:</strong> % de leads que
-                    entraram em Avaliando
+                    avançaram para oportunidade/negociação (Avaliando,
+                    Fechamento ou Concluído) em relação ao total de leads.
                   </li>
                   <li>
-                    <strong>Taxa de Fechamento:</strong> % de Vendas Concluídas
-                    sobre leads em Avaliando
+                    <strong>Taxa de Fechamento:</strong> % de vendas concluídas
+                    em relação aos leads qualificados (Avaliando, Fechamento ou
+                    Concluído).
                   </li>
                 </ul>
               </div>
