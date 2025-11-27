@@ -1,0 +1,154 @@
+{
+  "type": "Topology",
+  "objects": {
+    "estados": {
+      "type": "GeometryCollection",
+      "geometries": [
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "AC", "nome": "Acre" },
+          "arcs": [[0]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "AL", "nome": "Alagoas" },
+          "arcs": [[1]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "AM", "nome": "Amazonas" },
+          "arcs": [[2]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "AP", "nome": "Amapá" },
+          "arcs": [[3]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "BA", "nome": "Bahia" },
+          "arcs": [[4]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "CE", "nome": "Ceará" },
+          "arcs": [[5]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "DF", "nome": "Distrito Federal" },
+          "arcs": [[6]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "ES", "nome": "Espírito Santo" },
+          "arcs": [[7]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "GO", "nome": "Goiás" },
+          "arcs": [[8]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "MA", "nome": "Maranhão" },
+          "arcs": [[9]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "MG", "nome": "Minas Gerais" },
+          "arcs": [[10]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "MS", "nome": "Mato Grosso do Sul" },
+          "arcs": [[11]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "MT", "nome": "Mato Grosso" },
+          "arcs": [[12]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "PA", "nome": "Pará" },
+          "arcs": [[13]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "PB", "nome": "Paraíba" },
+          "arcs": [[14]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "PE", "nome": "Pernambuco" },
+          "arcs": [[15]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "PI", "nome": "Piauí" },
+          "arcs": [[16]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "PR", "nome": "Paraná" },
+          "arcs": [[17]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "RJ", "nome": "Rio de Janeiro" },
+          "arcs": [[18]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "RN", "nome": "Rio Grande do Norte" },
+          "arcs": [[19]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "RO", "nome": "Rondônia" },
+          "arcs": [[20]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "RR", "nome": "Roraima" },
+          "arcs": [[21]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "RS", "nome": "Rio Grande do Sul" },
+          "arcs": [[22]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "SC", "nome": "Santa Catarina" },
+          "arcs": [[23]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "SE", "nome": "Sergipe" },
+          "arcs": [[24]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "SP", "nome": "São Paulo" },
+          "arcs": [[25]]
+        },
+        {
+          "type": "Polygon",
+          "properties": { "sigla": "TO", "nome": "Tocantins" },
+          "arcs": [[26]]
+        }
+      ]
+    }
+  },
+  "arcs": [
+    [], [], [], [], [], [], [], [], [], [],
+    [], [], [], [], [], [], [], [], [], [],
+    [], [], [], [], [], [], []
+  ],
+  "transform": {
+    "scale": [1, 1],
+    "translate": [0, 0]
+  }
+}

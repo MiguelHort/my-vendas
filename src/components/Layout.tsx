@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { LayoutDashboard, Workflow, PlusCircle } from "lucide-react";
+import { LayoutDashboard, Workflow, PlusCircle, MapPinned } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 type LayoutProps = {
@@ -28,6 +28,11 @@ const navItems = [
     href: "/dashboard/novo-lead",
     label: "Novo Lead",
     icon: PlusCircle,
+  },
+  {
+    href: "/dashboard/mapa-estados",
+    label: "Mapa",
+    icon: MapPinned,
   },
 ];
 
