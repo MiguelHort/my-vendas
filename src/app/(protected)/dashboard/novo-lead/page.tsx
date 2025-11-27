@@ -298,7 +298,7 @@ const NovoLeadPage = () => {
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-accent flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center">
                 <Package className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -502,7 +502,7 @@ const NovoLeadPage = () => {
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-accent flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center">
                 <UserPlus className="w-5 h-5 text-white" />
               </div>
               <div>
