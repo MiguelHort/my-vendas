@@ -1109,7 +1109,7 @@ const FunilPage = () => {
                     type="number"
                     step="0.01"
                     value={editFormData.valor_comissao ?? ""}
-                    disabled={editFormData.status !== "Concluído"}
+                    disabled={editFormData.status == "Concluído"}
                     onChange={(e) =>
                       setEditFormData({
                         ...editFormData,
@@ -1129,7 +1129,7 @@ const FunilPage = () => {
                         ? editFormData.data_venda.substring(0, 10)
                         : ""
                     }
-                    disabled={editFormData.status !== "Concluído"}
+                    disabled={editFormData.status == "Concluído"}
                     onChange={(e) => {
                       const value = e.target.value; // YYYY-MM-DD
                       setEditFormData({
