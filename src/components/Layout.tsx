@@ -98,7 +98,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold tracking-tight">
-                myvendas
+                WinLead
               </span>
               <span className="text-[11px] text-muted-foreground">
                 CRM Saúde · Corretores
@@ -204,7 +204,7 @@ export function Layout({ children }: LayoutProps) {
       {/* RODAPÉ */}
       <footer className="border-t mt-4">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} myvendas</span>
+          <span>© {new Date().getFullYear()} WinLead</span>
           <span>Foco em corretores de planos de saúde</span>
         </div>
       </footer>
