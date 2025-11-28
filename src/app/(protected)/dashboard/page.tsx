@@ -321,7 +321,7 @@ const DashboardPage = () => {
       icon: Target,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
-      colNumber: 1,
+      colNumber: 1, 
     },
     {
       title: "Taxa de Fechamento",
