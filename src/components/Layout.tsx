@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { LayoutDashboard, Workflow, PlusCircle } from "lucide-react";
+import { LayoutDashboard, Workflow, PlusCircle, MapPinned } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 type LayoutProps = {
@@ -28,6 +28,11 @@ const navItems = [
     href: "/dashboard/novo-lead",
     label: "Novo Lead",
     icon: PlusCircle,
+  },
+  {
+    href: "/dashboard/mapa-estados",
+    label: "Mapa",
+    icon: MapPinned,
   },
 ];
 
@@ -93,7 +98,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold tracking-tight">
-                myvendas
+                WinLead
               </span>
               <span className="text-[11px] text-muted-foreground">
                 CRM Saúde · Corretores
@@ -199,7 +204,7 @@ export function Layout({ children }: LayoutProps) {
       {/* RODAPÉ */}
       <footer className="border-t mt-4">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} myvendas</span>
+          <span>© {new Date().getFullYear()} WinLead</span>
           <span>Foco em corretores de planos de saúde</span>
         </div>
       </footer>

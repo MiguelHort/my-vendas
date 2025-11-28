@@ -32,7 +32,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col leading-tight">
               <span className="font-semibold text-sm md:text-base">
-                MyVendas
+                WinLead
               </span>
               <span className="text-xs text-muted-foreground">
                 CRM para corretores de saúde
@@ -81,7 +81,7 @@ export default function LandingPage() {
                   Organize suas vendas de planos de saúde em um só lugar.
                 </h1>
                 <p className="text-base md:text-lg text-muted-foreground">
-                  MyVendas é um micro-SaaS focado em corretores que querem
+                  WinLead é um micro-SaaS focado em corretores que querem
                   parar de perder leads, acompanhar o funil de vendas e ter
                   previsibilidade de comissões — sem planilhas confusas.
                 </p>
@@ -182,7 +182,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold">
-                  Como o MyVendas funciona
+                  Como o WinLead funciona
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
                   Em poucos minutos você cria sua conta, importa seus leads e
@@ -263,7 +263,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-xl">
                 Se você ainda se perde em planilhas, mensagens soltas no
-                WhatsApp ou tenta controlar tudo na cabeça, o MyVendas foi
+                WhatsApp ou tenta controlar tudo na cabeça, o WinLead foi
                 criado exatamente para o seu dia a dia.
               </p>
 
@@ -324,7 +324,7 @@ export default function LandingPage() {
             <Card className="self-start">
               <CardHeader>
                 <CardTitle className="text-base">
-                  Para quem o MyVendas foi criado?
+                  Para quem o WinLead foi criado?
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -427,7 +427,7 @@ export default function LandingPage() {
                     <li>• Integrações personalizadas</li>
                   </ul>
                   <Button className="w-full mt-2" variant="outline" asChild>
-                    <Link href="mailto:contato@myvendas.com">
+                    <Link href="mailto:contato@WinLead.com">
                       Falar com o time
                     </Link>
                   </Button>
@@ -491,7 +491,7 @@ export default function LandingPage() {
             <Accordion type="single" collapsible className="space-y-2">
               <AccordionItem value="item-1">
                 <AccordionTrigger className="text-sm text-left">
-                  O MyVendas é só para planos de saúde?
+                  O WinLead é só para planos de saúde?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
                   Ele foi pensado principalmente para corretores que vendem
@@ -506,7 +506,7 @@ export default function LandingPage() {
                   Preciso instalar alguma coisa no meu computador?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Não. O MyVendas é 100% online. Você acessa pelo navegador,
+                  Não. O WinLead é 100% online. Você acessa pelo navegador,
                   tanto no computador quanto no celular.
                 </AccordionContent>
               </AccordionItem>
@@ -541,7 +541,7 @@ export default function LandingPage() {
       <footer className="border-t">
         <div className="max-w-7xl mx-auto px-4 py-6 text-xs text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span>© {new Date().getFullYear()} MyVendas.</span>
+            <span>© {new Date().getFullYear()} WinLead.</span>
             <span>Todos os direitos reservados.</span>
           </div>
           <div className="flex items-center gap-4">

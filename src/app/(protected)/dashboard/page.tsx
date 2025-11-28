@@ -83,14 +83,7 @@ const DashboardPage = () => {
         break;
       case "mes-passado":
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        endDate = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          0,
-          23,
-          59,
-          59
-        );
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
         break;
       case "ultimos-90":
         const past = new Date();
@@ -234,11 +227,19 @@ const DashboardPage = () => {
 
   // ----------------- cálculos de métricas -----------------
   const filteredLeads = leads.filter((lead) => {
-    const leadDate = new Date(lead.data_entrada);
-    const { startDate } = getDateRange();
+    const { startDate, endDate } = getDateRange();
 
-    const dentroDataRange = leadDate >= startDate;
-    const origemMatch = filtroOrigem === "Todos" || lead.origem === filtroOrigem;
+    // datas base do range em formato YYYY-MM-DD
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = endDate.toISOString().slice(0, 10);
+
+    // data do lead em formato YYYY-MM-DD
+    const leadDateStr = lead.data_entrada.slice(0, 10); // "2025-11-27..."
+
+    const dentroDataRange = leadDateStr >= startStr && leadDateStr <= endStr;
+
+    const origemMatch =
+      filtroOrigem === "Todos" || lead.origem === filtroOrigem;
 
     return dentroDataRange && origemMatch;
   });
@@ -247,27 +248,39 @@ const DashboardPage = () => {
   const vendasFechadas = filteredLeads.filter(
     (l) => l.status === "Concluído"
   ).length;
+
   const totalComissoes = filteredLeads
     .filter((l) => l.status === "Concluído")
     .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
 
-  const leadEmAndamento = filteredLeads.filter(
-    (l) => l.status === "Avaliando"
+  // leads que em algum momento “se movimentaram” (responderam)
+  const leadsRespondidos = filteredLeads.filter((l) =>
+    ["Avaliando", "Dispensado", "Concluído"].includes(l.status)
   ).length;
-  const leadSemInteresse = filteredLeads.filter(
-    (l) => l.status === "Dispensado"
+
+  // leads considerados qualificados
+  const leadsQualificados = filteredLeads.filter((l) =>
+    ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
   const taxaResposta =
-    totalLeads > 0
-      ? ((leadEmAndamento + leadSemInteresse) / totalLeads) * 100
-      : 0;
+    totalLeads > 0 ? (leadsRespondidos / totalLeads) * 100 : 0;
 
   const taxaQualificacao =
-    totalLeads > 0 ? (leadEmAndamento / totalLeads) * 100 : 0;
+    totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
   const taxaFechamento =
-    leadEmAndamento > 0 ? (vendasFechadas / leadEmAndamento) * 100 : 0;
+    leadsQualificados > 0 ? (vendasFechadas / leadsQualificados) * 100 : 0;
+
+  console.log({
+    totalLeads,
+    vendasFechadas,
+    leadsRespondidos,
+    leadsQualificados,
+    taxaResposta,
+    taxaQualificacao,
+    taxaFechamento,
+  });
 
   const metrics = [
     {
@@ -293,7 +306,10 @@ const DashboardPage = () => {
     },
     {
       title: "Total em Comissões",
-      value: `R$ ${totalComissoes.toFixed(2)}`,
+      value: (totalComissoes ?? 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
       icon: DollarSign,
       color: "text-success",
       bgColor: "bg-success/10",
@@ -302,22 +318,22 @@ const DashboardPage = () => {
       title: "Taxa de Resposta",
       value: `${taxaResposta.toFixed(1)}%`,
       icon: ThumbsUp,
-      color: "text-accent",
-      bgColor: "bg-accent/10",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
     },
     {
       title: "Taxa de Qualificação",
       value: `${taxaQualificacao.toFixed(1)}%`,
       icon: Target,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
     },
     {
       title: "Taxa de Fechamento",
       value: `${taxaFechamento.toFixed(1)}%`,
       icon: TrendingUp,
-      color: "text-success",
-      bgColor: "bg-success/10",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
     },
   ];
 
@@ -373,10 +389,7 @@ const DashboardPage = () => {
               <CardTitle className="text-base">Filtrar por Origem</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select
-                value={filtroOrigem}
-                onValueChange={setFiltroOrigem}
-              >
+              <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Selecione a origem" />
                 </SelectTrigger>
@@ -397,10 +410,7 @@ const DashboardPage = () => {
               <CardTitle className="text-base">Período</CardTitle>
             </CardHeader>
             <CardContent>
-              <Select
-                value={filtroPeriodo}
-                onValueChange={setFiltroPeriodo}
-              >
+              <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Selecione o período" />
                 </SelectTrigger>
@@ -454,16 +464,19 @@ const DashboardPage = () => {
                 </h3>
                 <ul className="space-y-1 text-sm text-muted-foreground">
                   <li>
-                    <strong>Taxa de Resposta:</strong> % de leads que
-                    responderam (Avaliando + Dispensado)
+                    <strong>Taxa de Resposta:</strong> % de leads que geraram
+                    algum retorno (Avaliando, Dispensado ou Concluído) em
+                    relação ao total de leads no período.
                   </li>
                   <li>
                     <strong>Taxa de Qualificação:</strong> % de leads que
-                    entraram em Avaliando
+                    avançaram para oportunidade/negociação (Avaliando,
+                    Fechamento ou Concluído) em relação ao total de leads.
                   </li>
                   <li>
-                    <strong>Taxa de Fechamento:</strong> % de Vendas
-                    Concluídas sobre leads em Avaliando
+                    <strong>Taxa de Fechamento:</strong> % de vendas concluídas
+                    em relação aos leads qualificados (Avaliando, Fechamento ou
+                    Concluído).
                   </li>
                 </ul>
               </div>
@@ -475,8 +488,8 @@ const DashboardPage = () => {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-primary" />
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
                   <CardTitle>Top 10 Estados por Volume de Vendas</CardTitle>
@@ -505,45 +518,55 @@ const DashboardPage = () => {
                   })()}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="estado" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  {/* grade de fundo mais clarinha */}
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+
+                  {/* eixo X / Y com cinza suave */}
+                  <XAxis
+                    dataKey="estado"
+                    tick={{ fill: "#6B7280", fontSize: 12 }} // texto cinza
+                    axisLine={{ stroke: "#D1D5DB" }} // linha do eixo
+                    tickLine={{ stroke: "#D1D5DB" }}
+                  />
+                  <YAxis
+                    tick={{ fill: "#6B7280", fontSize: 12 }}
+                    axisLine={{ stroke: "#D1D5DB" }}
+                    tickLine={{ stroke: "#D1D5DB" }}
+                  />
+
+                  {/* tooltip com fundo clarinho */}
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: 8,
+                      color: "#111827",
                     }}
                   />
-                  <Bar dataKey="vendas" radius={[8, 8, 0, 0]}>
-                    {(() => {
-                      const data = filteredLeads
-                        .filter((l) => l.status === "Concluído")
-                        .reduce((acc, lead) => {
-                          const key = lead.estado || "N/D";
-                          acc[key] = (acc[key] || 0) + 1;
-                          return acc;
-                        }, {} as Record<string, number>);
 
-                      return Object.entries(data)
-                        .map(([estado, vendas]) => ({ estado, vendas }))
-                        .sort((a, b) => b.vendas - a.vendas)
-                        .slice(0, 10)
-                        .map((entry, index) => {
-                          const colors = [
-                            "hsl(var(--success))",
-                            "hsl(var(--primary))",
-                            "hsl(var(--accent))",
-                          ];
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={colors[index % colors.length]}
-                            />
-                          );
-                        });
-                    })()}
-                  </Bar>
+                  {/* gradiente bonito nas barras */}
+                  <defs>
+                    <linearGradient
+                      id="vendasGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#22C55E" stopOpacity={0.9} />
+                      <stop
+                        offset="100%"
+                        stopColor="#22C55E"
+                        stopOpacity={0.4}
+                      />
+                    </linearGradient>
+                  </defs>
+
+                  <Bar
+                    dataKey="vendas"
+                    radius={[8, 8, 0, 0]}
+                    fill="url(#vendasGradient)" // 👈 barras verdes com gradiente
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
