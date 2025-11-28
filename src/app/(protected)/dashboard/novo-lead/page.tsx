@@ -937,7 +937,7 @@ const NovoLeadPage = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push("/funil")}
+                  onClick={() => router.push("/dashboard/funil")}
                   disabled={loading}
                   className="flex-1"
                 >
