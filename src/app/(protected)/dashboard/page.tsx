@@ -289,30 +289,23 @@ const DashboardPage = () => {
       icon: Package,
       color: "text-purple-600",
       bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      colNumber: 1,
     },
     {
       title: "Total de Leads Abordados",
       value: totalLeads,
       icon: Users,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      colNumber: 1,
     },
     {
       title: "Vendas Fechadas",
       value: vendasFechadas,
       icon: CheckCircle2,
-      color: "text-success",
-      bgColor: "bg-success/10",
-    },
-    {
-      title: "Total em Comissões",
-      value: (totalComissoes ?? 0).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      icon: DollarSign,
-      color: "text-success",
-      bgColor: "bg-success/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 1,
     },
     {
       title: "Taxa de Resposta",
@@ -320,6 +313,7 @@ const DashboardPage = () => {
       icon: ThumbsUp,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
+      colNumber: 1,
     },
     {
       title: "Taxa de Qualificação",
@@ -327,13 +321,26 @@ const DashboardPage = () => {
       icon: Target,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
+      colNumber: 1,
     },
     {
       title: "Taxa de Fechamento",
       value: `${taxaFechamento.toFixed(1)}%`,
       icon: TrendingUp,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 1,
+    },
+        {
+      title: "Total em Comissões",
+      value: (totalComissoes ?? 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
+      icon: DollarSign,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 3,
     },
   ];
 
@@ -430,7 +437,7 @@ const DashboardPage = () => {
             return (
               <Card
                 key={index}
-                className="shadow-sm hover:shadow-md transition-shadow"
+                className={`shadow-sm hover:shadow-md transition-shadow ${`col-span-${metric.colNumber}`}`}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
