@@ -9,7 +9,16 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { MapPin } from "lucide-react";
+import { MapPin, Trophy } from "lucide-react"; // ⬅️ adicionamos Trophy
+
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Lead = {
   id: string;
@@ -18,10 +27,16 @@ type Lead = {
   valor_comissao: number | null;
   data_entrada: string;
   estado: string; // deve ser a sigla: SP, RJ, BA...
+  // campos extras usados no filtro de tempo (podem vir do backend)
+  updated_at?: string;
+  data_venda: string | null;
 };
 
 const geographyUrl =
   "https://raw.githubusercontent.com/giuliano-macedo/geodata-br-states/main/geojson/br_states.json";
+
+const getFlagUrl = (uf: string) =>
+  `https://raw.githubusercontent.com/bgeneto/bandeiras-br/master/imagens/${uf.toUpperCase()}.png`;
 
 const NOME_PARA_SIGLA: Record<string, string> = {
   Acre: "AC",
@@ -72,6 +87,10 @@ export default function MapaVendasPage() {
     y: 0,
   });
 
+  // mesmo filtro do Funil
+  const [filtroFinalizados, setFiltroFinalizados] =
+    useState<string>("este-mes");
+
   // ----------------- buscar leads -----------------
   const fetchLeads = async () => {
     if (!firebaseUser) return;
@@ -109,32 +128,77 @@ export default function MapaVendasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, loadingAuth]);
 
-  // ----------------- agregação por estado -----------------
+  // ----------------- agregação por estado + filtro de tempo -----------------
   const vendasPorEstado = useMemo(() => {
     const mapa: Record<string, number> = {};
 
+    const now = new Date();
+    const cutoffIso = (() => {
+      switch (filtroFinalizados) {
+        case "7-dias": {
+          const d = new Date(now);
+          d.setDate(d.getDate() - 7);
+          return d.toISOString();
+        }
+        case "15-dias": {
+          const d = new Date(now);
+          d.setDate(d.getDate() - 15);
+          return d.toISOString();
+        }
+        case "este-mes":
+          return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        case "3-meses": {
+          const d = new Date(now);
+          d.setMonth(d.getMonth() - 3);
+          return d.toISOString();
+        }
+        case "todo-historico":
+          return null;
+        default:
+          return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      }
+    })();
+
     leads
       .filter((l) => l.status === "Concluído")
+      .filter((lead) => {
+        if (!cutoffIso) return true;
+
+        // 🔥 filtra somente por data_venda
+        if (!lead.data_venda) return false;
+
+        return new Date(lead.data_venda) >= new Date(cutoffIso);
+      })
       .forEach((lead) => {
         const uf = lead.estado || "N/D";
         mapa[uf] = (mapa[uf] || 0) + 1;
       });
 
     return mapa;
-  }, [leads]);
+  }, [leads, filtroFinalizados]);
 
-  const { estadoTop, maxVendas } = useMemo(() => {
+  // ----------------- estado campeão + totais -----------------
+  const { estadoTop, maxVendas, totalEstados, totalVendas } = useMemo(() => {
     let max = 0;
     let ufTop: string | null = null;
+    let total = 0;
+    let estadosComVenda = 0;
 
     Object.entries(vendasPorEstado).forEach(([uf, qtd]) => {
+      total += qtd;
+      if (qtd > 0) estadosComVenda += 1;
       if (qtd > max) {
         max = qtd;
         ufTop = uf;
       }
     });
 
-    return { estadoTop: ufTop, maxVendas: max };
+    return {
+      estadoTop: ufTop,
+      maxVendas: max,
+      totalEstados: estadosComVenda,
+      totalVendas: total,
+    };
   }, [vendasPorEstado]);
 
   // ----------------- estados de loading / auth -----------------
@@ -177,14 +241,39 @@ export default function MapaVendasPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <MapPin className="w-7 h-7 text-primary" />
-            Mapa de Vendas por Estado
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Visualize em qual estado você mais conclui vendas.
-          </p>
+        {/* Cabeçalho + filtro (igual ao Funil) */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <MapPin className="w-7 h-7 text-primary" />
+              Mapa de Vendas por Estado
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Visualize em qual estado você mais conclui vendas, de acordo com o
+              período selecionado.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium whitespace-nowrap">
+              Exibir Finalizados:
+            </Label>
+            <Select
+              value={filtroFinalizados}
+              onValueChange={setFiltroFinalizados}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
+                <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
+                <SelectItem value="este-mes">Este Mês</SelectItem>
+                <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
+                <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
@@ -324,36 +413,80 @@ export default function MapaVendasPage() {
 
           {/* Painel lateral com resumo */}
           <Card>
-            <CardHeader>
-              <CardTitle>Resumo por estado</CardTitle>
+            <CardHeader className="pb-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-semibold">
+                  Resumo por estado
+                </CardTitle>
+
+                {totalVendas > 0 && (
+                  <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {totalVendas} venda
+                    {totalVendas === 1 ? "" : "s"} no período
+                  </span>
+                )}
+              </div>
+
+              {totalEstados > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {totalEstados} estado
+                  {totalEstados === 1 ? "" : "s"} com vendas registradas.
+                </p>
+              )}
             </CardHeader>
+
             <CardContent className="space-y-4">
               {estadoTop ? (
-                <div className="rounded-lg border bg-muted/40 p-4 space-y-1">
-                  <p className="text-xs tracking-wide uppercase text-muted-foreground">
-                    Estado com mais vendas
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {estadoTop}{" "}
-                    <span className="text-sm font-normal text-muted-foreground">
-                      ({maxVendas} vendas concluídas)
-                    </span>
-                  </p>
+                <div className="flex items-start gap-3 rounded-xl border bg-linear-to-br from-emerald-50 via-background to-slate-50 p-4 dark:from-emerald-900/20 dark:via-background dark:to-slate-900/40">
+                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                    <Trophy className="h-5 w-5" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Estado campeão no período
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex justify-center items-center gap-2 text-2xl font-semibold tracking-tight">
+                        <img
+                          src={getFlagUrl(estadoTop)}
+                          alt={`Bandeira de ${estadoTop}`}
+                          className="inline-block h-9 w-12 rounded-sm border object-cover"
+                        />
+                        {Object.entries(NOME_PARA_SIGLA).find(
+                          ([_, sigla]) => sigla === estadoTop
+                        )?.[0] || estadoTop}
+                        <p></p>
+                      </span>
+
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        {maxVendas} venda
+                        {maxVendas === 1 ? "" : "s"}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Destaque entre {totalEstados} estado
+                      {totalEstados === 1 ? "" : "s"} com vendas neste período.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Ainda não há vendas concluídas para exibir no mapa.
+                  Ainda não há vendas concluídas para exibir no mapa neste
+                  período.
                 </p>
               )}
 
-              <div className="max-h-[260px] overflow-auto">
+              <div className="max-h-[260px] overflow-auto rounded-lg border">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-background border-b">
-                    <tr>
-                      <th className="text-left py-2 px-2 font-semibold">
+                  <thead className="sticky top-0 bg-muted/40">
+                    <tr className="border-b">
+                      <th className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Estado
                       </th>
-                      <th className="text-right py-2 px-2 font-semibold">
+                      <th className="text-right py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Vendas concl.
                       </th>
                     </tr>
@@ -361,14 +494,39 @@ export default function MapaVendasPage() {
                   <tbody>
                     {Object.entries(vendasPorEstado)
                       .sort((a, b) => b[1] - a[1])
-                      .map(([uf, qtd]) => (
-                        <tr key={uf} className="border-b last:border-0">
-                          <td className="py-2 px-2 font-medium">{uf}</td>
-                          <td className="py-2 px-2 text-right text-success font-semibold">
-                            {qtd}
-                          </td>
-                        </tr>
-                      ))}
+                      .map(([uf, qtd]) => {
+                        const isTop = estadoTop === uf && maxVendas > 0;
+
+                        return (
+                          <tr
+                            key={uf}
+                            className="border-b last:border-0 hover:bg-muted/40 transition-colors"
+                          >
+                            <td className="py-2 px-3 font-medium">
+                              <div className="flex items-center gap-2">
+                                {/* Bandeira */}
+                                <img
+                                  src={getFlagUrl(uf)}
+                                  alt={`Bandeira de ${uf}`}
+                                  className="h-4 w-6 rounded-sm border object-cover"
+                                />
+
+                                {/* Troféu , se for o top */}
+                                {isTop && (
+                                  <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                                )}
+
+                                {/* Sigla */}
+                                <span>{uf}</span>
+                              </div>
+                            </td>
+
+                            <td className="py-2 px-3 text-right font-semibold text-success">
+                              {qtd}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
