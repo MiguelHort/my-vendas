@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
+import Image from "next/image";
 
 export default function LandingPage() {
   return (
@@ -26,19 +27,15 @@ export default function LandingPage() {
       {/* NAVBAR */}
       <header className="border-b sticky top-0 z-40 bg-background/80 backdrop-blur">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl border flex items-center justify-center text-xs font-bold">
-              MV
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-sm md:text-base">
-                WinLead
-              </span>
-              <span className="text-xs text-muted-foreground">
-                CRM para corretores de saúde
-              </span>
-            </div>
-          </div>
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <Image
+              src="/imgs/logo01.png"
+              alt="WinLead"
+              width={128}
+              height={32}
+              unoptimized
+            />
+          </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <Link href="#como-funciona" className="hover:text-foreground">
