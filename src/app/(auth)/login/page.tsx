@@ -60,16 +60,16 @@ export default function LoginPage() {
       <Link href="/dashboard" className="flex items-center gap-3">
         <Image
           src="/imgs/logo01.png"
-          alt="WinLead"
-          width={128}
-          height={32}
+          alt="WinLeads"
+          width={186}
+          height={100}
           unoptimized
         />
       </Link>
       <Card className="w-full max-w-md shadow-xl border border-slate-200 rounded-2xl backdrop-blur-sm bg-white/80">
         <CardHeader className="space-y-2 pb-2">
           <CardTitle className="text-3xl font-semibold text-center text-slate-800">
-            Bem-vindo ao <span className="text-primary">WinLead</span>
+            Bem-vindo ao <span className="text-primary">WinLeads</span>
           </CardTitle>
 
           <CardDescription className="text-center text-slate-500 text-sm">
