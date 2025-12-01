@@ -93,14 +93,19 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center gap-4">
           {/* Logo + nome */}
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-1">
             <Image
-              src="/imgs/logo01.png"
-              alt="WinLead"
-              width={128}
-              height={32}
+              src="/imgs/logo02.png"
+              alt="WinLeads"
+              width={50}
+              height={50}
               unoptimized
             />
+            <div className="flex flex-col">
+              <p className="text-green-700 text-xl">
+                <span className="font-bold">Win</span>Leads
+              </p>
+            </div>
           </Link>
 
           {/* Navegação central (desktop) */}
@@ -167,8 +172,7 @@ export function Layout({ children }: LayoutProps) {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
-                (item.href !== "/dashboard" &&
-                  pathname?.startsWith(item.href));
+                (item.href !== "/dashboard" && pathname?.startsWith(item.href));
 
               return (
                 <Button
@@ -201,7 +205,7 @@ export function Layout({ children }: LayoutProps) {
       {/* RODAPÉ */}
       <footer className="border-t mt-4">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} WinLead</span>
+          <span>© {new Date().getFullYear()} WinLeads</span>
           <span>Foco em corretores de planos de saúde</span>
         </div>
       </footer>
