@@ -31,6 +31,10 @@ export type UserMinAggregateOutputType = {
   name: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  subscriptionStatus: string | null
+  isActive: boolean | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -40,6 +44,10 @@ export type UserMaxAggregateOutputType = {
   name: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  subscriptionStatus: string | null
+  isActive: boolean | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -49,6 +57,10 @@ export type UserCountAggregateOutputType = {
   name: number
   createdAt: number
   updatedAt: number
+  stripeCustomerId: number
+  stripeSubscriptionId: number
+  subscriptionStatus: number
+  isActive: number
   _all: number
 }
 
@@ -60,6 +72,10 @@ export type UserMinAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  subscriptionStatus?: true
+  isActive?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -69,6 +85,10 @@ export type UserMaxAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  subscriptionStatus?: true
+  isActive?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -78,6 +98,10 @@ export type UserCountAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  subscriptionStatus?: true
+  isActive?: true
   _all?: true
 }
 
@@ -160,6 +184,10 @@ export type UserGroupByOutputType = {
   name: string | null
   createdAt: Date
   updatedAt: Date
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  subscriptionStatus: string | null
+  isActive: boolean
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
@@ -190,6 +218,10 @@ export type UserWhereInput = {
   name?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableFilter<"User"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableFilter<"User"> | string | null
+  subscriptionStatus?: Prisma.StringNullableFilter<"User"> | string | null
+  isActive?: Prisma.BoolFilter<"User"> | boolean
   leads?: Prisma.LeadListRelationFilter
   lotesProducao?: Prisma.LoteProducaoListRelationFilter
 }
@@ -201,6 +233,10 @@ export type UserOrderByWithRelationInput = {
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  subscriptionStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   leads?: Prisma.LeadOrderByRelationAggregateInput
   lotesProducao?: Prisma.LoteProducaoOrderByRelationAggregateInput
 }
@@ -215,6 +251,10 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   name?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableFilter<"User"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableFilter<"User"> | string | null
+  subscriptionStatus?: Prisma.StringNullableFilter<"User"> | string | null
+  isActive?: Prisma.BoolFilter<"User"> | boolean
   leads?: Prisma.LeadListRelationFilter
   lotesProducao?: Prisma.LoteProducaoListRelationFilter
 }, "id" | "firebaseUid">
@@ -226,6 +266,10 @@ export type UserOrderByWithAggregationInput = {
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  subscriptionStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
@@ -241,6 +285,10 @@ export type UserScalarWhereWithAggregatesInput = {
   name?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  subscriptionStatus?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
 }
 
 export type UserCreateInput = {
@@ -250,6 +298,10 @@ export type UserCreateInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   leads?: Prisma.LeadCreateNestedManyWithoutUserInput
   lotesProducao?: Prisma.LoteProducaoCreateNestedManyWithoutUserInput
 }
@@ -261,6 +313,10 @@ export type UserUncheckedCreateInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   leads?: Prisma.LeadUncheckedCreateNestedManyWithoutUserInput
   lotesProducao?: Prisma.LoteProducaoUncheckedCreateNestedManyWithoutUserInput
 }
@@ -272,6 +328,10 @@ export type UserUpdateInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUpdateManyWithoutUserNestedInput
   lotesProducao?: Prisma.LoteProducaoUpdateManyWithoutUserNestedInput
 }
@@ -283,6 +343,10 @@ export type UserUncheckedUpdateInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUncheckedUpdateManyWithoutUserNestedInput
   lotesProducao?: Prisma.LoteProducaoUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -294,6 +358,10 @@ export type UserCreateManyInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
 }
 
 export type UserUpdateManyMutationInput = {
@@ -303,6 +371,10 @@ export type UserUpdateManyMutationInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -312,6 +384,10 @@ export type UserUncheckedUpdateManyInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -321,6 +397,10 @@ export type UserCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  subscriptionStatus?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -330,6 +410,10 @@ export type UserMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  subscriptionStatus?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -339,6 +423,10 @@ export type UserMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  subscriptionStatus?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
 }
 
 export type UserNullableScalarRelationFilter = {
@@ -361,6 +449,10 @@ export type NullableStringFieldUpdateOperationsInput = {
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
 }
 
 export type UserCreateNestedOneWithoutLeadsInput = {
@@ -400,6 +492,10 @@ export type UserCreateWithoutLeadsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   lotesProducao?: Prisma.LoteProducaoCreateNestedManyWithoutUserInput
 }
 
@@ -410,6 +506,10 @@ export type UserUncheckedCreateWithoutLeadsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   lotesProducao?: Prisma.LoteProducaoUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -436,6 +536,10 @@ export type UserUpdateWithoutLeadsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lotesProducao?: Prisma.LoteProducaoUpdateManyWithoutUserNestedInput
 }
 
@@ -446,6 +550,10 @@ export type UserUncheckedUpdateWithoutLeadsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lotesProducao?: Prisma.LoteProducaoUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -456,6 +564,10 @@ export type UserCreateWithoutLotesProducaoInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   leads?: Prisma.LeadCreateNestedManyWithoutUserInput
 }
 
@@ -466,6 +578,10 @@ export type UserUncheckedCreateWithoutLotesProducaoInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  isActive?: boolean
   leads?: Prisma.LeadUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -492,6 +608,10 @@ export type UserUpdateWithoutLotesProducaoInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUpdateManyWithoutUserNestedInput
 }
 
@@ -502,6 +622,10 @@ export type UserUncheckedUpdateWithoutLotesProducaoInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -552,6 +676,10 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  subscriptionStatus?: boolean
+  isActive?: boolean
   leads?: boolean | Prisma.User$leadsArgs<ExtArgs>
   lotesProducao?: boolean | Prisma.User$lotesProducaoArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -564,6 +692,10 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  subscriptionStatus?: boolean
+  isActive?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -573,6 +705,10 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  subscriptionStatus?: boolean
+  isActive?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -582,9 +718,13 @@ export type UserSelectScalar = {
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  subscriptionStatus?: boolean
+  isActive?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firebaseUid" | "email" | "name" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firebaseUid" | "email" | "name" | "createdAt" | "updatedAt" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "isActive", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   leads?: boolean | Prisma.User$leadsArgs<ExtArgs>
   lotesProducao?: boolean | Prisma.User$lotesProducaoArgs<ExtArgs>
@@ -606,6 +746,10 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     name: string | null
     createdAt: Date
     updatedAt: Date
+    stripeCustomerId: string | null
+    stripeSubscriptionId: string | null
+    subscriptionStatus: string | null
+    isActive: boolean
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -1037,6 +1181,10 @@ export interface UserFieldRefs {
   readonly name: Prisma.FieldRef<"User", 'String'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
+  readonly stripeCustomerId: Prisma.FieldRef<"User", 'String'>
+  readonly stripeSubscriptionId: Prisma.FieldRef<"User", 'String'>
+  readonly subscriptionStatus: Prisma.FieldRef<"User", 'String'>
+  readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
 }
     
 
