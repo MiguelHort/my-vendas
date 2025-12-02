@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
+import Image from "next/image";
 
 export default function LandingPage() {
   return (
@@ -26,19 +27,15 @@ export default function LandingPage() {
       {/* NAVBAR */}
       <header className="border-b sticky top-0 z-40 bg-background/80 backdrop-blur">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl border flex items-center justify-center text-xs font-bold">
-              MV
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-sm md:text-base">
-                WinLead
-              </span>
-              <span className="text-xs text-muted-foreground">
-                CRM para corretores de saúde
-              </span>
-            </div>
-          </div>
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <Image
+              src="/imgs/logo01.png"
+              alt="WinLeads"
+              width={128}
+              height={32}
+              unoptimized
+            />
+          </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <Link href="#como-funciona" className="hover:text-foreground">
@@ -81,7 +78,7 @@ export default function LandingPage() {
                   Organize suas vendas de planos de saúde em um só lugar.
                 </h1>
                 <p className="text-base md:text-lg text-muted-foreground">
-                  WinLead é um micro-SaaS focado em corretores que querem
+                  WinLeads é um micro-SaaS focado em corretores que querem
                   parar de perder leads, acompanhar o funil de vendas e ter
                   previsibilidade de comissões — sem planilhas confusas.
                 </p>
@@ -182,7 +179,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold">
-                  Como o WinLead funciona
+                  Como o WinLeads funciona
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
                   Em poucos minutos você cria sua conta, importa seus leads e
@@ -263,7 +260,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-xl">
                 Se você ainda se perde em planilhas, mensagens soltas no
-                WhatsApp ou tenta controlar tudo na cabeça, o WinLead foi
+                WhatsApp ou tenta controlar tudo na cabeça, o WinLeads foi
                 criado exatamente para o seu dia a dia.
               </p>
 
@@ -324,7 +321,7 @@ export default function LandingPage() {
             <Card className="self-start">
               <CardHeader>
                 <CardTitle className="text-base">
-                  Para quem o WinLead foi criado?
+                  Para quem o WinLeads foi criado?
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -427,7 +424,7 @@ export default function LandingPage() {
                     <li>• Integrações personalizadas</li>
                   </ul>
                   <Button className="w-full mt-2" variant="outline" asChild>
-                    <Link href="mailto:contato@WinLead.com">
+                    <Link href="mailto:contato@WinLeads.com">
                       Falar com o time
                     </Link>
                   </Button>
@@ -491,7 +488,7 @@ export default function LandingPage() {
             <Accordion type="single" collapsible className="space-y-2">
               <AccordionItem value="item-1">
                 <AccordionTrigger className="text-sm text-left">
-                  O WinLead é só para planos de saúde?
+                  O WinLeads é só para planos de saúde?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
                   Ele foi pensado principalmente para corretores que vendem
@@ -506,7 +503,7 @@ export default function LandingPage() {
                   Preciso instalar alguma coisa no meu computador?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Não. O WinLead é 100% online. Você acessa pelo navegador,
+                  Não. O WinLeads é 100% online. Você acessa pelo navegador,
                   tanto no computador quanto no celular.
                 </AccordionContent>
               </AccordionItem>
@@ -541,7 +538,7 @@ export default function LandingPage() {
       <footer className="border-t">
         <div className="max-w-7xl mx-auto px-4 py-6 text-xs text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span>© {new Date().getFullYear()} WinLead.</span>
+            <span>© {new Date().getFullYear()} WinLeads.</span>
             <span>Todos os direitos reservados.</span>
           </div>
           <div className="flex items-center gap-4">

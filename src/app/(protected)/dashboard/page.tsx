@@ -33,7 +33,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 
 type Lead = {
@@ -289,20 +288,47 @@ const DashboardPage = () => {
       icon: Package,
       color: "text-purple-600",
       bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      colNumber: 1,
     },
     {
       title: "Total de Leads Abordados",
       value: totalLeads,
       icon: Users,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      colNumber: 1,
     },
     {
       title: "Vendas Fechadas",
       value: vendasFechadas,
       icon: CheckCircle2,
-      color: "text-success",
-      bgColor: "bg-success/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 1,
+    },
+    {
+      title: "Taxa de Resposta",
+      value: `${taxaResposta.toFixed(1)}%`,
+      icon: ThumbsUp,
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      colNumber: 1,
+    },
+    {
+      title: "Taxa de Qualificação",
+      value: `${taxaQualificacao.toFixed(1)}%`,
+      icon: Target,
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+      colNumber: 1,
+    },
+    {
+      title: "Taxa de Fechamento",
+      value: `${taxaFechamento.toFixed(1)}%`,
+      icon: TrendingUp,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 1,
     },
     {
       title: "Total em Comissões",
@@ -311,29 +337,9 @@ const DashboardPage = () => {
         currency: "BRL",
       }),
       icon: DollarSign,
-      color: "text-success",
-      bgColor: "bg-success/10",
-    },
-    {
-      title: "Taxa de Resposta",
-      value: `${taxaResposta.toFixed(1)}%`,
-      icon: ThumbsUp,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-    },
-    {
-      title: "Taxa de Qualificação",
-      value: `${taxaQualificacao.toFixed(1)}%`,
-      icon: Target,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-    },
-    {
-      title: "Taxa de Fechamento",
-      value: `${taxaFechamento.toFixed(1)}%`,
-      icon: TrendingUp,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      colNumber: 3,
     },
   ];
 
@@ -430,7 +436,7 @@ const DashboardPage = () => {
             return (
               <Card
                 key={index}
-                className="shadow-sm hover:shadow-md transition-shadow"
+                className={`shadow-sm hover:shadow-md transition-shadow ${`col-span-${metric.colNumber}`}`}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -485,6 +491,7 @@ const DashboardPage = () => {
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top 10 estados por volume de vendas */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -518,14 +525,12 @@ const DashboardPage = () => {
                   })()}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
-                  {/* grade de fundo mais clarinha */}
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
 
-                  {/* eixo X / Y com cinza suave */}
                   <XAxis
                     dataKey="estado"
-                    tick={{ fill: "#6B7280", fontSize: 12 }} // texto cinza
-                    axisLine={{ stroke: "#D1D5DB" }} // linha do eixo
+                    tick={{ fill: "#6B7280", fontSize: 12 }}
+                    axisLine={{ stroke: "#D1D5DB" }}
                     tickLine={{ stroke: "#D1D5DB" }}
                   />
                   <YAxis
@@ -534,7 +539,6 @@ const DashboardPage = () => {
                     tickLine={{ stroke: "#D1D5DB" }}
                   />
 
-                  {/* tooltip com fundo clarinho */}
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#FFFFFF",
@@ -544,7 +548,6 @@ const DashboardPage = () => {
                     }}
                   />
 
-                  {/* gradiente bonito nas barras */}
                   <defs>
                     <linearGradient
                       id="vendasGradient"
@@ -565,13 +568,14 @@ const DashboardPage = () => {
                   <Bar
                     dataKey="vendas"
                     radius={[8, 8, 0, 0]}
-                    fill="url(#vendasGradient)" // 👈 barras verdes com gradiente
+                    fill="url(#vendasGradient)"
                   />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
+          {/* Taxa de fechamento por estado */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -595,7 +599,7 @@ const DashboardPage = () => {
                         Estado
                       </th>
                       <th className="text-center py-3 px-2 font-semibold">
-                        Avaliando
+                        Leads Qualificados
                       </th>
                       <th className="text-center py-3 px-2 font-semibold">
                         Vendas Concluídas
@@ -610,27 +614,40 @@ const DashboardPage = () => {
                       const estadosData = filteredLeads.reduce((acc, lead) => {
                         const key = lead.estado || "N/D";
                         if (!acc[key]) {
-                          acc[key] = { andamento: 0, vendas: 0 };
+                          acc[key] = { qualificados: 0, vendas: 0 };
                         }
-                        if (lead.status === "Avaliando") {
-                          acc[key].andamento++;
+
+                        const ehQualificado = [
+                          "Avaliando",
+                          "Fechamento",
+                          "Concluído",
+                        ].includes(lead.status);
+
+                        if (ehQualificado) {
+                          acc[key].qualificados++;
                         }
+
                         if (lead.status === "Concluído") {
                           acc[key].vendas++;
                         }
+
                         return acc;
-                      }, {} as Record<string, { andamento: number; vendas: number }>);
+                      }, {} as Record<string, { qualificados: number; vendas: number }>);
 
                       return Object.entries(estadosData)
-                        .map(([estado, data]) => ({
-                          estado,
-                          andamento: data.andamento,
-                          vendas: data.vendas,
-                          taxa:
-                            data.andamento > 0
-                              ? (data.vendas / data.andamento) * 100
-                              : 0,
-                        }))
+                        .map(([estado, data]) => {
+                          const taxa =
+                            data.qualificados > 0
+                              ? (data.vendas / data.qualificados) * 100
+                              : 0;
+
+                          return {
+                            estado,
+                            qualificados: data.qualificados,
+                            vendas: data.vendas,
+                            taxa,
+                          };
+                        })
                         .sort((a, b) => b.taxa - a.taxa)
                         .map((row, index) => (
                           <tr
@@ -641,7 +658,7 @@ const DashboardPage = () => {
                               {row.estado}
                             </td>
                             <td className="py-3 px-2 text-center">
-                              {row.andamento}
+                              {row.qualificados}
                             </td>
                             <td className="py-3 px-2 text-center text-success font-semibold">
                               {row.vendas}

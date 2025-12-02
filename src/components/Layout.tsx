@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { LayoutDashboard, Workflow, PlusCircle, MapPinned } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import Image from "next/image";
 
 type LayoutProps = {
   children: ReactNode;
@@ -92,17 +93,18 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center gap-4">
           {/* Logo + nome */}
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-xs font-bold tracking-tight shadow-sm">
-              MV
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">
-                WinLead
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                CRM Saúde · Corretores
-              </span>
+          <Link href="/dashboard" className="flex items-center gap-1">
+            <Image
+              src="/imgs/logo02.png"
+              alt="WinLeads"
+              width={50}
+              height={50}
+              unoptimized
+            />
+            <div className="flex flex-col">
+              <p className="text-green-700 text-xl">
+                <span className="font-bold">Win</span>Leads
+              </p>
             </div>
           </Link>
 
@@ -170,8 +172,7 @@ export function Layout({ children }: LayoutProps) {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
-                (item.href !== "/dashboard" &&
-                  pathname?.startsWith(item.href));
+                (item.href !== "/dashboard" && pathname?.startsWith(item.href));
 
               return (
                 <Button
@@ -204,7 +205,7 @@ export function Layout({ children }: LayoutProps) {
       {/* RODAPÉ */}
       <footer className="border-t mt-4">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} WinLead</span>
+          <span>© {new Date().getFullYear()} WinLeads</span>
           <span>Foco em corretores de planos de saúde</span>
         </div>
       </footer>
