@@ -1,3 +1,4 @@
+// src/components/GuestGuard.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,8 +12,13 @@ export default function GuestGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) router.replace("/dashboard"); // redireciona quem já está logado
-      setChecking(false);
+      if (user) {
+        // Já está logado -> manda pro dashboard
+        router.replace("/dashboard");
+      } else {
+        // Não logado -> pode ver a página de login/registro
+        setChecking(false);
+      }
     });
 
     return () => unsub();
