@@ -5,8 +5,6 @@ import * as React from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -35,35 +32,8 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
-import { Pencil } from "lucide-react";
-import { formatPhoneNumber } from "@/lib/phoneMask";
 
-type Lead = {
-  id: string;
-  nome: string;
-  origem: string;
-  status: string;
-  data_entrada: string;
-  estado: string;
-  cidade: string | null;
-  telefone: string | null;
-  operadora_ofertada: string | null;
-  qtd_vidas: number;
-  idades: string;
-  possui_cnpj: boolean | null;
-  tem_plano_anterior: boolean | null;
-  operadora_anterior: string | null;
-  tempo_plano_anterior: string | null;
-  modalidade: string | null;
-  acomodacao: string | null;
-  valor_mensalidade: number | null;
-  coparticipacao: string | null;
-  motivo_dispensa: string | null;
-  updated_at: string;
-  // novos campos
-  valor_comissao: number | null;
-  data_venda: string | null; // ISO string (DateTime no Prisma)
-};
+import LeadCard, { Lead } from "@/components/LeadCard";
 
 const statusColumns = [
   {
@@ -118,11 +88,6 @@ const FunilPage = () => {
   const [valorComissaoInput, setValorComissaoInput] =
     React.useState<string>("");
   const [dataVendaInput, setDataVendaInput] = React.useState<string>("");
-
-  // Modal de edição
-  const [showEditModal, setShowEditModal] = React.useState(false);
-  const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
-  const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
 
   const getFilterDate = () => {
     const now = new Date();
@@ -243,7 +208,7 @@ const FunilPage = () => {
       setDataVendaInput("");
       setShowConclusaoModal(true);
       return;
-    }  
+    }
 
     if (!firebaseUser) return;
 
@@ -459,79 +424,12 @@ const FunilPage = () => {
         );
       } else {
         toast.success("Lead concluído com sucesso!");
-        // se quiser garantir sincronização total com o banco:
-        // await fetchLeads();
       }
     } catch (error) {
       console.error(error);
       setLeads(previousLeads);
       setAllLeads(previousAllLeads);
       toast.error("Erro ao concluir lead");
-    }
-  };
-
-  const handleOpenEditModal = (lead: Lead) => {
-    setEditingLead(lead);
-    setEditFormData({
-      nome: lead.nome,
-      origem: lead.origem,
-      estado: lead.estado,
-      cidade: lead.cidade,
-      telefone: lead.telefone,
-      qtd_vidas: lead.qtd_vidas,
-      idades: lead.idades,
-      possui_cnpj: lead.possui_cnpj,
-      tem_plano_anterior: lead.tem_plano_anterior,
-      operadora_anterior: lead.operadora_anterior,
-      tempo_plano_anterior: lead.tempo_plano_anterior,
-      modalidade: lead.modalidade,
-      operadora_ofertada: lead.operadora_ofertada,
-      acomodacao: lead.acomodacao,
-      valor_mensalidade: lead.valor_mensalidade,
-      coparticipacao: lead.coparticipacao,
-      // novos campos
-      valor_comissao: lead.valor_comissao,
-      data_venda: lead.data_venda,
-    });
-    setShowEditModal(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingLead || !firebaseUser) return;
-
-    try {
-      const params = new URLSearchParams({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        name: firebaseUser.displayName || "",
-      });
-
-      const res = await fetch(`/api/leads/update?${params.toString()}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingLead.id,
-          ...editFormData,
-          valor_comissao: editFormData.valor_comissao ?? null,
-          data_venda: editFormData.data_venda ?? null,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao atualizar lead: " + (body.error || res.statusText)
-        );
-      } else {
-        toast.success("Lead atualizado com sucesso!");
-        setShowEditModal(false);
-        setEditingLead(null);
-        setEditFormData({});
-        fetchLeads();
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro ao atualizar lead");
     }
   };
 
@@ -650,59 +548,22 @@ const FunilPage = () => {
                             index={index}
                             isDragDisabled={lead.status === "Concluído"}
                           >
-                            {(provided) => (
-                              <Card
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className="cursor-move p-0 hover:shadow-md transition-shadow relative group"
+                            {(providedDraggable) => (
+                              <div
+                                ref={providedDraggable.innerRef}
+                                {...providedDraggable.draggableProps}
+                                {...providedDraggable.dragHandleProps}
                               >
-                                <CardContent className="p-5">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <p className="font-medium text-sm">
-                                      {lead.nome}
-                                    </p>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenEditModal(lead);
-                                      }}
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                  <div className="flex gap-2 flex-wrap mb-2">
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {lead.origem}
-                                    </Badge>
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      {lead.estado}
-                                    </Badge>
-                                    {lead.operadora_ofertada && (
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs bg-muted text-foreground"
-                                      >
-                                        {lead.operadora_ofertada}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mt-2">
-                                    {new Date(
-                                      lead.data_entrada
-                                    ).toLocaleDateString("pt-BR")}
-                                  </p>
-                                </CardContent>
-                              </Card>
+                                <LeadCard
+                                  lead={lead}
+                                  firebaseUser={{
+                                    uid: firebaseUser.uid,
+                                    email: firebaseUser.email,
+                                    displayName: firebaseUser.displayName,
+                                  }}
+                                  onRefreshLeads={fetchLeads}
+                                />
+                              </div>
                             )}
                           </Draggable>
                         ))}
@@ -787,367 +648,6 @@ const FunilPage = () => {
               <Button onClick={handleConfirmConclusao}>
                 Confirmar Conclusão
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal de Edição de Lead */}
-        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Editar Lead</DialogTitle>
-              <DialogDescription>
-                Atualize as informações do lead
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Nome *</Label>
-                <Input
-                  value={editFormData.nome || ""}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      nome: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Origem *</Label>
-                  <Select
-                    value={editFormData.origem || ""}
-                    onValueChange={(value) =>
-                      setEditFormData({
-                        ...editFormData,
-                        origem: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="Lead Novo">Lead Novo</SelectItem>
-                      <SelectItem value="Retrabalho">Retrabalho</SelectItem>
-                      <SelectItem value="Ligação">Ligação</SelectItem>
-                      <SelectItem value="Indicação">Indicação</SelectItem>
-                      <SelectItem value="Presencial">Presencial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Estado *</Label>
-                  <Select
-                    value={editFormData.estado || ""}
-                    onValueChange={(value) =>
-                      setEditFormData({
-                        ...editFormData,
-                        estado: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover max-h-[300px]">
-                      <SelectItem value="SP">São Paulo</SelectItem>
-                      <SelectItem value="RJ">Rio de Janeiro</SelectItem>
-                      <SelectItem value="MG">Minas Gerais</SelectItem>
-                      <SelectItem value="BA">Bahia</SelectItem>
-                      <SelectItem value="PR">Paraná</SelectItem>
-                      <SelectItem value="RS">Rio Grande do Sul</SelectItem>
-                      <SelectItem value="PE">Pernambuco</SelectItem>
-                      <SelectItem value="CE">Ceará</SelectItem>
-                      <SelectItem value="SC">Santa Catarina</SelectItem>
-                      <SelectItem value="GO">Goiás</SelectItem>
-                      <SelectItem value="MA">Maranhão</SelectItem>
-                      <SelectItem value="ES">Espírito Santo</SelectItem>
-                      <SelectItem value="PB">Paraíba</SelectItem>
-                      <SelectItem value="RN">Rio Grande do Norte</SelectItem>
-                      <SelectItem value="MT">Mato Grosso</SelectItem>
-                      <SelectItem value="AL">Alagoas</SelectItem>
-                      <SelectItem value="PI">Piauí</SelectItem>
-                      <SelectItem value="DF">Distrito Federal</SelectItem>
-                      <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
-                      <SelectItem value="SE">Sergipe</SelectItem>
-                      <SelectItem value="RO">Rondônia</SelectItem>
-                      <SelectItem value="TO">Tocantins</SelectItem>
-                      <SelectItem value="AC">Acre</SelectItem>
-                      <SelectItem value="AP">Amapá</SelectItem>
-                      <SelectItem value="RR">Roraima</SelectItem>
-                      <SelectItem value="AM">Amazonas</SelectItem>
-                      <SelectItem value="PA">Pará</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Cidade</Label>
-                <Input
-                  value={editFormData.cidade || ""}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      cidade: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Telefone/WhatsApp</Label>
-                <Input
-                  type="tel"
-                  placeholder="(11) 98765-4321"
-                  value={editFormData.telefone || ""}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      telefone: formatPhoneNumber(e.target.value),
-                    })
-                  }
-                  maxLength={15}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Qtd. Vidas *</Label>
-                  <Input
-                    type="number"
-                    value={editFormData.qtd_vidas ?? ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        qtd_vidas: parseInt(e.target.value || "0"),
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Idades *</Label>
-                  <Input
-                    value={editFormData.idades || ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        idades: e.target.value,
-                      })
-                    }
-                    placeholder="Ex: 34, 30, 5"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={!!editFormData.possui_cnpj}
-                  onCheckedChange={(checked) =>
-                    setEditFormData({
-                      ...editFormData,
-                      possui_cnpj: checked,
-                    })
-                  }
-                />
-                <Label>Possui CNPJ</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={!!editFormData.tem_plano_anterior}
-                  onCheckedChange={(checked) =>
-                    setEditFormData({
-                      ...editFormData,
-                      tem_plano_anterior: checked,
-                    })
-                  }
-                />
-                <Label>Tem Plano Anterior</Label>
-              </div>
-
-              {editFormData.tem_plano_anterior && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Operadora Anterior</Label>
-                    <Input
-                      value={editFormData.operadora_anterior || ""}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          operadora_anterior: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Tempo no Plano Anterior</Label>
-                    <Input
-                      value={editFormData.tempo_plano_anterior || ""}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          tempo_plano_anterior: e.target.value,
-                        })
-                      }
-                      placeholder="Ex: 2 anos"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2">
-                <Label>Modalidade</Label>
-                <Select
-                  value={editFormData.modalidade || ""}
-                  onValueChange={(value) =>
-                    setEditFormData({
-                      ...editFormData,
-                      modalidade: value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="PF">PF</SelectItem>
-                    <SelectItem value="Adesão">Adesão</SelectItem>
-                    <SelectItem value="Empresarial">Empresarial</SelectItem>
-                    <SelectItem value="PME">PME</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Operadora Ofertada</Label>
-                <Input
-                  value={editFormData.operadora_ofertada || ""}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      operadora_ofertada: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Acomodação</Label>
-                <Select
-                  value={editFormData.acomodacao || ""}
-                  onValueChange={(value) =>
-                    setEditFormData({
-                      ...editFormData,
-                      acomodacao: value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="Enfermaria">Enfermaria</SelectItem>
-                    <SelectItem value="Apartamento">Apartamento</SelectItem>
-                    <SelectItem value="Ambulatorial">Ambulatorial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Valor Mensalidade</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editFormData.valor_mensalidade ?? ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        valor_mensalidade: e.target.value
-                          ? parseFloat(e.target.value)
-                          : null,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Coparticipação</Label>
-                  <Select
-                    value={editFormData.coparticipacao || ""}
-                    onValueChange={(value) =>
-                      setEditFormData({
-                        ...editFormData,
-                        coparticipacao: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      <SelectItem value="Total">Total</SelectItem>
-                      <SelectItem value="Parcial">Parcial</SelectItem>
-                      <SelectItem value="Isenta">Isenta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* NOVOS CAMPOS NO MODAL DE EDIÇÃO */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Valor Comissão (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editFormData.valor_comissao ?? ""}
-                    disabled={editFormData.status == "Concluído"}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        valor_comissao: e.target.value
-                          ? parseFloat(e.target.value)
-                          : null,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data da Venda</Label>
-                  <Input
-                    type="date"
-                    value={
-                      editFormData.data_venda
-                        ? editFormData.data_venda.substring(0, 10)
-                        : ""
-                    }
-                    disabled={editFormData.status == "Concluído"}
-                    onChange={(e) => {
-                      const value = e.target.value; // YYYY-MM-DD
-                      setEditFormData({
-                        ...editFormData,
-                        data_venda: value
-                          ? new Date(value + "T00:00:00").toISOString()
-                          : null,
-                      });
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditModal(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveEdit}>Salvar Alterações</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
