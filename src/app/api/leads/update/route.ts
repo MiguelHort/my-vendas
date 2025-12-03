@@ -46,6 +46,7 @@ export async function PUT(req: NextRequest) {
     coparticipacao,
     valor_comissao,
     data_venda,
+    last_chamado_at,
   } = body;
 
   try {
@@ -88,6 +89,8 @@ export async function PUT(req: NextRequest) {
       data.valorComissao =
         valor_comissao !== null ? Number(valor_comissao) : null;
     if (data_venda !== undefined) data.dataVenda = data_venda;
+    if (last_chamado_at !== undefined)
+      data.lastChamadoAt = last_chamado_at;
 
     await prisma.lead.update({
       where: {

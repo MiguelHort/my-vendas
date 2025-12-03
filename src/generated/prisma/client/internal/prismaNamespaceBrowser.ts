@@ -97,6 +97,7 @@ export const LeadScalarFieldEnum = {
   valorComissao: 'valorComissao',
   dataVenda: 'dataVenda',
   userId: 'userId',
+  lastChamadoAt: 'lastChamadoAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   estado: 'estado',
