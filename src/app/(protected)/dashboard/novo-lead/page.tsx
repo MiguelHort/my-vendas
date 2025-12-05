@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import { UserPlus, Package } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/phoneMask";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type Lote = {
   id: string;
@@ -65,21 +66,19 @@ const NovoLeadPage = () => {
   const [qtdVidas, setQtdVidas] = useState<string>("");
   const [idades, setIdades] = useState<string>("");
   const [possuiCNPJ, setPossuiCNPJ] = useState<boolean>(false);
-  const [temPlanoAnterior, setTemPlanoAnterior] =
-    useState<boolean>(false);
-  const [operadoraAnterior, setOperadoraAnterior] =
-    useState<string>("");
-  const [tempoPlanoAnterior, setTempoPlanoAnterior] =
-    useState<string>("");
+  const [temPlanoAnterior, setTemPlanoAnterior] = useState<boolean>(false);
+  const [operadoraAnterior, setOperadoraAnterior] = useState<string>("");
+  const [tempoPlanoAnterior, setTempoPlanoAnterior] = useState<string>("");
 
   // Lead fields - proposta
   const [modalidade, setModalidade] = useState<string>("");
-  const [operadoraOfertada, setOperadoraOfertada] =
-    useState<string>("");
+  const [operadoraOfertada, setOperadoraOfertada] = useState<string>("");
   const [acomodacao, setAcomodacao] = useState<string>("");
-  const [valorMensalidade, setValorMensalidade] =
-    useState<string>("");
+  const [valorMensalidade, setValorMensalidade] = useState<string>("");
   const [coparticipacao, setCoparticipacao] = useState<string>("");
+
+  // Tipo de lead: atual (vinculado a lote) ou antigo (sem lote)
+  const [tipoLead, setTipoLead] = useState<"atual" | "antigo">("atual");
 
   // Calcular volume total automaticamente
   const volumeTotal =
@@ -118,9 +117,7 @@ const NovoLeadPage = () => {
 
       // Pré-selecionar lote de hoje se existir
       const hoje = new Date().toISOString().split("T")[0];
-      const loteHoje = data.find((l) =>
-        l.data_acao.startsWith(hoje)
-      );
+      const loteHoje = data.find((l) => l.data_acao.startsWith(hoje));
       if (loteHoje) {
         setLoteId(loteHoje.id);
       }
@@ -164,9 +161,7 @@ const NovoLeadPage = () => {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao criar lote: " + (body.error || res.statusText)
-        );
+        toast.error("Erro ao criar lote: " + (body.error || res.statusText));
         return;
       }
 
@@ -237,7 +232,7 @@ const NovoLeadPage = () => {
             : null,
           coparticipacao: coparticipacao || null,
           status: "Abordagem",
-          lote_producao_id: loteId,
+          lote_producao_id: tipoLead === "antigo" ? null : loteId,
         }),
       });
 
@@ -245,9 +240,7 @@ const NovoLeadPage = () => {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao criar lead: " + (body.error || res.statusText)
-        );
+        toast.error("Erro ao criar lead: " + (body.error || res.statusText));
       } else {
         toast.success("Lead criado com sucesso!");
         router.push("/funil");
@@ -304,17 +297,13 @@ const NovoLeadPage = () => {
               <div>
                 <CardTitle>Lote de Produção</CardTitle>
                 <CardDescription>
-                  Registre o esforço realizado (ligações, visitas,
-                  etc.)
+                  Registre o esforço realizado (ligações, visitas, etc.)
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <form
-              onSubmit={handleCreateLote}
-              className="space-y-6"
-            >
+            <form onSubmit={handleCreateLote} className="space-y-6">
               <div className="space-y-4">
                 <div className="bg-muted/50 p-4 rounded-lg border">
                   <p className="text-sm font-medium mb-3">
@@ -328,69 +317,51 @@ const NovoLeadPage = () => {
                         type="number"
                         min="0"
                         value={qtdLigacao}
-                        onChange={(e) =>
-                          setQtdLigacao(e.target.value)
-                        }
+                        onChange={(e) => setQtdLigacao(e.target.value)}
                         className="text-base"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="qtd-leads-novos">
-                        Leads Novos
-                      </Label>
+                      <Label htmlFor="qtd-leads-novos">Leads Novos</Label>
                       <Input
                         id="qtd-leads-novos"
                         type="number"
                         min="0"
                         value={qtdLeadsNovos}
-                        onChange={(e) =>
-                          setQtdLeadsNovos(e.target.value)
-                        }
+                        onChange={(e) => setQtdLeadsNovos(e.target.value)}
                         className="text-base"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="qtd-retrabalhos">
-                        Retrabalhos
-                      </Label>
+                      <Label htmlFor="qtd-retrabalhos">Retrabalhos</Label>
                       <Input
                         id="qtd-retrabalhos"
                         type="number"
                         min="0"
                         value={qtdRetrabalhos}
-                        onChange={(e) =>
-                          setQtdRetrabalhos(e.target.value)
-                        }
+                        onChange={(e) => setQtdRetrabalhos(e.target.value)}
                         className="text-base"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="qtd-indicacao">
-                        Indicações
-                      </Label>
+                      <Label htmlFor="qtd-indicacao">Indicações</Label>
                       <Input
                         id="qtd-indicacao"
                         type="number"
                         min="0"
                         value={qtdIndicacao}
-                        onChange={(e) =>
-                          setQtdIndicacao(e.target.value)
-                        }
+                        onChange={(e) => setQtdIndicacao(e.target.value)}
                         className="text-base"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="qtd-presencial">
-                        Presenciais
-                      </Label>
+                      <Label htmlFor="qtd-presencial">Presenciais</Label>
                       <Input
                         id="qtd-presencial"
                         type="number"
                         min="0"
                         value={qtdPresencial}
-                        onChange={(e) =>
-                          setQtdPresencial(e.target.value)
-                        }
+                        onChange={(e) => setQtdPresencial(e.target.value)}
                         className="text-base"
                       />
                     </div>
@@ -406,9 +377,7 @@ const NovoLeadPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estado-regiao">
-                    Estado/Região *
-                  </Label>
+                  <Label htmlFor="estado-regiao">Estado/Região *</Label>
                   <Select
                     value={estadoRegiao}
                     onValueChange={setEstadoRegiao}
@@ -424,42 +393,24 @@ const NovoLeadPage = () => {
                       <SelectItem value="AM">Amazonas</SelectItem>
                       <SelectItem value="BA">Bahia</SelectItem>
                       <SelectItem value="CE">Ceará</SelectItem>
-                      <SelectItem value="DF">
-                        Distrito Federal
-                      </SelectItem>
-                      <SelectItem value="ES">
-                        Espírito Santo
-                      </SelectItem>
+                      <SelectItem value="DF">Distrito Federal</SelectItem>
+                      <SelectItem value="ES">Espírito Santo</SelectItem>
                       <SelectItem value="GO">Goiás</SelectItem>
                       <SelectItem value="MA">Maranhão</SelectItem>
-                      <SelectItem value="MT">
-                        Mato Grosso
-                      </SelectItem>
-                      <SelectItem value="MS">
-                        Mato Grosso do Sul
-                      </SelectItem>
-                      <SelectItem value="MG">
-                        Minas Gerais
-                      </SelectItem>
+                      <SelectItem value="MT">Mato Grosso</SelectItem>
+                      <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
+                      <SelectItem value="MG">Minas Gerais</SelectItem>
                       <SelectItem value="PA">Pará</SelectItem>
                       <SelectItem value="PB">Paraíba</SelectItem>
                       <SelectItem value="PR">Paraná</SelectItem>
                       <SelectItem value="PE">Pernambuco</SelectItem>
                       <SelectItem value="PI">Piauí</SelectItem>
-                      <SelectItem value="RJ">
-                        Rio de Janeiro
-                      </SelectItem>
-                      <SelectItem value="RN">
-                        Rio Grande do Norte
-                      </SelectItem>
-                      <SelectItem value="RS">
-                        Rio Grande do Sul
-                      </SelectItem>
+                      <SelectItem value="RJ">Rio de Janeiro</SelectItem>
+                      <SelectItem value="RN">Rio Grande do Norte</SelectItem>
+                      <SelectItem value="RS">Rio Grande do Sul</SelectItem>
                       <SelectItem value="RO">Rondônia</SelectItem>
                       <SelectItem value="RR">Roraima</SelectItem>
-                      <SelectItem value="SC">
-                        Santa Catarina
-                      </SelectItem>
+                      <SelectItem value="SC">Santa Catarina</SelectItem>
                       <SelectItem value="SP">São Paulo</SelectItem>
                       <SelectItem value="SE">Sergipe</SelectItem>
                       <SelectItem value="TO">Tocantins</SelectItem>
@@ -468,16 +419,12 @@ const NovoLeadPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="observacoes">
-                    Observações (Opcional)
-                  </Label>
+                  <Label htmlFor="observacoes">Observações (Opcional)</Label>
                   <Textarea
                     id="observacoes"
                     placeholder="Anotações sobre esta ação..."
                     value={observacoes}
-                    onChange={(e) =>
-                      setObservacoes(e.target.value)
-                    }
+                    onChange={(e) => setObservacoes(e.target.value)}
                     className="text-base"
                   />
                 </div>
@@ -485,14 +432,10 @@ const NovoLeadPage = () => {
 
               <Button
                 type="submit"
-                disabled={
-                  loadingLote || !estadoRegiao || volumeTotal === 0
-                }
+                disabled={loadingLote || !estadoRegiao || volumeTotal === 0}
                 className="w-full"
               >
-                {loadingLote
-                  ? "Criando Lote..."
-                  : "Criar Lote de Produção"}
+                {loadingLote ? "Criando Lote..." : "Criar Lote de Produção"}
               </Button>
             </form>
           </CardContent>
@@ -508,54 +451,108 @@ const NovoLeadPage = () => {
               <div>
                 <CardTitle>Cadastrar Novo Lead</CardTitle>
                 <CardDescription>
-                  Adicione um novo lead vinculado ao lote de
-                  produção
+                  Adicione um novo lead vinculado ao lote de produção
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6"
-            >
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Informações Básicas */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">
                   Informações Básicas
                 </h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="lote">
-                    Vincular ao Lote de Produção *
-                  </Label>
-                  <Select
-                    value={loteId}
-                    onValueChange={setLoteId}
-                    required
+                <Card className="p-6 bg-gray-100">
+                  <Label>O lead que será cadastrado é:</Label>
+
+                  <RadioGroup
+                    value={tipoLead}
+                    onValueChange={(value) =>
+                      setTipoLead(value as "atual" | "antigo")
+                    }
+                    className="grid grid-cols-1 md:grid-cols-2 gap-3"
                   >
-                    <SelectTrigger className="text-base">
-                      <SelectValue placeholder="Selecione um lote" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover max-h-[300px]">
-                      {lotes.map((lote) => (
-                        <SelectItem
-                          key={lote.id}
-                          value={lote.id}
+                    <div
+                      className={`
+                        rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all
+                        ${
+                          tipoLead === "atual"
+                            ? "border-primary bg-primary/10 hover:bg-primary/20"
+                            : "border-gray-300 hover:bg-muted/50"
+                        }
+                      `}
+                    >
+                      <RadioGroupItem id="lead-atual" value="atual" />
+                      <div>
+                        <Label
+                          htmlFor="lead-atual"
+                          className="font-medium cursor-pointer"
                         >
-                          {new Date(
-                            lote.data_acao
-                          ).toLocaleDateString("pt-BR")}{" "}
-                          - {lote.estado_regiao} (
-                          {lote.volume_total_chamado} chamados)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {textoLoteInfo}
-                  </p>
-                </div>
+                          Atual
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Vinculado a um lote de produção (funciona como hoje).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`
+                        rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all
+                        ${
+                          tipoLead === "antigo"
+                            ? "border-primary bg-primary/10 hover:bg-primary/20"
+                            : "border-gray-300 hover:bg-muted/50"
+                        }
+                      `}
+                    >
+                      <RadioGroupItem id="lead-antigo" value="antigo" />
+                      <div>
+                        <Label
+                          htmlFor="lead-antigo"
+                          className="font-medium cursor-pointer"
+                        >
+                          Antigo (Legado)
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Antes de adquirir o sistema. Não precisa vincular a um
+                          lote.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </Card>
+
+                {tipoLead === "atual" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="lote">Vincular ao Lote de Produção *</Label>
+                    <Select
+                      value={loteId}
+                      onValueChange={setLoteId}
+                      required={tipoLead === "atual"}
+                    >
+                      <SelectTrigger className="text-base">
+                        <SelectValue placeholder="Selecione um lote" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover max-h-[300px]">
+                        {lotes.map((lote) => (
+                          <SelectItem key={lote.id} value={lote.id}>
+                            {new Date(lote.data_acao).toLocaleDateString(
+                              "pt-BR"
+                            )}{" "}
+                            - {lote.estado_regiao} ({lote.volume_total_chamado}{" "}
+                            chamados)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {textoLoteInfo}
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="nome">Nome do Lead *</Label>
@@ -570,9 +567,7 @@ const NovoLeadPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">
-                    Telefone/WhatsApp
-                  </Label>
+                  <Label htmlFor="telefone">Telefone/WhatsApp</Label>
                   <Input
                     id="telefone"
                     name="telefone"
@@ -580,9 +575,7 @@ const NovoLeadPage = () => {
                     placeholder="(11) 98765-4321"
                     value={telefone}
                     onChange={(e) =>
-                      setTelefone(
-                        formatPhoneNumber(e.target.value)
-                      )
+                      setTelefone(formatPhoneNumber(e.target.value))
                     }
                     maxLength={15}
                     className="text-base"
@@ -591,44 +584,24 @@ const NovoLeadPage = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="origem">
-                      Origem do Lead *
-                    </Label>
-                    <Select
-                      value={origem}
-                      onValueChange={setOrigem}
-                      required
-                    >
+                    <Label htmlFor="origem">Origem do Lead *</Label>
+                    <Select value={origem} onValueChange={setOrigem} required>
                       <SelectTrigger className="text-base">
                         <SelectValue placeholder="Selecione a origem" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
-                        <SelectItem value="Lead Novo">
-                          Lead Novo
-                        </SelectItem>
-                        <SelectItem value="Retrabalho">
-                          Retrabalho
-                        </SelectItem>
-                        <SelectItem value="Ligação">
-                          Ligação
-                        </SelectItem>
-                        <SelectItem value="Indicação">
-                          Indicação
-                        </SelectItem>
-                        <SelectItem value="Presencial">
-                          Presencial
-                        </SelectItem>
+                        <SelectItem value="Lead Novo">Lead Novo</SelectItem>
+                        <SelectItem value="Retrabalho">Retrabalho</SelectItem>
+                        <SelectItem value="Ligação">Ligação</SelectItem>
+                        <SelectItem value="Indicação">Indicação</SelectItem>
+                        <SelectItem value="Presencial">Presencial</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="estado">Estado *</Label>
-                    <Select
-                      value={estado}
-                      onValueChange={setEstado}
-                      required
-                    >
+                    <Select value={estado} onValueChange={setEstado} required>
                       <SelectTrigger className="text-base">
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
@@ -639,42 +612,24 @@ const NovoLeadPage = () => {
                         <SelectItem value="AM">Amazonas</SelectItem>
                         <SelectItem value="BA">Bahia</SelectItem>
                         <SelectItem value="CE">Ceará</SelectItem>
-                        <SelectItem value="DF">
-                          Distrito Federal
-                        </SelectItem>
-                        <SelectItem value="ES">
-                          Espírito Santo
-                        </SelectItem>
+                        <SelectItem value="DF">Distrito Federal</SelectItem>
+                        <SelectItem value="ES">Espírito Santo</SelectItem>
                         <SelectItem value="GO">Goiás</SelectItem>
                         <SelectItem value="MA">Maranhão</SelectItem>
-                        <SelectItem value="MT">
-                          Mato Grosso
-                        </SelectItem>
-                        <SelectItem value="MS">
-                          Mato Grosso do Sul
-                        </SelectItem>
-                        <SelectItem value="MG">
-                          Minas Gerais
-                        </SelectItem>
+                        <SelectItem value="MT">Mato Grosso</SelectItem>
+                        <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
+                        <SelectItem value="MG">Minas Gerais</SelectItem>
                         <SelectItem value="PA">Pará</SelectItem>
                         <SelectItem value="PB">Paraíba</SelectItem>
                         <SelectItem value="PR">Paraná</SelectItem>
                         <SelectItem value="PE">Pernambuco</SelectItem>
                         <SelectItem value="PI">Piauí</SelectItem>
-                        <SelectItem value="RJ">
-                          Rio de Janeiro
-                        </SelectItem>
-                        <SelectItem value="RN">
-                          Rio Grande do Norte
-                        </SelectItem>
-                        <SelectItem value="RS">
-                          Rio Grande do Sul
-                        </SelectItem>
+                        <SelectItem value="RJ">Rio de Janeiro</SelectItem>
+                        <SelectItem value="RN">Rio Grande do Norte</SelectItem>
+                        <SelectItem value="RS">Rio Grande do Sul</SelectItem>
                         <SelectItem value="RO">Rondônia</SelectItem>
                         <SelectItem value="RR">Roraima</SelectItem>
-                        <SelectItem value="SC">
-                          Santa Catarina
-                        </SelectItem>
+                        <SelectItem value="SC">Santa Catarina</SelectItem>
                         <SelectItem value="SP">São Paulo</SelectItem>
                         <SelectItem value="SE">Sergipe</SelectItem>
                         <SelectItem value="TO">Tocantins</SelectItem>
@@ -705,18 +660,14 @@ const NovoLeadPage = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="qtd-vidas">
-                      Quantidade de Vidas *
-                    </Label>
+                    <Label htmlFor="qtd-vidas">Quantidade de Vidas *</Label>
                     <Input
                       id="qtd-vidas"
                       type="number"
                       min="1"
                       placeholder="Ex: 3"
                       value={qtdVidas}
-                      onChange={(e) =>
-                        setQtdVidas(e.target.value)
-                      }
+                      onChange={(e) => setQtdVidas(e.target.value)}
                       required
                       className="text-base"
                     />
@@ -729,9 +680,7 @@ const NovoLeadPage = () => {
                       type="text"
                       placeholder="Ex: 34, 30, 5"
                       value={idades}
-                      onChange={(e) =>
-                        setIdades(e.target.value)
-                      }
+                      onChange={(e) => setIdades(e.target.value)}
                       required
                       className="text-base"
                     />
@@ -747,10 +696,7 @@ const NovoLeadPage = () => {
                     checked={possuiCNPJ}
                     onCheckedChange={setPossuiCNPJ}
                   />
-                  <Label
-                    htmlFor="possui-cnpj"
-                    className="cursor-pointer"
-                  >
+                  <Label htmlFor="possui-cnpj" className="cursor-pointer">
                     Possui CNPJ
                   </Label>
                 </div>
@@ -780,11 +726,7 @@ const NovoLeadPage = () => {
                         type="text"
                         placeholder="Ex: Unimed"
                         value={operadoraAnterior}
-                        onChange={(e) =>
-                          setOperadoraAnterior(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => setOperadoraAnterior(e.target.value)}
                         className="text-base"
                       />
                     </div>
@@ -798,11 +740,7 @@ const NovoLeadPage = () => {
                         type="text"
                         placeholder="Ex: 2 anos"
                         value={tempoPlanoAnterior}
-                        onChange={(e) =>
-                          setTempoPlanoAnterior(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => setTempoPlanoAnterior(e.target.value)}
                         className="text-base"
                       />
                     </div>
@@ -819,26 +757,15 @@ const NovoLeadPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="modalidade">Modalidade</Label>
-                    <Select
-                      value={modalidade}
-                      onValueChange={setModalidade}
-                    >
+                    <Select value={modalidade} onValueChange={setModalidade}>
                       <SelectTrigger className="text-base">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
-                        <SelectItem value="PF">
-                          PF (Pessoa Física)
-                        </SelectItem>
-                        <SelectItem value="Adesão">
-                          Adesão
-                        </SelectItem>
-                        <SelectItem value="Empresarial">
-                          Empresarial
-                        </SelectItem>
-                        <SelectItem value="PME">
-                          PME
-                        </SelectItem>
+                        <SelectItem value="PF">PF (Pessoa Física)</SelectItem>
+                        <SelectItem value="Adesão">Adesão</SelectItem>
+                        <SelectItem value="Empresarial">Empresarial</SelectItem>
+                        <SelectItem value="PME">PME</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -852,33 +779,20 @@ const NovoLeadPage = () => {
                       type="text"
                       placeholder="Ex: Bradesco Saúde"
                       value={operadoraOfertada}
-                      onChange={(e) =>
-                        setOperadoraOfertada(
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => setOperadoraOfertada(e.target.value)}
                       className="text-base"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="acomodacao">
-                      Acomodação
-                    </Label>
-                    <Select
-                      value={acomodacao}
-                      onValueChange={setAcomodacao}
-                    >
+                    <Label htmlFor="acomodacao">Acomodação</Label>
+                    <Select value={acomodacao} onValueChange={setAcomodacao}>
                       <SelectTrigger className="text-base">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
-                        <SelectItem value="Enfermaria">
-                          Enfermaria
-                        </SelectItem>
-                        <SelectItem value="Apartamento">
-                          Apartamento
-                        </SelectItem>
+                        <SelectItem value="Enfermaria">Enfermaria</SelectItem>
+                        <SelectItem value="Apartamento">Apartamento</SelectItem>
                         <SelectItem value="Ambulatorial">
                           Ambulatorial
                         </SelectItem>
@@ -897,19 +811,13 @@ const NovoLeadPage = () => {
                       min="0"
                       placeholder="Ex: 450.00"
                       value={valorMensalidade}
-                      onChange={(e) =>
-                        setValorMensalidade(
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => setValorMensalidade(e.target.value)}
                       className="text-base"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="coparticipacao">
-                      Coparticipação
-                    </Label>
+                    <Label htmlFor="coparticipacao">Coparticipação</Label>
                     <Select
                       value={coparticipacao}
                       onValueChange={setCoparticipacao}
@@ -918,15 +826,9 @@ const NovoLeadPage = () => {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
-                        <SelectItem value="Total">
-                          Total
-                        </SelectItem>
-                        <SelectItem value="Parcial">
-                          Parcial
-                        </SelectItem>
-                        <SelectItem value="Isenta">
-                          Isenta
-                        </SelectItem>
+                        <SelectItem value="Total">Total</SelectItem>
+                        <SelectItem value="Parcial">Parcial</SelectItem>
+                        <SelectItem value="Isenta">Isenta</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -952,7 +854,7 @@ const NovoLeadPage = () => {
                     !cidade ||
                     !qtdVidas ||
                     !idades ||
-                    !loteId
+                    (tipoLead === "atual" && !loteId)
                   }
                   className="flex-1"
                 >
