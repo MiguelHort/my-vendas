@@ -337,7 +337,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
             </p>
             <Badge
               variant="outline"
-              style={{ borderColor: getLeadCardColor(lead) }}
+              style={getLeadCardColor(lead) === "" ? { border: "none" } : { borderColor: getLeadCardColor(lead) }}
             >
               {getLeadWaitTime(lead)}
             </Badge>
