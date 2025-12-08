@@ -243,7 +243,7 @@ const NovoLeadPage = () => {
         toast.error("Erro ao criar lead: " + (body.error || res.statusText));
       } else {
         toast.success("Lead criado com sucesso!");
-        router.push("/funil");
+        router.push("/dashboard/funil");
       }
     } catch (error) {
       console.error(error);

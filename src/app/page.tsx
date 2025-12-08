@@ -75,12 +75,14 @@ export default function LandingPage() {
 
               <div className="space-y-3">
                 <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight">
-                  Organize suas vendas de planos de saúde em um só lugar.
+                  Chega de vender no improviso, comece a ter controle de verdade
+                  pelo processo que coloca dinheiro no seu bolso.
                 </h1>
                 <p className="text-base md:text-lg text-muted-foreground">
-                  WinLeads é um micro-SaaS focado em corretores que querem
-                  parar de perder leads, acompanhar o funil de vendas e ter
-                  previsibilidade de comissões — sem planilhas confusas.
+                  O WinLead é uma solução pensada para corretores que querem
+                  profissionalizar seu processo de atendimento com números reais
+                  de produção, vendas, conversão, região, comissão, além de
+                  outras métricas - e não somente no "eu acho".
                 </p>
               </div>
 
@@ -129,9 +131,7 @@ export default function LandingPage() {
                       <div className="text-lg font-semibold">128</div>
                     </div>
                     <div className="rounded-lg border px-3 py-2">
-                      <span className="text-muted-foreground">
-                        Propostas
-                      </span>
+                      <span className="text-muted-foreground">Propostas</span>
                       <div className="text-lg font-semibold">47</div>
                     </div>
                     <div className="rounded-lg border px-3 py-2">
@@ -150,18 +150,22 @@ export default function LandingPage() {
                       </span>
                     </div>
                     <div className="grid grid-cols-5 gap-1 text-[10px]">
-                      {["Dispensado", "Abordagem", "Avaliando", "Fechamento", "Concluído"].map(
-                        (step, idx) => (
-                          <div
-                            key={step}
-                            className="rounded-md border px-2 py-1 text-center truncate"
-                          >
-                            <span className={idx === 4 ? "font-semibold" : ""}>
-                              {step}
-                            </span>
-                          </div>
-                        )
-                      )}
+                      {[
+                        "Dispensado",
+                        "Abordagem",
+                        "Avaliando",
+                        "Fechamento",
+                        "Concluído",
+                      ].map((step, idx) => (
+                        <div
+                          key={step}
+                          className="rounded-md border px-2 py-1 text-center truncate"
+                        >
+                          <span className={idx === 4 ? "font-semibold" : ""}>
+                            {step}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </CardContent>
@@ -179,7 +183,8 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold">
-                  Como o WinLeads funciona
+                  Como o WinLead transforma sua performance nas vendas de
+                  achismo, para números reais:
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
                   Em poucos minutos você cria sua conta, importa seus leads e
@@ -187,25 +192,22 @@ export default function LandingPage() {
                   ferramenta simples e objetiva.
                 </p>
               </div>
-              <Badge variant="outline">Micro-SaaS focado em vendas</Badge>
             </div>
-
             <div className="grid md:grid-cols-3 gap-6">
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="h-4 w-4" />
-                    Cadastre e organize seus leads
+                    Cadastro e organização da sua prospecção.
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                   <p>
-                    Registre leads de WhatsApp, indicação, redes sociais,
-                    campanhas e feiras em segundos.
-                  </p>
-                  <p>
-                    Classifique por plano (individual, familiar, empresarial),
-                    operadora e origem do lead.
+                    Nosso sistema permite você registrar a sua produção diária
+                    prospectando contatos, separando por fonte (ligação,
+                    presencial, retrabalho, lead novo, etc) e depois cadastrar
+                    de forma completa os leads que deram retorno após a
+                    abordagem
                   </p>
                 </CardContent>
               </Card>
@@ -214,17 +216,14 @@ export default function LandingPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <PhoneCall className="h-4 w-4" />
-                    Acompanhe o funil de contato
+                    Follow-Up completo do seu processo de vendas.
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                   <p>
-                    Visualize cada lead no estágio certo: Dispensado,
-                    Abordagem, Avaliando, Fechamento e Concluído.
-                  </p>
-                  <p>
-                    Saiba exatamente quem precisa de retorno hoje e evite
-                    esquecer follow-ups importantes.
+                    De forma visual, você pode acompanhar os seus leads em todas
+                    as etapas, do interesse inicial, a avaliação da assinatura
+                    até a contratação do plano!
                   </p>
                 </CardContent>
               </Card>
@@ -233,17 +232,14 @@ export default function LandingPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <LineChart className="h-4 w-4" />
-                    Tenha previsibilidade de comissões
+                    Métricas reais da sua performance.
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                   <p>
-                    Acompanhe vendas fechadas por período, ticket médio e
-                    projeção de comissões.
-                  </p>
-                  <p>
-                    Descubra quais canais trazem leads que realmente viram
-                    clientes de plano de saúde.
+                    O sistema armazena toda a sua produção, abordagens, vendas,
+                    comissões e apresenta isso com métricas que ajudam você a
+                    entender o seu padrão de vendas
                   </p>
                 </CardContent>
               </Card>
@@ -256,7 +252,8 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-[1.2fr,1fr] gap-10">
             <div className="space-y-4">
               <h2 className="text-2xl md:text-3xl font-semibold">
-                Feito sob medida para corretores de planos de saúde.
+                Um sistema de Corretor para Corretor, feito por quem entende o <br/>
+                dia-a-dia de quem vive de vendas
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-xl">
                 Se você ainda se perde em planilhas, mensagens soltas no
@@ -281,9 +278,7 @@ export default function LandingPage() {
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 mt-0.5" />
                   <div>
-                    <div className="font-medium">
-                      Zero oportunidade perdida
-                    </div>
+                    <div className="font-medium">Zero oportunidade perdida</div>
                     <p className="text-muted-foreground text-xs mt-1">
                       Nunca mais esqueça de responder um interessado que pediu
                       uma cotação ou ficou de falar com a família.
@@ -294,12 +289,10 @@ export default function LandingPage() {
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 mt-0.5" />
                   <div>
-                    <div className="font-medium">
-                      Pipeline claro, sem confusão
-                    </div>
+                    <div className="font-medium">Visual simples e objetivo</div>
                     <p className="text-muted-foreground text-xs mt-1">
-                      Visual simples do funil, específico para vendas de
-                      planos de saúde — nada de recursos genéricos demais.
+                      Sem enrolação, desenvolvemos o sistema para você encontrar
+                      e usar tudo de forma fácil
                     </p>
                   </div>
                 </div>
@@ -309,8 +302,9 @@ export default function LandingPage() {
                   <div>
                     <div className="font-medium">Indicadores que ajudam</div>
                     <p className="text-muted-foreground text-xs mt-1">
-                      Entenda quais planos e operadoras mais convertem e onde
-                      está vazando seu funil.
+                      Entenda quais produtos vendem mais, qual a região que mais
+                      converte, quantos contatos você precisa para uma venda,
+                      entre outros fatores importantes da sua performance
                     </p>
                   </div>
                 </div>
@@ -445,8 +439,8 @@ export default function LandingPage() {
             </h2>
             <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
               Crie sua conta, cadastre alguns leads e veja na prática como um
-              funil organizado faz diferença no seu faturamento — mesmo que
-              você seja um corretor autônomo.
+              funil organizado faz diferença no seu faturamento — mesmo que você
+              seja um corretor autônomo.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-3">
@@ -488,45 +482,63 @@ export default function LandingPage() {
             <Accordion type="single" collapsible className="space-y-2">
               <AccordionItem value="item-1">
                 <AccordionTrigger className="text-sm text-left">
-                  O WinLeads é só para planos de saúde?
+                  Eu já controlo tudo na minha planilha de Excel. Por que eu
+                  deveria mudar para esse CRM?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Ele foi pensado principalmente para corretores que vendem
-                  planos de saúde (individual, familiar e empresarial). Mas se
-                  você vende outros tipos de seguros e gosta de um funil simples,
-                  também pode usar.
+                  Planilhas são ótimas para listas, mas péssimas para gestão. O
+                  nosso CRM não apenas guarda os nomes, ele calcula suas
+                  métricas automaticamente. Enquanto a planilha só te mostra
+                  quem você atendeu, o CRM te mostra onde você está ganhando
+                  dinheiro (qual estado, qual origem de lead) e qual é a sua
+                  taxa real de conversão. É a diferença entre anotar dados e ter
+                  inteligência de negócio.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-2">
                 <AccordionTrigger className="text-sm text-left">
-                  Preciso instalar alguma coisa no meu computador?
+                  Trabalho com leads de várias fontes (Retrabalho, Indicação,
+                  Leads Novos) no mesmo dia. O sistema aguenta essa rotina?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Não. O WinLeads é 100% online. Você acessa pelo navegador,
-                  tanto no computador quanto no celular.
+                  O sistema foi desenhado exatamente para isso. Criamos a função
+                  exclusiva de "Lotes de Produção", onde você registra todo o
+                  seu esforço do dia de uma vez só, separando quantas ligações
+                  fez para cada tipo de lead. Assim, você sabe exatamente se o
+                  seu lucro está vindo do esforço massivo nos retrabalhos ou da
+                  qualidade dos leads novos, sem precisar criar cadastros
+                  complicados para cada tentativa de ligação.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-3">
                 <AccordionTrigger className="text-sm text-left">
-                  Meus dados e dos meus clientes estão seguros?
+                  Não tenho tempo para ficar na frente do computador o dia todo.
+                  O sistema funciona no celular?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Sim. Utilizamos autenticação via Firebase e banco de dados
-                  Postgres/Supabase, com boas práticas de segurança e
-                  armazenamento em nuvem.
+                  Com certeza. O CRM é 100% otimizado para mobile. Você pode (e
+                  deve) usá-lo como um aplicativo no seu celular. A ideia é que
+                  você atualize o status do cliente (de "Abordagem" para
+                  "Avaliando", por exemplo) em segundos, logo após desligar a
+                  chamada ou enviar o áudio no WhatsApp. O seu funil de vendas
+                  estará sempre no seu bolso.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-4">
                 <AccordionTrigger className="text-sm text-left">
-                  Consigo cancelar quando quiser?
+                  O sistema me ajuda a saber onde devo focar minhas vendas?
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Claro. Você pode cancelar o plano pago a qualquer momento e
-                  continuar tendo acesso ao que estiver previsto no plano
-                  gratuito.
+                  Sim, esse é o nosso grande diferencial. O Dashboard possui um
+                  Mapa de Performance que te mostra em quais estados e cidades
+                  você tem a maior taxa de fechamento. Em vez de "atirar para
+                  todo lado", você descobrirá visualmente que, por exemplo,
+                  vende muito mais fácil para o estado X do que para o Y,
+                  permitindo que você peça leads mais qualificados na sua
+                  corretora.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
