@@ -98,6 +98,9 @@ export async function POST(req: NextRequest) {
       cancel_url: `${appUrl}/planos`,
       automatic_tax: { enabled: false },
       locale: "pt-BR",
+
+      // Faz aparecer o campo de cupom/promo code no checkout da Stripe
+      allow_promotion_codes: true,
     });
 
     return NextResponse.json({ url: session.url });
