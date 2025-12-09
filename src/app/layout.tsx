@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   },
   description: "CRM para vendas e gestão de leads",
   icons: {
-    icon: "/favicon.png",        // favicon fixo
+    icon: "/favicon.ico",        // favicon fixo
   },
 };
 
