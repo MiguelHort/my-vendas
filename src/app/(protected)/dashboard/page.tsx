@@ -253,23 +253,23 @@ const DashboardPage = () => {
     .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
 
   // leads que em algum momento “se movimentaram” (responderam)
-  const leadsRespondidos = filteredLeads.filter((l) =>
+  const leadsConcluidos = filteredLeads.filter((l) =>
     ["Avaliando", "Dispensado", "Concluído"].includes(l.status)
   ).length;
 
   // leads considerados qualificados
   const leadsQualificados = filteredLeads.filter((l) =>
-    ["Abordagem", "Avaliando", "Fechamento", "Concluído"].includes(l.status)
+    ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
   const taxaResposta =
-    totalLeads > 0 ? (leadsRespondidos / totalLeads) * 100 : 0;
+    totalLeads > 0 ? (totalLeads / volumeProducao) * 100 : 0;
 
   const taxaQualificacao =
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
   const taxaFechamento =
-    leadsQualificados > 0 ? (vendasFechadas / leadsQualificados) * 100 : 0;
+    leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
 
   const metrics = [
     {
