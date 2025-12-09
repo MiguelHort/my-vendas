@@ -109,13 +109,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!lote_producao_id) {
-    return NextResponse.json(
-      { error: "Todo lead precisa estar vinculado a um lote de produção" },
-      { status: 400 }
-    );
-  }
-
   try {
     const user = await getOrCreateUserByFirebaseUid({
       firebaseUid,
