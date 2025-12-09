@@ -91,7 +91,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* HEADER */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo + nome */}
           <Link href="/dashboard" className="flex items-center gap-1">
             <Image
@@ -149,10 +149,12 @@ export function Layout({ children }: LayoutProps) {
               </span>
             </div>
 
-            <Avatar className="w-9 h-9">
-              <AvatarImage src={photo} alt={displayName} />
+            <Avatar className="w-9 h-9 border-2 border-primary p-0.5">
+              <AvatarImage src={photo} alt={displayName} className="rounded-full"/>
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
+
+
 
             <Button
               variant="ghost"
