@@ -1,29 +1,65 @@
+// src/components/AuthGuard.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { usePathname, useRouter } from "next/navigation";
+import { onAuthStateChanged, getIdToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) router.push("/");
-      setLoading(false);
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setLoading(false);
+        router.replace("/login");
+        return;
+      }
+
+      try {
+        const token = await getIdToken(firebaseUser, true);
+
+        const res = await fetch("/api/me", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (data?.ok) {
+          // Assinatura ativa -> libera
+          setLoading(false);
+          return;
+        }
+
+        // Sem assinatura -> manda pra /planos
+        if (pathname !== "/planos") {
+          router.replace("/planos");
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Erro ao validar acesso:", err);
+        setLoading(false);
+        router.replace("/login");
+      }
     });
 
     return () => unsub();
-  }, [router]);
+  }, [router, pathname]);
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Carregando...
+      <div className="w-full h-screen flex items-center justify-center text-muted-foreground">
+        Validando acesso...
       </div>
     );
+  }
 
   return <>{children}</>;
 }
