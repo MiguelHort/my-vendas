@@ -287,7 +287,7 @@ const fetchLeads = async () => {
   ).length;
 
   const taxaResposta =
-    totalLeads > 0 ? (totalLeads / volumeProducao) * 100 : 0;
+    volumeProducao > 0 ? (totalLeads / volumeProducao) * 100 : 0;
 
   const taxaQualificacao =
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
