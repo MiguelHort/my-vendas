@@ -35,14 +35,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type Lead = {
-  id: string;
-  origem: string;
-  status: string;
-  valor_comissao: number | null;
-  data_entrada: string;
-  estado: string;
-};
+// 🔁 Reaproveitando o mesmo tipo de Lead do Funil
+import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
+
+type Lead = FunilLead;
 
 type LoteProducaoResumo = {
   volume_total_chamado: number | null;
@@ -95,36 +91,64 @@ const DashboardPage = () => {
     return { startDate, endDate };
   };
 
-  // ----------------- fetch Leads -----------------
-  const fetchLeads = async () => {
-    if (!firebaseUser) return;
+  const isLeadAtivo = (status: string) =>
+    ["Abordagem", "Avaliando", "Fechamento"].includes(status);
 
-    try {
-      const params = new URLSearchParams({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        name: firebaseUser.displayName || "",
-      });
+  // mesma lógica conceitual do "badge" do funil:
+  // - leads ativos
+  // - nunca chamados OU chamados há mais de 24h
+  const leadPrecisaRetorno = (lead: Lead) => {
+    if (!isLeadAtivo(lead.status)) return false;
 
-      const res = await fetch(`/api/dashboard/leads?${params.toString()}`);
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao carregar dados de leads: " + (body.error || res.statusText)
-        );
-        return;
-      }
-
-      const data: Lead[] = await res.json();
-      setLeads(data || []);
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro ao carregar dados de leads");
-    } finally {
-      setLoading(false);
+    if (!lead.last_chamado_at) {
+      // nunca foi chamado -> precisa retorno
+      return true;
     }
+
+    const last = new Date(lead.last_chamado_at);
+    if (Number.isNaN(last.getTime())) return false;
+
+    const now = new Date();
+    const diffMs = now.getTime() - last.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    return diffHours > 24;
   };
+
+  // ----------------- fetch Leads -----------------
+const fetchLeads = async () => {
+  if (!firebaseUser) return;
+
+  try {
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+
+    // 👇 troque essa linha:
+    // const res = await fetch(`/api/dashboard/leads?${params.toString()}`);
+    // 👇 por esta:
+    const res = await fetch(`/api/leads?${params.toString()}`);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error(
+        "Erro ao carregar dados de leads: " + (body.error || res.statusText)
+      );
+      return;
+    }
+
+    const data: Lead[] = await res.json();
+    setLeads(data || []);
+  } catch (error) {
+    console.error(error);
+    toast.error("Erro ao carregar dados de leads");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ----------------- fetch Volume Produção -----------------
   const fetchVolumeProducao = async () => {
@@ -270,6 +294,25 @@ const DashboardPage = () => {
 
   const taxaFechamento =
     leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
+
+  // ----------------- leads que precisam de retorno -----------------
+  const leadsParaRetorno = filteredLeads
+    .filter(leadPrecisaRetorno)
+    .sort((a, b) => {
+      // ordem: nunca chamados primeiro, depois mais antigos
+      const aHasLast = !!a.last_chamado_at;
+      const bHasLast = !!b.last_chamado_at;
+
+      if (!aHasLast && !bHasLast) return 0;
+      if (!aHasLast && bHasLast) return -1;
+      if (aHasLast && !bHasLast) return 1;
+
+      const aTime = new Date(a.last_chamado_at as string).getTime();
+      const bTime = new Date(b.last_chamado_at as string).getTime();
+      return aTime - bTime; // mais antigo primeiro
+    });
+
+  const qtdLeadsParaRetorno = leadsParaRetorno.length;
 
   const metrics = [
     {
@@ -448,6 +491,7 @@ const DashboardPage = () => {
           })}
         </div>
 
+        {/* EXPLICAÇÃO DAS MÉTRICAS */}
         <Card className="bg-linerar-to-br from-primary/5 to-success/5 border-primary/20">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
@@ -477,6 +521,48 @@ const DashboardPage = () => {
                 </ul>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* LEADS QUE PRECISAM DE RETORNO (USANDO LeadCard) */}
+        <Card className="bg-linerar-to-br from-primary/5 to-success/5 border-primary/20">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h3 className="font-semibold text-lg">
+                    Leads que você precisa retornar
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {qtdLeadsParaRetorno > 0
+                      ? `${qtdLeadsParaRetorno} lead${
+                          qtdLeadsParaRetorno > 1 ? "s" : ""
+                        } aguardando contato há mais de 24h`
+                      : "Nenhum lead pendente de retorno há mais de 24h 🎉"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {qtdLeadsParaRetorno > 0 && (
+              <div className="grid gap-4 md:grid-cols-2">
+                {leadsParaRetorno.slice(0, 8).map((lead) => (
+                  <LeadCard
+                    key={lead.id}
+                    lead={lead}
+                    firebaseUser={{
+                      uid: firebaseUser.uid,
+                      email: firebaseUser.email,
+                      displayName: firebaseUser.displayName,
+                    }}
+                    onRefreshLeads={fetchLeads}
+                  />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

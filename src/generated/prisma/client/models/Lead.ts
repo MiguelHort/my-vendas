@@ -47,6 +47,7 @@ export type LeadMinAggregateOutputType = {
   valorComissao: runtime.Decimal | null
   dataVenda: Date | null
   userId: string | null
+  lastChamadoAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   estado: string | null
@@ -76,6 +77,7 @@ export type LeadMaxAggregateOutputType = {
   valorComissao: runtime.Decimal | null
   dataVenda: Date | null
   userId: string | null
+  lastChamadoAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   estado: string | null
@@ -105,6 +107,7 @@ export type LeadCountAggregateOutputType = {
   valorComissao: number
   dataVenda: number
   userId: number
+  lastChamadoAt: number
   createdAt: number
   updatedAt: number
   estado: number
@@ -148,6 +151,7 @@ export type LeadMinAggregateInputType = {
   valorComissao?: true
   dataVenda?: true
   userId?: true
+  lastChamadoAt?: true
   createdAt?: true
   updatedAt?: true
   estado?: true
@@ -177,6 +181,7 @@ export type LeadMaxAggregateInputType = {
   valorComissao?: true
   dataVenda?: true
   userId?: true
+  lastChamadoAt?: true
   createdAt?: true
   updatedAt?: true
   estado?: true
@@ -206,6 +211,7 @@ export type LeadCountAggregateInputType = {
   valorComissao?: true
   dataVenda?: true
   userId?: true
+  lastChamadoAt?: true
   createdAt?: true
   updatedAt?: true
   estado?: true
@@ -322,6 +328,7 @@ export type LeadGroupByOutputType = {
   valorComissao: runtime.Decimal | null
   dataVenda: Date | null
   userId: string
+  lastChamadoAt: Date | null
   createdAt: Date
   updatedAt: Date
   estado: string | null
@@ -374,6 +381,7 @@ export type LeadWhereInput = {
   valorComissao?: Prisma.DecimalNullableFilter<"Lead"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   userId?: Prisma.UuidFilter<"Lead"> | string
+  lastChamadoAt?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   estado?: Prisma.StringNullableFilter<"Lead"> | string | null
@@ -405,6 +413,7 @@ export type LeadOrderByWithRelationInput = {
   valorComissao?: Prisma.SortOrderInput | Prisma.SortOrder
   dataVenda?: Prisma.SortOrderInput | Prisma.SortOrder
   userId?: Prisma.SortOrder
+  lastChamadoAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   estado?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -439,6 +448,7 @@ export type LeadWhereUniqueInput = Prisma.AtLeast<{
   valorComissao?: Prisma.DecimalNullableFilter<"Lead"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   userId?: Prisma.UuidFilter<"Lead"> | string
+  lastChamadoAt?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   estado?: Prisma.StringNullableFilter<"Lead"> | string | null
@@ -470,6 +480,7 @@ export type LeadOrderByWithAggregationInput = {
   valorComissao?: Prisma.SortOrderInput | Prisma.SortOrder
   dataVenda?: Prisma.SortOrderInput | Prisma.SortOrder
   userId?: Prisma.SortOrder
+  lastChamadoAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   estado?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -507,6 +518,7 @@ export type LeadScalarWhereWithAggregatesInput = {
   valorComissao?: Prisma.DecimalNullableWithAggregatesFilter<"Lead"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.DateTimeNullableWithAggregatesFilter<"Lead"> | Date | string | null
   userId?: Prisma.UuidWithAggregatesFilter<"Lead"> | string
+  lastChamadoAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Lead"> | Date | string
   estado?: Prisma.StringNullableWithAggregatesFilter<"Lead"> | string | null
@@ -535,6 +547,7 @@ export type LeadCreateInput = {
   status: string
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -565,6 +578,7 @@ export type LeadUncheckedCreateInput = {
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
   userId: string
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -593,6 +607,7 @@ export type LeadUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -623,6 +638,7 @@ export type LeadUncheckedUpdateInput = {
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -652,6 +668,7 @@ export type LeadCreateManyInput = {
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
   userId: string
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -680,6 +697,7 @@ export type LeadUpdateManyMutationInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -708,6 +726,7 @@ export type LeadUncheckedUpdateManyInput = {
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -747,6 +766,7 @@ export type LeadCountOrderByAggregateInput = {
   valorComissao?: Prisma.SortOrder
   dataVenda?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  lastChamadoAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   estado?: Prisma.SortOrder
@@ -782,6 +802,7 @@ export type LeadMaxOrderByAggregateInput = {
   valorComissao?: Prisma.SortOrder
   dataVenda?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  lastChamadoAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   estado?: Prisma.SortOrder
@@ -811,6 +832,7 @@ export type LeadMinOrderByAggregateInput = {
   valorComissao?: Prisma.SortOrder
   dataVenda?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  lastChamadoAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   estado?: Prisma.SortOrder
@@ -953,6 +975,7 @@ export type LeadCreateWithoutUserInput = {
   status: string
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -981,6 +1004,7 @@ export type LeadUncheckedCreateWithoutUserInput = {
   status: string
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -1039,6 +1063,7 @@ export type LeadScalarWhereInput = {
   valorComissao?: Prisma.DecimalNullableFilter<"Lead"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   userId?: Prisma.UuidFilter<"Lead"> | string
+  lastChamadoAt?: Prisma.DateTimeNullableFilter<"Lead"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Lead"> | Date | string
   estado?: Prisma.StringNullableFilter<"Lead"> | string | null
@@ -1067,6 +1092,7 @@ export type LeadCreateWithoutLoteProducaoInput = {
   status: string
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -1096,6 +1122,7 @@ export type LeadUncheckedCreateWithoutLoteProducaoInput = {
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
   userId: string
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -1149,6 +1176,7 @@ export type LeadCreateManyUserInput = {
   status: string
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -1177,6 +1205,7 @@ export type LeadUpdateWithoutUserInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1205,6 +1234,7 @@ export type LeadUncheckedUpdateWithoutUserInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1233,6 +1263,7 @@ export type LeadUncheckedUpdateManyWithoutUserInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1262,6 +1293,7 @@ export type LeadCreateManyLoteProducaoInput = {
   valorComissao?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Date | string | null
   userId: string
+  lastChamadoAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   estado?: string | null
@@ -1289,6 +1321,7 @@ export type LeadUpdateWithoutLoteProducaoInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1318,6 +1351,7 @@ export type LeadUncheckedUpdateWithoutLoteProducaoInput = {
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1346,6 +1380,7 @@ export type LeadUncheckedUpdateManyWithoutLoteProducaoInput = {
   valorComissao?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   dataVenda?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  lastChamadoAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   estado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1376,6 +1411,7 @@ export type LeadSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   valorComissao?: boolean
   dataVenda?: boolean
   userId?: boolean
+  lastChamadoAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   estado?: boolean
@@ -1407,6 +1443,7 @@ export type LeadSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   valorComissao?: boolean
   dataVenda?: boolean
   userId?: boolean
+  lastChamadoAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   estado?: boolean
@@ -1438,6 +1475,7 @@ export type LeadSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   valorComissao?: boolean
   dataVenda?: boolean
   userId?: boolean
+  lastChamadoAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   estado?: boolean
@@ -1469,6 +1507,7 @@ export type LeadSelectScalar = {
   valorComissao?: boolean
   dataVenda?: boolean
   userId?: boolean
+  lastChamadoAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   estado?: boolean
@@ -1489,7 +1528,7 @@ export type LeadSelectScalar = {
   telefone?: boolean
 }
 
-export type LeadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nome" | "dataEntrada" | "origem" | "status" | "valorComissao" | "dataVenda" | "userId" | "createdAt" | "updatedAt" | "estado" | "loteProducaoId" | "cidade" | "qtdVidas" | "idades" | "possuiCnpj" | "temPlanoAnterior" | "operadoraAnterior" | "tempoPlanoAnterior" | "modalidade" | "operadoraOfertada" | "acomodacao" | "valorMensalidade" | "coparticipacao" | "motivoDispensa" | "telefone", ExtArgs["result"]["lead"]>
+export type LeadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nome" | "dataEntrada" | "origem" | "status" | "valorComissao" | "dataVenda" | "userId" | "lastChamadoAt" | "createdAt" | "updatedAt" | "estado" | "loteProducaoId" | "cidade" | "qtdVidas" | "idades" | "possuiCnpj" | "temPlanoAnterior" | "operadoraAnterior" | "tempoPlanoAnterior" | "modalidade" | "operadoraOfertada" | "acomodacao" | "valorMensalidade" | "coparticipacao" | "motivoDispensa" | "telefone", ExtArgs["result"]["lead"]>
 export type LeadInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Lead$userArgs<ExtArgs>
   loteProducao?: boolean | Prisma.Lead$loteProducaoArgs<ExtArgs>
@@ -1518,6 +1557,7 @@ export type $LeadPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     valorComissao: runtime.Decimal | null
     dataVenda: Date | null
     userId: string
+    lastChamadoAt: Date | null
     createdAt: Date
     updatedAt: Date
     estado: string | null
@@ -1969,6 +2009,7 @@ export interface LeadFieldRefs {
   readonly valorComissao: Prisma.FieldRef<"Lead", 'Decimal'>
   readonly dataVenda: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly userId: Prisma.FieldRef<"Lead", 'String'>
+  readonly lastChamadoAt: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Lead", 'DateTime'>
   readonly estado: Prisma.FieldRef<"Lead", 'String'>

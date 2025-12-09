@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
       updated_at: l.updatedAt.toISOString(),
       valor_comissao: l.valorComissao ? Number(l.valorComissao) : null,
       data_venda: l.dataVenda ? l.dataVenda.toISOString() : null,
+      last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
     }));
 
     return NextResponse.json(payload);
@@ -98,18 +99,12 @@ export async function POST(req: NextRequest) {
     lote_producao_id,
     valor_comissao,
     data_venda,
+    last_chamado_at,
   } = body;
 
   if (!nome || !origem || !estado || !cidade || !qtd_vidas || !idades) {
     return NextResponse.json(
       { error: "Campos obrigatórios não preenchidos" },
-      { status: 400 }
-    );
-  }
-
-  if (!lote_producao_id) {
-    return NextResponse.json(
-      { error: "Todo lead precisa estar vinculado a um lote de produção" },
       { status: 400 }
     );
   }
@@ -158,6 +153,7 @@ export async function POST(req: NextRequest) {
             ? Number(valor_comissao)
             : null,
         dataVenda: data_venda ? new Date(data_venda) : null,
+        lastChamadoAt: last_chamado_at ? new Date(last_chamado_at) : null,
       },
     });
 
