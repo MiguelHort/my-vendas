@@ -259,7 +259,7 @@ const DashboardPage = () => {
 
   // leads considerados qualificados
   const leadsQualificados = filteredLeads.filter((l) =>
-    ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
+    ["Abordagem", "Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
   const taxaResposta =
@@ -270,16 +270,6 @@ const DashboardPage = () => {
 
   const taxaFechamento =
     leadsQualificados > 0 ? (vendasFechadas / leadsQualificados) * 100 : 0;
-
-  console.log({
-    totalLeads,
-    vendasFechadas,
-    leadsRespondidos,
-    leadsQualificados,
-    taxaResposta,
-    taxaQualificacao,
-    taxaFechamento,
-  });
 
   const metrics = [
     {
@@ -481,7 +471,7 @@ const DashboardPage = () => {
                   </li>
                   <li>
                     <strong>Taxa de Fechamento:</strong> % de vendas concluídas
-                    em relação aos leads qualificados (Avaliando, Fechamento ou
+                    em relação aos leads abordados (Avaliando, Fechamento ou
                     Concluído).
                   </li>
                 </ul>
