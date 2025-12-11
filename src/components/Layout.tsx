@@ -6,7 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { LayoutDashboard, Workflow, PlusCircle, MapPinned } from "lucide-react";
+import {
+  LayoutDashboard,
+  Workflow,
+  PlusCircle,
+  MapPinned,
+  CircleDollarSign,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Image from "next/image";
 
@@ -34,6 +40,14 @@ const navItems = [
     href: "/dashboard/mapa-estados",
     label: "Mapa",
     icon: MapPinned,
+  },
+];
+
+const navItems1 = [
+  {
+    href: "/dashboard/cotacao",
+    label: "Cotação",
+    icon: CircleDollarSign,
   },
 ];
 
@@ -108,35 +122,66 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </Link>
 
-          {/* Navegação central (desktop) */}
-          <nav className="hidden md:flex items-center justify-center flex-1">
-            <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/dashboard" &&
-                    pathname?.startsWith(item.href));
+          <div className="flex gap-1">
+            {/* Navegação central (desktop) */}
+            <nav className="hidden md:flex items-center justify-center flex-1">
+              <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" &&
+                      pathname?.startsWith(item.href));
 
-                return (
-                  <Button
-                    key={item.href}
-                    asChild
-                    variant={isActive ? "default" : "ghost"}
-                    size="sm"
-                    className={`gap-2 px-3 rounded-full text-xs font-medium ${
-                      isActive ? "shadow-sm" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Link href={item.href}>
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </Button>
-                );
-              })}
-            </div>
-          </nav>
+                  return (
+                    <Button
+                      key={item.href}
+                      asChild
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                      className={`gap-2 px-3 rounded-full text-xs font-medium ${
+                        isActive ? "shadow-sm" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Link href={item.href}>
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </Button>
+                  );
+                })}
+              </div>
+            </nav>
+
+            <nav className="hidden md:flex items-center justify-center">
+              <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
+                {navItems1.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" &&
+                      pathname?.startsWith(item.href));
+
+                  return (
+                    <Button
+                      key={item.href}
+                      asChild
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                      className={`gap-2 px-3 rounded-full text-xs font-medium ${
+                        isActive ? "shadow-sm" : "text-muted-foreground"
+                      }`}
+                    >
+                      <Link href={item.href}>
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </Button>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
 
           {/* Perfil do usuário + sair */}
           <div className="flex items-center gap-3">
@@ -150,11 +195,13 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <Avatar className="w-9 h-9 border-2 border-primary p-0.5">
-              <AvatarImage src={photo} alt={displayName} className="rounded-full"/>
+              <AvatarImage
+                src={photo}
+                alt={displayName}
+                className="rounded-full"
+              />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
-
-
 
             <Button
               variant="ghost"
