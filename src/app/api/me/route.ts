@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth as firebaseAdmin } from "@/lib/firebaseAdmin"; // ADMIN SDK
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const authorization = req.headers.get("authorization");
@@ -25,15 +28,28 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 404 });
     }
 
-    // --------- LÓGICA DE ACESSO ---------
-
-    const now = new Date();
-
-    // Garantindo que createdAt é Date
+    // --------- NORMALIZAÇÃO DO USER (inclui admin) ---------
     const createdAt =
       user.createdAt instanceof Date
         ? user.createdAt
         : new Date(user.createdAt);
+
+    const safeUser = {
+      id: user.id,
+      firebaseUid: user.firebaseUid,
+      email: user.email,
+      name: user.name,
+      admin: user.admin, // flag de admin
+      isActive: user.isActive,
+      subscriptionStatus: user.subscriptionStatus,
+      stripeCustomerId: user.stripeCustomerId,
+      stripeSubscriptionId: user.stripeSubscriptionId,
+      createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    // --------- LÓGICA DE TRIAL + ASSINATURA ---------
+    const now = new Date();
 
     // Trial de 7 dias a partir da criação do usuário
     const trialEndsAt = new Date(createdAt);
@@ -52,12 +68,15 @@ export async function GET(req: NextRequest) {
 
     const canUseApp = hasActiveSubscription || trialActive;
 
+    // Se NÃO pode usar o app (trial expirado e sem assinatura)
     if (!canUseApp) {
-      // Trial expirado e sem assinatura
       return NextResponse.json(
         {
           ok: false,
           reason: "trial-expired",
+          user: safeUser,
+          hasActiveSubscription,
+          trialActive: false,
           trialEndsAt,
           trialDaysLeft: 0,
         },
@@ -69,12 +88,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          createdAt,
-          isActive: user.isActive,
-        },
+        user: safeUser,
         hasActiveSubscription,
         trialActive,
         trialEndsAt,
