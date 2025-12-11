@@ -3,9 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth as firebaseAdmin } from "@/lib/firebaseAdmin"; // ADMIN SDK
 import { prisma } from "@/lib/prisma";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function GET(req: NextRequest) {
   try {
     const authorization = req.headers.get("authorization");
@@ -27,41 +24,61 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ ok: false }, { status: 404 });
     }
-    
-    // Normaliza o que será enviado para o front (pra não mandar tudo do banco cru)
-    const safeUser = {
-      id: user.id,
-      firebaseUid: user.firebaseUid,
-      email: user.email,
-      name: user.name,
-      admin: user.admin,               // 👈 AQUI: flag de admin
-      isActive: user.isActive,
-      subscriptionStatus: user.subscriptionStatus,
-      stripeCustomerId: user.stripeCustomerId,
-      stripeSubscriptionId: user.stripeSubscriptionId,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
 
-    // 👇 Aqui você verifica a assinatura do usuário
-    if (!user.isActive) {
-      // Continua indicando que NÃO tem assinatura,
-      // mas agora já devolve o usuário também (incluindo admin)
+    // --------- LÓGICA DE ACESSO ---------
+
+    const now = new Date();
+
+    // Garantindo que createdAt é Date
+    const createdAt =
+      user.createdAt instanceof Date
+        ? user.createdAt
+        : new Date(user.createdAt);
+
+    // Trial de 7 dias a partir da criação do usuário
+    const trialEndsAt = new Date(createdAt);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+    const hasActiveSubscription = user.isActive === true;
+
+    const trialActive =
+      !hasActiveSubscription && trialEndsAt.getTime() > now.getTime();
+
+    const msLeft = trialEndsAt.getTime() - now.getTime();
+    const trialDaysLeft =
+      trialActive && msLeft > 0
+        ? Math.ceil(msLeft / (1000 * 60 * 60 * 24))
+        : 0;
+
+    const canUseApp = hasActiveSubscription || trialActive;
+
+    if (!canUseApp) {
+      // Trial expirado e sem assinatura
       return NextResponse.json(
         {
           ok: false,
-          reason: "no-subscription",
-          user: safeUser,
+          reason: "trial-expired",
+          trialEndsAt,
+          trialDaysLeft: 0,
         },
-        { status: 200 }
+        { status: 402 } // Payment Required (sem quebrar o AuthGuard)
       );
     }
 
-    // Usuário ativo (pagante / liberado)
+    // Se chegou aqui, usuário pode usar o app (trial ou assinatura)
     return NextResponse.json(
       {
         ok: true,
-        user: safeUser,
+        user: {
+          id: user.id,
+          email: user.email,
+          createdAt,
+          isActive: user.isActive,
+        },
+        hasActiveSubscription,
+        trialActive,
+        trialEndsAt,
+        trialDaysLeft,
       },
       { status: 200 }
     );
