@@ -1,4 +1,5 @@
 // app/api/me/route.ts
+// app/api/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth as firebaseAdmin } from "@/lib/firebaseAdmin"; // ADMIN SDK
 import { prisma } from "@/lib/prisma";
