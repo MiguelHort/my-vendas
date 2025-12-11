@@ -1,3 +1,4 @@
+// app/api/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth as firebaseAdmin } from "@/lib/firebaseAdmin"; // ADMIN SDK
 import { prisma } from "@/lib/prisma";
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ ok: false }, { status: 404 });
     }
-
+    
     // Normaliza o que será enviado para o front (pra não mandar tudo do banco cru)
     const safeUser = {
       id: user.id,
