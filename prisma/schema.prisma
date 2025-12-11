@@ -23,8 +23,6 @@ model User {
   subscriptionStatus   String?  @map("subscription_status") @db.Text
   isActive             Boolean  @default(false) @map("is_active")
 
-  admin        Boolean  @default(false) @map("admin")
-
   leads         Lead[]
   lotesProducao LoteProducao[]
 
