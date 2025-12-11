@@ -31,13 +31,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
         const data = await res.json();
 
+        // Backend já valida:
+        // - isActive (assinatura)
+        // - trial de 7 dias baseado no createdAt
         if (data?.ok) {
-          // Assinatura ativa -> libera
           setLoading(false);
           return;
         }
 
-        // Sem assinatura -> manda pra /planos
+        // Se não pode usar o app:
+        // - Se trial expirou / sem assinatura -> manda pra /planos
         if (pathname !== "/planos") {
           router.replace("/planos");
         } else {
