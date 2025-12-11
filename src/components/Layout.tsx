@@ -6,12 +6,32 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { LayoutDashboard, Workflow, PlusCircle, MapPinned } from "lucide-react";
+import {
+  LayoutDashboard,
+  Workflow,
+  PlusCircle,
+  MapPinned,
+  UserStar,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Image from "next/image";
 
 type LayoutProps = {
   children: ReactNode;
+};
+
+type MeUser = {
+  id: string;
+  firebaseUid: string;
+  email: string;
+  name: string | null;
+  admin: boolean;
+  isActive: boolean;
+  subscriptionStatus: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 const navItems = [
@@ -35,19 +55,57 @@ const navItems = [
     label: "Mapa",
     icon: MapPinned,
   },
+  {
+    href: "/dashboard/admin",
+    label: "Admin",
+    icon: UserStar,
+  },
 ];
 
 export function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [user, setUser] = useState<User | null | undefined>(undefined); // Firebase
+  const [meUser, setMeUser] = useState<MeUser | null>(null);            // Prisma (/api/me)
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+
+        try {
+          const token = await firebaseUser.getIdToken();
+          const res = await fetch("/api/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!res.ok) {
+            console.error("Erro ao chamar /api/me:", res.status);
+            setIsAdmin(false);
+            return;
+          }
+
+          const data = await res.json();
+          console.log("Resposta /api/me:", data);
+
+          if (data.user) {
+            setMeUser(data.user);
+            console.log("User admin flag:", data.user.admin);
+            setIsAdmin(!!data.user.admin);
+          } else {
+            setIsAdmin(false);
+          }
+        } catch (err) {
+          console.error("Erro ao buscar /api/me:", err);
+          setIsAdmin(false);
+        }
       } else {
         setUser(null);
+        setMeUser(null);
+        setIsAdmin(null);
         router.push("/login");
       }
     });
@@ -87,6 +145,14 @@ export function Layout({ children }: LayoutProps) {
       .join("")
       .toUpperCase() || "U";
 
+  // 🔐 Só mostra o item Admin se isAdmin === true
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.href === "/dashboard/admin") {
+      return !!isAdmin;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* HEADER */}
@@ -111,7 +177,7 @@ export function Layout({ children }: LayoutProps) {
           {/* Navegação central (desktop) */}
           <nav className="hidden md:flex items-center justify-center flex-1">
             <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
-              {navItems.map((item) => {
+              {filteredNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                   pathname === item.href ||
@@ -147,14 +213,21 @@ export function Layout({ children }: LayoutProps) {
               <span className="text-xs text-muted-foreground truncate max-w-[180px]">
                 {email}
               </span>
+              {meUser?.admin && (
+                <span className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wide">
+                  Admin
+                </span>
+              )}
             </div>
 
             <Avatar className="w-9 h-9 border-2 border-primary p-0.5">
-              <AvatarImage src={photo} alt={displayName} className="rounded-full"/>
+              <AvatarImage
+                src={photo}
+                alt={displayName}
+                className="rounded-full"
+              />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
-
-
 
             <Button
               variant="ghost"
@@ -170,11 +243,12 @@ export function Layout({ children }: LayoutProps) {
         {/* Navegação mobile */}
         <nav className="md:hidden border-t border-border/60 bg-background">
           <div className="max-w-6xl mx-auto px-2 py-2 flex items-center gap-1 overflow-x-auto">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
-                (item.href !== "/dashboard" && pathname?.startsWith(item.href));
+                (item.href !== "/dashboard" &&
+                  pathname?.startsWith(item.href));
 
               return (
                 <Button
