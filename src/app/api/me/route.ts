@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       createdAt,
       updatedAt: user.updatedAt,
     };
-
+    
     // --------- LÓGICA DE TRIAL + ASSINATURA ---------
     const now = new Date();
 
