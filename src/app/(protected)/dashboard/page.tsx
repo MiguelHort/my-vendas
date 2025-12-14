@@ -21,6 +21,7 @@ import {
   Sparkles,
   Clock,
   ArrowUpRight,
+  Info,
 } from "lucide-react";
 
 // shadcn ui
@@ -45,6 +46,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // charts (shadcn wrapper + recharts)
 import {
@@ -62,6 +68,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { info } from "console";
 
 type Lead = FunilLead;
 
@@ -86,7 +93,8 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadingVolume, setLoadingVolume] = useState(true);
 
-  const [serieVendasMode, setSerieVendasMode] = useState<SerieVendasMode>("semana");
+  const [serieVendasMode, setSerieVendasMode] =
+    useState<SerieVendasMode>("semana");
 
   // ----------------- helpers -----------------
   const getDateRange = () => {
@@ -97,7 +105,14 @@ const DashboardPage = () => {
     switch (filtroPeriodo) {
       case "este-mes":
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59
+        );
         break;
       case "mes-passado":
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -135,7 +150,20 @@ const DashboardPage = () => {
 
   const monthShort = (mIdx: number) => {
     // 0..11
-    const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const names = [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
     return names[mIdx] || "";
   };
 
@@ -155,7 +183,9 @@ const DashboardPage = () => {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error("Erro ao carregar dados de leads: " + (body.error || res.statusText));
+        toast.error(
+          "Erro ao carregar dados de leads: " + (body.error || res.statusText)
+        );
         return;
       }
 
@@ -185,7 +215,9 @@ const DashboardPage = () => {
         end: endDate.toISOString(),
       });
 
-      const res = await fetch(`/api/dashboard/lotes-producao?${params.toString()}`);
+      const res = await fetch(
+        `/api/dashboard/lotes-producao?${params.toString()}`
+      );
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -203,25 +235,46 @@ const DashboardPage = () => {
       } else {
         switch (filtroOrigem) {
           case "Todos":
-            total = data.reduce((sum, lote) => sum + (lote.volume_total_chamado || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.volume_total_chamado || 0),
+              0
+            );
             break;
           case "Lead Novo":
-            total = data.reduce((sum, lote) => sum + (lote.qtd_leads_novos || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_leads_novos || 0),
+              0
+            );
             break;
           case "Retrabalho":
-            total = data.reduce((sum, lote) => sum + (lote.qtd_retrabalhos || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_retrabalhos || 0),
+              0
+            );
             break;
           case "Ligação":
-            total = data.reduce((sum, lote) => sum + (lote.qtd_ligacao || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_ligacao || 0),
+              0
+            );
             break;
           case "Indicação":
-            total = data.reduce((sum, lote) => sum + (lote.qtd_indicacao || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_indicacao || 0),
+              0
+            );
             break;
           case "Presencial":
-            total = data.reduce((sum, lote) => sum + (lote.qtd_presencial || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.qtd_presencial || 0),
+              0
+            );
             break;
           default:
-            total = data.reduce((sum, lote) => sum + (lote.volume_total_chamado || 0), 0);
+            total = data.reduce(
+              (sum, lote) => sum + (lote.volume_total_chamado || 0),
+              0
+            );
         }
       }
 
@@ -256,14 +309,17 @@ const DashboardPage = () => {
     return leads.filter((lead) => {
       const leadDateStr = lead.data_entrada.slice(0, 10);
       const dentroDataRange = leadDateStr >= startStr && leadDateStr <= endStr;
-      const origemMatch = filtroOrigem === "Todos" || lead.origem === filtroOrigem;
+      const origemMatch =
+        filtroOrigem === "Todos" || lead.origem === filtroOrigem;
       return dentroDataRange && origemMatch;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, filtroOrigem, filtroPeriodo]);
 
   const totalLeads = filteredLeads.length;
-  const vendasFechadas = filteredLeads.filter((l) => l.status === "Concluído").length;
+  const vendasFechadas = filteredLeads.filter(
+    (l) => l.status === "Concluído"
+  ).length;
 
   const totalComissoes = filteredLeads
     .filter((l) => l.status === "Concluído")
@@ -273,27 +329,28 @@ const DashboardPage = () => {
     ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
-  const taxaResposta = volumeProducao > 0 ? (totalLeads / volumeProducao) * 100 : 0;
-  const taxaQualificacao = totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
+  const taxaResposta =
+    volumeProducao > 0 ? (totalLeads / volumeProducao) * 100 : 0;
+  const taxaQualificacao =
+    totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
   // mantive a sua fórmula atual
-  const taxaFechamento = leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
+  const taxaFechamento =
+    leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
 
   const leadsParaRetorno = useMemo(() => {
-    return filteredLeads
-      .filter(leadPrecisaRetorno)
-      .sort((a, b) => {
-        const aHasLast = !!a.last_chamado_at;
-        const bHasLast = !!b.last_chamado_at;
+    return filteredLeads.filter(leadPrecisaRetorno).sort((a, b) => {
+      const aHasLast = !!a.last_chamado_at;
+      const bHasLast = !!b.last_chamado_at;
 
-        if (!aHasLast && !bHasLast) return 0;
-        if (!aHasLast && bHasLast) return -1;
-        if (aHasLast && !bHasLast) return 1;
+      if (!aHasLast && !bHasLast) return 0;
+      if (!aHasLast && bHasLast) return -1;
+      if (aHasLast && !bHasLast) return 1;
 
-        const aTime = new Date(a.last_chamado_at as string).getTime();
-        const bTime = new Date(b.last_chamado_at as string).getTime();
-        return aTime - bTime;
-      });
+      const aTime = new Date(a.last_chamado_at as string).getTime();
+      const bTime = new Date(b.last_chamado_at as string).getTime();
+      return aTime - bTime;
+    });
   }, [filteredLeads]);
 
   const qtdLeadsParaRetorno = leadsParaRetorno.length;
@@ -391,6 +448,7 @@ const DashboardPage = () => {
       border: "border-l-purple-600/60",
       iconBg: "bg-purple-100 dark:bg-purple-900/20",
       iconColor: "text-purple-600",
+      info: "Número total de leads que foram chamados no período filtrado.",
     },
     {
       title: "Leads Abordados",
@@ -401,6 +459,7 @@ const DashboardPage = () => {
       border: "border-l-blue-500/60",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500",
+      info: "Número total de leads que entraram no funil durante o período filtrado.",
     },
     {
       title: "Vendas Fechadas",
@@ -411,6 +470,7 @@ const DashboardPage = () => {
       border: "border-l-primary/60",
       iconBg: "bg-primary/10",
       iconColor: "text-primary",
+      info: "Número total de vendas concluídas no período filtrado.",
     },
     {
       title: "Taxa de Resposta",
@@ -420,6 +480,7 @@ const DashboardPage = () => {
       border: "border-l-blue-500/60",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500",
+      info: "Indica a eficiência na abordagem dos leads em relação ao volume produzido.",
     },
     {
       title: "Taxa de Qualificação",
@@ -429,6 +490,7 @@ const DashboardPage = () => {
       border: "border-l-blue-500/60",
       iconBg: "bg-blue-500/10",
       iconColor: "text-blue-500",
+      info: "Mostra a proporção de leads que avançaram para estágios mais sérios no funil de vendas.",
     },
     {
       title: "Taxa de Fechamento",
@@ -438,6 +500,7 @@ const DashboardPage = () => {
       border: "border-l-primary/60",
       iconBg: "bg-primary/10",
       iconColor: "text-primary",
+      info: "Reflete a eficácia do processo de vendas em converter leads qualificados em vendas reais.",
     },
   ];
 
@@ -462,7 +525,9 @@ const DashboardPage = () => {
       const key = lead.estado || "N/D";
       if (!acc[key]) acc[key] = { qualificados: 0, vendas: 0 };
 
-      const ehQualificado = ["Avaliando", "Fechamento", "Concluído"].includes(lead.status);
+      const ehQualificado = ["Avaliando", "Fechamento", "Concluído"].includes(
+        lead.status
+      );
       if (ehQualificado) acc[key].qualificados++;
 
       if (lead.status === "Concluído") acc[key].vendas++;
@@ -472,8 +537,14 @@ const DashboardPage = () => {
 
     return Object.entries(estadosData)
       .map(([estado, data]) => {
-        const taxa = data.qualificados > 0 ? (data.vendas / data.qualificados) * 100 : 0;
-        return { estado, qualificados: data.qualificados, vendas: data.vendas, taxa };
+        const taxa =
+          data.qualificados > 0 ? (data.vendas / data.qualificados) * 100 : 0;
+        return {
+          estado,
+          qualificados: data.qualificados,
+          vendas: data.vendas,
+          taxa,
+        };
       })
       .sort((a, b) => b.taxa - a.taxa);
   }, [filteredLeads]);
@@ -505,7 +576,9 @@ const DashboardPage = () => {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">Você precisa estar logado para ver o dashboard.</p>
+          <p className="text-lg font-semibold">
+            Você precisa estar logado para ver o dashboard.
+          </p>
           <p className="text-sm text-muted-foreground">
             Acesse a tela de login e entre com sua conta.
           </p>
@@ -547,31 +620,38 @@ const DashboardPage = () => {
         </div>
 
         {/* Filtros */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Filtros</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Card className="overflow-hidden border-none shadow-none p-0 rounded-none">
+          <CardContent className="space-y-4 p-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">Origem</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Origem
+                </div>
                 <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
                   <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Selecione a origem" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="Todos">Todos</SelectItem>
-                    <SelectItem value="Lead Novo">Apenas Leads Novos</SelectItem>
-                    <SelectItem value="Retrabalho">Apenas Retrabalhos</SelectItem>
+                    <SelectItem value="Lead Novo">
+                      Apenas Leads Novos
+                    </SelectItem>
+                    <SelectItem value="Retrabalho">
+                      Apenas Retrabalhos
+                    </SelectItem>
                     <SelectItem value="Ligação">Apenas Ligações</SelectItem>
                     <SelectItem value="Indicação">Apenas Indicações</SelectItem>
-                    <SelectItem value="Presencial">Apenas Presenciais</SelectItem>
+                    <SelectItem value="Presencial">
+                      Apenas Presenciais
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">Período</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Período
+                </div>
                 <Tabs value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
                   <TabsList className="grid grid-cols-3 w-full">
                     <TabsTrigger value="este-mes">Este mês</TabsTrigger>
@@ -582,29 +662,12 @@ const DashboardPage = () => {
               </div>
             </div>
 
-            <Separator />
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
-              <div className="text-muted-foreground">
-                Origem: <span className="text-foreground font-medium">{filtroOrigem}</span>
-              </div>
-              <div className="text-muted-foreground">
-                Período:{" "}
-                <span className="text-foreground font-medium">
-                  {filtroPeriodo === "este-mes"
-                    ? "Este mês"
-                    : filtroPeriodo === "mes-passado"
-                    ? "Mês passado"
-                    : "Últimos 90 dias"}
-                </span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
         {/* HERO - Comissão + gráfico abaixo */}
         <Card className="relative overflow-hidden border-primary/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-emerald-500/10" />
+          <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-emerald-500/10" />
           <CardContent className="relative p-5 md:p-6 space-y-5">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2">
@@ -661,7 +724,12 @@ const DashboardPage = () => {
                   </p>
                 </div>
 
-                <Tabs value={serieVendasMode} onValueChange={(v) => setSerieVendasMode(v as SerieVendasMode)}>
+                <Tabs
+                  value={serieVendasMode}
+                  onValueChange={(v) =>
+                    setSerieVendasMode(v as SerieVendasMode)
+                  }
+                >
                   <TabsList className="grid grid-cols-3 w-full sm:w-auto">
                     <TabsTrigger value="semana">Semana</TabsTrigger>
                     <TabsTrigger value="mes">Mês</TabsTrigger>
@@ -684,10 +752,23 @@ const DashboardPage = () => {
                   className="h-[260px] w-full"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={vendasSerieData} margin={{ top: 10, right: 14, left: 0, bottom: 0 }}>
+                    <LineChart
+                      data={vendasSerieData}
+                      margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line
                         type="monotone"
@@ -716,7 +797,17 @@ const DashboardPage = () => {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1.5">
-                      <p className="text-sm font-medium">{m.title}</p>
+                      <p className="flex gap-2 items-center text-sm font-medium">
+                        {m.title}{" "}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-gray-400" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{m.info}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
                       {showSkeleton ? (
                         <Skeleton className="h-8 w-24" />
                       ) : (
@@ -725,7 +816,9 @@ const DashboardPage = () => {
                       <p className="text-xs text-muted-foreground">{m.hint}</p>
                     </div>
 
-                    <div className={`h-10 w-10 rounded-xl ${m.iconBg} flex items-center justify-center`}>
+                    <div
+                      className={`h-10 w-10 rounded-xl ${m.iconBg} flex items-center justify-center`}
+                    >
                       <Icon className={`h-5 w-5 ${m.iconColor}`} />
                     </div>
                   </div>
@@ -734,39 +827,6 @@ const DashboardPage = () => {
             );
           })}
         </div>
-
-        {/* Entenda suas métricas */}
-        <Card className="border-primary/15">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Entenda suas métricas</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Leitura rápida do que importa no dia a dia.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="font-medium text-foreground">Taxa de Resposta</div>
-                <div className="mt-1">Percentual de leads abordados em relação à produção.</div>
-              </div>
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="font-medium text-foreground">Taxa de Qualificação</div>
-                <div className="mt-1">Percentual de leads que viraram oportunidade/negociação.</div>
-              </div>
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="font-medium text-foreground">Taxa de Fechamento</div>
-                <div className="mt-1">Eficiência geral do funil no período selecionado.</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Leads para retorno */}
         <Card className="border-primary/15">
@@ -825,7 +885,9 @@ const DashboardPage = () => {
                   <MapPin className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Top 10 Estados (Vendas)</CardTitle>
+                  <CardTitle className="text-base">
+                    Top 10 Estados (Vendas)
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
                     Onde você mais fecha no período selecionado.
                   </p>
@@ -836,7 +898,7 @@ const DashboardPage = () => {
               {showSkeleton ? (
                 <div className="space-y-3">
                   <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-[320px] w-full" />
+                  <Skeleton className="h-320px w-full" />
                 </div>
               ) : topEstadosData.length === 0 ? (
                 <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -855,10 +917,19 @@ const DashboardPage = () => {
                       margin={{ top: 12, right: 16, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="estado" tickLine={false} axisLine={false} fontSize={12} />
+                      <XAxis
+                        dataKey="estado"
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                      />
                       <YAxis tickLine={false} axisLine={false} fontSize={12} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="vendas" radius={[8, 8, 0, 0]} fill="var(--primary)" />
+                      <Bar
+                        dataKey="vendas"
+                        radius={[8, 8, 0, 0]}
+                        fill="var(--primary)"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -874,7 +945,9 @@ const DashboardPage = () => {
                   <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Taxa de Fechamento por Estado</CardTitle>
+                  <CardTitle className="text-base">
+                    Taxa de Fechamento por Estado
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
                     Conversão (vendas / qualificados) por UF.
                   </p>
@@ -892,7 +965,8 @@ const DashboardPage = () => {
                 </div>
               ) : estadosTabela.length === 0 ? (
                 <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Sem dados suficientes no período para calcular taxas por estado.
+                  Sem dados suficientes no período para calcular taxas por
+                  estado.
                 </div>
               ) : (
                 <div className="max-h-[380px] overflow-auto rounded-lg border">
@@ -900,7 +974,9 @@ const DashboardPage = () => {
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Estado</TableHead>
-                        <TableHead className="text-center">Qualificados</TableHead>
+                        <TableHead className="text-center">
+                          Qualificados
+                        </TableHead>
                         <TableHead className="text-center">Vendas</TableHead>
                         <TableHead className="text-center">Taxa</TableHead>
                       </TableRow>
@@ -908,15 +984,27 @@ const DashboardPage = () => {
                     <TableBody>
                       {estadosTabela.map((row) => {
                         const badgeVariant =
-                          row.taxa >= 20 ? "default" : row.taxa >= 10 ? "secondary" : "outline";
+                          row.taxa >= 20
+                            ? "default"
+                            : row.taxa >= 10
+                            ? "secondary"
+                            : "outline";
 
                         return (
                           <TableRow key={row.estado}>
-                            <TableCell className="font-medium">{row.estado}</TableCell>
-                            <TableCell className="text-center">{row.qualificados}</TableCell>
-                            <TableCell className="text-center">{row.vendas}</TableCell>
+                            <TableCell className="font-medium">
+                              {row.estado}
+                            </TableCell>
                             <TableCell className="text-center">
-                              <Badge variant={badgeVariant}>{row.taxa.toFixed(1)}%</Badge>
+                              {row.qualificados}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {row.vendas}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={badgeVariant}>
+                                {row.taxa.toFixed(1)}%
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         );
