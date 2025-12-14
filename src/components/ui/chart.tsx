@@ -22,6 +22,19 @@ type ChartContextProps = {
   config: ChartConfig
 }
 
+type RechartsLegendPayloadItem = {
+  value?: string
+  type?: string
+  color?: string
+  dataKey?: string | number
+  payload?: any
+}
+
+type RechartsLegendPropsLike = {
+  payload?: RechartsLegendPayloadItem[]
+  verticalAlign?: "top" | "middle" | "bottom"
+}
+
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
 function useChart() {
@@ -259,7 +272,7 @@ function ChartLegendContent({
   verticalAlign = "bottom",
   nameKey,
 }: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  Pick<RechartsLegendPropsLike, "payload" | "verticalAlign"> & {
     hideIcon?: boolean
     nameKey?: string
   }) {
