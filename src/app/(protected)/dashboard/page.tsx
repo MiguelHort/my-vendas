@@ -1,19 +1,14 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Layout } from "@/components/Layout";
+import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
+
+import { toast } from "sonner";
 import {
   TrendingUp,
   Users,
@@ -23,20 +18,57 @@ import {
   CheckCircle2,
   MapPin,
   Package,
+  Sparkles,
+  Clock,
+  ArrowUpRight,
+  Info,
 } from "lucide-react";
-import { toast } from "sonner";
+
+// shadcn ui
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// charts (shadcn wrapper + recharts)
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
+  LineChart,
+  Line,
 } from "recharts";
-
-// 🔁 Reaproveitando o mesmo tipo de Lead do Funil
-import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
+import { info } from "console";
 
 type Lead = FunilLead;
 
@@ -49,6 +81,8 @@ type LoteProducaoResumo = {
   qtd_presencial: number | null;
 };
 
+type SerieVendasMode = "semana" | "mes" | "ano";
+
 const DashboardPage = () => {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
@@ -57,6 +91,10 @@ const DashboardPage = () => {
   const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
   const [loading, setLoading] = useState(true);
+  const [loadingVolume, setLoadingVolume] = useState(true);
+
+  const [serieVendasMode, setSerieVendasMode] =
+    useState<SerieVendasMode>("semana");
 
   // ----------------- helpers -----------------
   const getDateRange = () => {
@@ -94,66 +132,78 @@ const DashboardPage = () => {
   const isLeadAtivo = (status: string) =>
     ["Abordagem", "Avaliando", "Fechamento"].includes(status);
 
-  // mesma lógica conceitual do "badge" do funil:
-  // - leads ativos
-  // - nunca chamados OU chamados há mais de 24h
   const leadPrecisaRetorno = (lead: Lead) => {
     if (!isLeadAtivo(lead.status)) return false;
-
-    if (!lead.last_chamado_at) {
-      // nunca foi chamado -> precisa retorno
-      return true;
-    }
+    if (!lead.last_chamado_at) return true;
 
     const last = new Date(lead.last_chamado_at);
     if (Number.isNaN(last.getTime())) return false;
 
     const now = new Date();
-    const diffMs = now.getTime() - last.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
+    const diffHours = (now.getTime() - last.getTime()) / (1000 * 60 * 60);
     return diffHours > 24;
   };
 
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+  const monthShort = (mIdx: number) => {
+    // 0..11
+    const names = [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
+    return names[mIdx] || "";
+  };
+
   // ----------------- fetch Leads -----------------
-const fetchLeads = async () => {
-  if (!firebaseUser) return;
+  const fetchLeads = async () => {
+    if (!firebaseUser) return;
 
-  try {
-    const params = new URLSearchParams({
-      firebaseUid: firebaseUser.uid,
-      email: firebaseUser.email || "",
-      name: firebaseUser.displayName || "",
-    });
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+      });
 
-    // 👇 troque essa linha:
-    // const res = await fetch(`/api/dashboard/leads?${params.toString()}`);
-    // 👇 por esta:
-    const res = await fetch(`/api/leads?${params.toString()}`);
+      const res = await fetch(`/api/leads?${params.toString()}`);
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error(
-        "Erro ao carregar dados de leads: " + (body.error || res.statusText)
-      );
-      return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(
+          "Erro ao carregar dados de leads: " + (body.error || res.statusText)
+        );
+        return;
+      }
+
+      const data: Lead[] = await res.json();
+      setLeads(data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao carregar dados de leads");
+    } finally {
+      setLoading(false);
     }
-
-    const data: Lead[] = await res.json();
-    setLeads(data || []);
-  } catch (error) {
-    console.error(error);
-    toast.error("Erro ao carregar dados de leads");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   // ----------------- fetch Volume Produção -----------------
   const fetchVolumeProducao = async () => {
     if (!firebaseUser) return;
 
+    setLoadingVolume(true);
     const { startDate, endDate } = getDateRange();
 
     try {
@@ -232,6 +282,8 @@ const fetchLeads = async () => {
     } catch (error) {
       console.error("Erro ao carregar volume de produção:", error);
       setVolumeProducao(0);
+    } finally {
+      setLoadingVolume(false);
     }
   };
 
@@ -248,24 +300,21 @@ const fetchLeads = async () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem]);
 
-  // ----------------- cálculos de métricas -----------------
-  const filteredLeads = leads.filter((lead) => {
+  // ----------------- métricas (filtradas pelo filtroPeriodo/origem) -----------------
+  const filteredLeads = useMemo(() => {
     const { startDate, endDate } = getDateRange();
-
-    // datas base do range em formato YYYY-MM-DD
     const startStr = startDate.toISOString().slice(0, 10);
     const endStr = endDate.toISOString().slice(0, 10);
 
-    // data do lead em formato YYYY-MM-DD
-    const leadDateStr = lead.data_entrada.slice(0, 10); // "2025-11-27..."
-
-    const dentroDataRange = leadDateStr >= startStr && leadDateStr <= endStr;
-
-    const origemMatch =
-      filtroOrigem === "Todos" || lead.origem === filtroOrigem;
-
-    return dentroDataRange && origemMatch;
-  });
+    return leads.filter((lead) => {
+      const leadDateStr = lead.data_entrada.slice(0, 10);
+      const dentroDataRange = leadDateStr >= startStr && leadDateStr <= endStr;
+      const origemMatch =
+        filtroOrigem === "Todos" || lead.origem === filtroOrigem;
+      return dentroDataRange && origemMatch;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, filtroOrigem, filtroPeriodo]);
 
   const totalLeads = filteredLeads.length;
   const vendasFechadas = filteredLeads.filter(
@@ -276,30 +325,21 @@ const fetchLeads = async () => {
     .filter((l) => l.status === "Concluído")
     .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
 
-  // leads que em algum momento “se movimentaram” (responderam)
-  const leadsRespondidos = filteredLeads.filter((l) =>
-    ["Avaliando", "Dispensado", "Concluído"].includes(l.status)
-  ).length;
-
-  // leads considerados qualificados
   const leadsQualificados = filteredLeads.filter((l) =>
     ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
   const taxaResposta =
-    totalLeads > 0 ? (leadsRespondidos / totalLeads) * 100 : 0;
-
+    volumeProducao > 0 ? (totalLeads / volumeProducao) * 100 : 0;
   const taxaQualificacao =
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
+  // mantive a sua fórmula atual
   const taxaFechamento =
-    leadsQualificados > 0 ? (vendasFechadas / leadsQualificados) * 100 : 0;
+    leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
 
-  // ----------------- leads que precisam de retorno -----------------
-  const leadsParaRetorno = filteredLeads
-    .filter(leadPrecisaRetorno)
-    .sort((a, b) => {
-      // ordem: nunca chamados primeiro, depois mais antigos
+  const leadsParaRetorno = useMemo(() => {
+    return filteredLeads.filter(leadPrecisaRetorno).sort((a, b) => {
       const aHasLast = !!a.last_chamado_at;
       const bHasLast = !!b.last_chamado_at;
 
@@ -309,79 +349,224 @@ const fetchLeads = async () => {
 
       const aTime = new Date(a.last_chamado_at as string).getTime();
       const bTime = new Date(b.last_chamado_at as string).getTime();
-      return aTime - bTime; // mais antigo primeiro
+      return aTime - bTime;
     });
+  }, [filteredLeads]);
 
   const qtdLeadsParaRetorno = leadsParaRetorno.length;
 
+  const comissoesFmt = (totalComissoes ?? 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  // ----------------- Série de vendas (sempre baseado no "ano/mês/semana atual", independente do filtroPeriodo) -----------------
+  const vendasConcluidas = useMemo(() => {
+    return leads.filter((l) => l.status === "Concluído");
+  }, [leads]);
+
+  const vendasSerieData = useMemo(() => {
+    const now = new Date();
+
+    if (serieVendasMode === "semana") {
+      // últimos 7 dias (inclui hoje)
+      const days: Date[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        days.push(d);
+      }
+
+      const map = new Map<string, number>();
+      for (const d of days) map.set(ymd(d), 0);
+
+      for (const l of vendasConcluidas) {
+        const d = new Date(l.data_entrada);
+        if (Number.isNaN(d.getTime())) continue;
+        const key = ymd(d);
+        if (map.has(key)) map.set(key, (map.get(key) || 0) + 1);
+      }
+
+      return days.map((d) => {
+        const key = ymd(d);
+        return {
+          label: `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`,
+          vendas: map.get(key) || 0,
+        };
+      });
+    }
+
+    if (serieVendasMode === "mes") {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const map = new Map<number, number>();
+      for (let day = 1; day <= daysInMonth; day++) map.set(day, 0);
+
+      for (const l of vendasConcluidas) {
+        const d = new Date(l.data_entrada);
+        if (Number.isNaN(d.getTime())) continue;
+        if (d.getFullYear() !== year || d.getMonth() !== month) continue;
+        map.set(d.getDate(), (map.get(d.getDate()) || 0) + 1);
+      }
+
+      return Array.from({ length: daysInMonth }, (_, idx) => {
+        const day = idx + 1;
+        return { label: pad2(day), vendas: map.get(day) || 0 };
+      });
+    }
+
+    // ano
+    {
+      const year = now.getFullYear();
+      const map = new Map<number, number>();
+      for (let m = 0; m < 12; m++) map.set(m, 0);
+
+      for (const l of vendasConcluidas) {
+        const d = new Date(l.data_entrada);
+        if (Number.isNaN(d.getTime())) continue;
+        if (d.getFullYear() !== year) continue;
+        map.set(d.getMonth(), (map.get(d.getMonth()) || 0) + 1);
+      }
+
+      return Array.from({ length: 12 }, (_, m) => ({
+        label: monthShort(m),
+        vendas: map.get(m) || 0,
+      }));
+    }
+  }, [serieVendasMode, vendasConcluidas]);
+
+  // ----------------- cards métricas com "toque" de cor -----------------
   const metrics = [
     {
-      title: "Volume Total de Produção",
+      title: "Volume de Produção",
       value: volumeProducao,
       icon: Package,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20",
-      colNumber: 1,
+      hint: "Total chamado no período",
+      // toque roxo (igual você tinha)
+      border: "border-l-purple-600/60",
+      iconBg: "bg-purple-100 dark:bg-purple-900/20",
+      iconColor: "text-purple-600",
+      info: "Número total de leads que foram chamados no período filtrado.",
     },
     {
-      title: "Total de Leads Abordados",
+      title: "Leads Abordados",
       value: totalLeads,
       icon: Users,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-      colNumber: 1,
+      hint: "Entradas no período",
+      // toque azul
+      border: "border-l-blue-500/60",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-500",
+      info: "Número total de leads que entraram no funil durante o período filtrado.",
     },
     {
       title: "Vendas Fechadas",
       value: vendasFechadas,
       icon: CheckCircle2,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-      colNumber: 1,
+      hint: "Status Concluído",
+      // toque primary (igual você tinha)
+      border: "border-l-primary/60",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+      info: "Número total de vendas concluídas no período filtrado.",
     },
     {
       title: "Taxa de Resposta",
       value: `${taxaResposta.toFixed(1)}%`,
       icon: ThumbsUp,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-      colNumber: 1,
+      hint: "Leads / Produção",
+      border: "border-l-blue-500/60",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-500",
+      info: "Indica a eficiência na abordagem dos leads em relação ao volume produzido.",
     },
     {
       title: "Taxa de Qualificação",
       value: `${taxaQualificacao.toFixed(1)}%`,
       icon: Target,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-      colNumber: 1,
+      hint: "Qualificados / Leads",
+      border: "border-l-blue-500/60",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-500",
+      info: "Mostra a proporção de leads que avançaram para estágios mais sérios no funil de vendas.",
     },
     {
       title: "Taxa de Fechamento",
       value: `${taxaFechamento.toFixed(1)}%`,
       icon: TrendingUp,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-      colNumber: 1,
-    },
-    {
-      title: "Total em Comissões",
-      value: (totalComissoes ?? 0).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      icon: DollarSign,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-      colNumber: 3,
+      hint: "Vendas / Produção",
+      border: "border-l-primary/60",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+      info: "Reflete a eficácia do processo de vendas em converter leads qualificados em vendas reais.",
     },
   ];
+
+  // ----------------- dados charts/tabela (filtrados) -----------------
+  const topEstadosData = useMemo(() => {
+    const vendasPorEstado = filteredLeads
+      .filter((l) => l.status === "Concluído")
+      .reduce((acc, lead) => {
+        const key = lead.estado || "N/D";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+    return Object.entries(vendasPorEstado)
+      .map(([estado, vendas]) => ({ estado, vendas }))
+      .sort((a, b) => b.vendas - a.vendas)
+      .slice(0, 10);
+  }, [filteredLeads]);
+
+  const estadosTabela = useMemo(() => {
+    const estadosData = filteredLeads.reduce((acc, lead) => {
+      const key = lead.estado || "N/D";
+      if (!acc[key]) acc[key] = { qualificados: 0, vendas: 0 };
+
+      const ehQualificado = ["Avaliando", "Fechamento", "Concluído"].includes(
+        lead.status
+      );
+      if (ehQualificado) acc[key].qualificados++;
+
+      if (lead.status === "Concluído") acc[key].vendas++;
+
+      return acc;
+    }, {} as Record<string, { qualificados: number; vendas: number }>);
+
+    return Object.entries(estadosData)
+      .map(([estado, data]) => {
+        const taxa =
+          data.qualificados > 0 ? (data.vendas / data.qualificados) * 100 : 0;
+        return {
+          estado,
+          qualificados: data.qualificados,
+          vendas: data.vendas,
+          taxa,
+        };
+      })
+      .sort((a, b) => b.taxa - a.taxa);
+  }, [filteredLeads]);
 
   // ----------------- estados de loading / sem login -----------------
   if (loadingAuth) {
     return (
       <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="p-4 md:p-6">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-80" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -402,87 +587,239 @@ const fetchLeads = async () => {
     );
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
-      </Layout>
-    );
-  }
+  const showSkeleton = loading || loadingVolume;
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard de Performance</h1>
-          <p className="text-muted-foreground mt-1">
-            Análise completa das suas métricas de vendas
-          </p>
+      <div className="p-4 md:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Dashboard de Performance
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Visão geral do período, com foco em conversão e retorno rápido.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="gap-1">
+              <Sparkles className="h-3.5 w-3.5" />
+              Atualizado por filtros
+            </Badge>
+            {qtdLeadsParaRetorno > 0 ? (
+              <Badge className="gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {qtdLeadsParaRetorno} pendente(s)
+              </Badge>
+            ) : (
+              <Badge variant="outline">Sem pendências 🎉</Badge>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Filtrar por Origem</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Selecione a origem" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  <SelectItem value="Lead Novo">Apenas Leads Novos</SelectItem>
-                  <SelectItem value="Retrabalho">Apenas Retrabalhos</SelectItem>
-                  <SelectItem value="Ligação">Apenas Ligações</SelectItem>
-                  <SelectItem value="Indicação">Apenas Indicações</SelectItem>
-                  <SelectItem value="Presencial">Apenas Presenciais</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+        {/* Filtros */}
+        <Card className="overflow-hidden border-none shadow-none p-0 rounded-none">
+          <CardContent className="space-y-4 p-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Origem
+                </div>
+                <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Selecione a origem" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="Todos">Todos</SelectItem>
+                    <SelectItem value="Lead Novo">
+                      Apenas Leads Novos
+                    </SelectItem>
+                    <SelectItem value="Retrabalho">
+                      Apenas Retrabalhos
+                    </SelectItem>
+                    <SelectItem value="Ligação">Apenas Ligações</SelectItem>
+                    <SelectItem value="Indicação">Apenas Indicações</SelectItem>
+                    <SelectItem value="Presencial">
+                      Apenas Presenciais
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Período</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Selecione o período" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  <SelectItem value="este-mes">Este Mês</SelectItem>
-                  <SelectItem value="mes-passado">Mês Passado</SelectItem>
-                  <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Período
+                </div>
+                <Tabs value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+                  <TabsList className="grid grid-cols-3 w-full">
+                    <TabsTrigger value="este-mes">Este mês</TabsTrigger>
+                    <TabsTrigger value="mes-passado">Mês passado</TabsTrigger>
+                    <TabsTrigger value="ultimos-90">90 dias</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {metrics.map((metric, index) => {
-            const Icon = metric.icon;
+          </CardContent>
+        </Card>
+
+        {/* HERO - Comissão + gráfico abaixo */}
+        <Card className="relative overflow-hidden border-primary/20">
+          <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-emerald-500/10" />
+          <CardContent className="relative p-5 md:p-6 space-y-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Comissão no período (filtros)
+                    </p>
+                    {showSkeleton ? (
+                      <Skeleton className="h-8 w-44 mt-1" />
+                    ) : (
+                      <p className="text-2xl md:text-3xl font-bold tracking-tight">
+                        {comissoesFmt}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="gap-1">
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                    Meta visual
+                  </Badge>
+                  <Badge variant="secondary">Foco: conversão</Badge>
+                </div>
+              </div>
+
+              <div className="w-full md:w-[320px] space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Fechamento</span>
+                  <span className="font-medium text-foreground">
+                    {showSkeleton ? "..." : `${taxaFechamento.toFixed(1)}%`}
+                  </span>
+                </div>
+                <Progress value={Math.min(100, Math.max(0, taxaFechamento))} />
+                <p className="text-xs text-muted-foreground">
+                  Acelere fechamentos atacando “Retornos pendentes”.
+                </p>
+              </div>
+            </div>
+
+            <Separator className="bg-primary/10" />
+
+            {/* gráfico de vendas (concluídos) - abaixo do card comissão */}
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Vendas (Concluídas)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Série do tempo atual (não depende do filtro de período).
+                  </p>
+                </div>
+
+                <Tabs
+                  value={serieVendasMode}
+                  onValueChange={(v) =>
+                    setSerieVendasMode(v as SerieVendasMode)
+                  }
+                >
+                  <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+                    <TabsTrigger value="semana">Semana</TabsTrigger>
+                    <TabsTrigger value="mes">Mês</TabsTrigger>
+                    <TabsTrigger value="ano">Ano</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {showSkeleton ? (
+                <Skeleton className="h-[260px] w-full" />
+              ) : vendasSerieData.length === 0 ? (
+                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Sem vendas concluídas suficientes para gerar a série.
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    vendas: { label: "Vendas", color: "hsl(var(--primary))" },
+                  }}
+                  className="h-[260px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={vendasSerieData}
+                      margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="vendas"
+                        stroke="var(--primary)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cards de métricas com toque de cor */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {metrics.map((m) => {
+            const Icon = m.icon;
             return (
               <Card
-                key={index}
-                className={`shadow-sm hover:shadow-md transition-shadow ${`col-span-${metric.colNumber}`}`}
+                key={m.title}
+                className={`hover:shadow-sm transition-shadow border-l-4 ${m.border}`}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {metric.title}
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1.5">
+                      <p className="flex gap-2 items-center text-sm font-medium">
+                        {m.title}{" "}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-gray-400" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{m.info}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </p>
-                      <p className={`text-3xl font-bold ${metric.color}`}>
-                        {metric.value}
-                      </p>
+                      {showSkeleton ? (
+                        <Skeleton className="h-8 w-24" />
+                      ) : (
+                        <p className="text-2xl font-bold">{m.value}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">{m.hint}</p>
                     </div>
-                    <div className={`${metric.bgColor} p-3 rounded-lg`}>
-                      <Icon className={`w-6 h-6 ${metric.color}`} />
+
+                    <div
+                      className={`h-10 w-10 rounded-xl ${m.iconBg} flex items-center justify-center`}
+                    >
+                      <Icon className={`h-5 w-5 ${m.iconColor}`} />
                     </div>
                   </div>
                 </CardContent>
@@ -491,63 +828,29 @@ const fetchLeads = async () => {
           })}
         </div>
 
-        {/* EXPLICAÇÃO DAS MÉTRICAS */}
-        <Card className="bg-linerar-to-br from-primary/5 to-success/5 border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-2">
-                  Entenda suas métricas
-                </h3>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  <li>
-                    <strong>Taxa de Resposta:</strong> % de leads que geraram
-                    algum retorno (Avaliando, Dispensado ou Concluído) em
-                    relação ao total de leads no período.
-                  </li>
-                  <li>
-                    <strong>Taxa de Qualificação:</strong> % de leads que
-                    avançaram para oportunidade/negociação (Avaliando,
-                    Fechamento ou Concluído) em relação ao total de leads.
-                  </li>
-                  <li>
-                    <strong>Taxa de Fechamento:</strong> % de vendas concluídas
-                    em relação aos leads qualificados (Avaliando, Fechamento ou
-                    Concluído).
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* LEADS QUE PRECISAM DE RETORNO (USANDO LeadCard) */}
-        <Card className="bg-linerar-to-br from-primary/5 to-success/5 border-primary/20">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-6 h-6 text-primary" />
+        {/* Leads para retorno */}
+        <Card className="border-primary/15">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h3 className="font-semibold text-lg">
-                    Leads que você precisa retornar
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {qtdLeadsParaRetorno > 0
-                      ? `${qtdLeadsParaRetorno} lead${
-                          qtdLeadsParaRetorno > 1 ? "s" : ""
-                        } aguardando contato há mais de 24h`
-                      : "Nenhum lead pendente de retorno há mais de 24h 🎉"}
-                  </p>
-                </div>
+                <CardTitle className="text-base">Retornos pendentes</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {qtdLeadsParaRetorno > 0
+                    ? `${qtdLeadsParaRetorno} lead(s) aguardando contato há mais de 24h`
+                    : "Nenhum lead pendente de retorno há mais de 24h 🎉"}
+                </p>
               </div>
+              <Badge variant={qtdLeadsParaRetorno > 0 ? "default" : "outline"}>
+                {qtdLeadsParaRetorno > 0 ? "Prioridade" : "Ok"}
+              </Badge>
             </div>
+          </CardHeader>
 
-            {qtdLeadsParaRetorno > 0 && (
+          <CardContent className="space-y-4">
+            {qtdLeadsParaRetorno > 0 ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {leadsParaRetorno.slice(0, 8).map((lead) => (
                   <LeadCard
@@ -562,202 +865,154 @@ const fetchLeads = async () => {
                   />
                 ))}
               </div>
+            ) : (
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                Dica: mantenha esse card zerado retornando primeiro os leads em{" "}
+                <span className="font-medium text-foreground">Abordagem</span> e{" "}
+                <span className="font-medium text-foreground">Avaliando</span>.
+              </div>
             )}
           </CardContent>
         </Card>
 
+        {/* Charts + Tabela */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top 10 estados por volume de vendas */}
+          {/* Top 10 estados */}
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-blue-500" />
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <CardTitle>Top 10 Estados por Volume de Vendas</CardTitle>
+                  <CardTitle className="text-base">
+                    Top 10 Estados (Vendas)
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Estados com mais vendas fechadas no período
+                    Onde você mais fecha no período selecionado.
                   </p>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart
-                  data={(() => {
-                    const vendasPorEstado = filteredLeads
-                      .filter((l) => l.status === "Concluído")
-                      .reduce((acc, lead) => {
-                        const key = lead.estado || "N/D";
-                        acc[key] = (acc[key] || 0) + 1;
-                        return acc;
-                      }, {} as Record<string, number>);
-
-                    return Object.entries(vendasPorEstado)
-                      .map(([estado, vendas]) => ({ estado, vendas }))
-                      .sort((a, b) => b.vendas - a.vendas)
-                      .slice(0, 10);
-                  })()}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              {showSkeleton ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-320px w-full" />
+                </div>
+              ) : topEstadosData.length === 0 ? (
+                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Sem vendas concluídas no período para montar o gráfico.
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    vendas: { label: "Vendas", color: "hsl(var(--primary))" },
+                  }}
+                  className="h-[380px] w-full"
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-
-                  <XAxis
-                    dataKey="estado"
-                    tick={{ fill: "#6B7280", fontSize: 12 }}
-                    axisLine={{ stroke: "#D1D5DB" }}
-                    tickLine={{ stroke: "#D1D5DB" }}
-                  />
-                  <YAxis
-                    tick={{ fill: "#6B7280", fontSize: 12 }}
-                    axisLine={{ stroke: "#D1D5DB" }}
-                    tickLine={{ stroke: "#D1D5DB" }}
-                  />
-
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1px solid #E5E7EB",
-                      borderRadius: 8,
-                      color: "#111827",
-                    }}
-                  />
-
-                  <defs>
-                    <linearGradient
-                      id="vendasGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={topEstadosData}
+                      margin={{ top: 12, right: 16, left: 0, bottom: 0 }}
                     >
-                      <stop offset="0%" stopColor="#22C55E" stopOpacity={0.9} />
-                      <stop
-                        offset="100%"
-                        stopColor="#22C55E"
-                        stopOpacity={0.4}
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="estado"
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
                       />
-                    </linearGradient>
-                  </defs>
-
-                  <Bar
-                    dataKey="vendas"
-                    radius={[8, 8, 0, 0]}
-                    fill="url(#vendasGradient)"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+                      <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="vendas"
+                        radius={[8, 8, 0, 0]}
+                        fill="var(--primary)"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Taxa de fechamento por estado */}
+          {/* Tabela - taxa por estado */}
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                  <Target className="w-5 h-5 text-accent" />
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Taxa de Fechamento por Estado</CardTitle>
+                  <CardTitle className="text-base">
+                    Taxa de Fechamento por Estado
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Eficiência de conversão em cada estado
+                    Conversão (vendas / qualificados) por UF.
                   </p>
                 </div>
               </div>
             </CardHeader>
+
             <CardContent>
-              <div className="overflow-auto max-h-[400px]">
-                <table className="w-full text-sm">
-                  <thead className="border-b sticky top-0 bg-background">
-                    <tr>
-                      <th className="text-left py-3 px-2 font-semibold">
-                        Estado
-                      </th>
-                      <th className="text-center py-3 px-2 font-semibold">
-                        Leads Qualificados
-                      </th>
-                      <th className="text-center py-3 px-2 font-semibold">
-                        Vendas Concluídas
-                      </th>
-                      <th className="text-center py-3 px-2 font-semibold">
-                        Taxa de Fechamento
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const estadosData = filteredLeads.reduce((acc, lead) => {
-                        const key = lead.estado || "N/D";
-                        if (!acc[key]) {
-                          acc[key] = { qualificados: 0, vendas: 0 };
-                        }
+              {showSkeleton ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : estadosTabela.length === 0 ? (
+                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Sem dados suficientes no período para calcular taxas por
+                  estado.
+                </div>
+              ) : (
+                <div className="max-h-[380px] overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-center">
+                          Qualificados
+                        </TableHead>
+                        <TableHead className="text-center">Vendas</TableHead>
+                        <TableHead className="text-center">Taxa</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {estadosTabela.map((row) => {
+                        const badgeVariant =
+                          row.taxa >= 20
+                            ? "default"
+                            : row.taxa >= 10
+                            ? "secondary"
+                            : "outline";
 
-                        const ehQualificado = [
-                          "Avaliando",
-                          "Fechamento",
-                          "Concluído",
-                        ].includes(lead.status);
-
-                        if (ehQualificado) {
-                          acc[key].qualificados++;
-                        }
-
-                        if (lead.status === "Concluído") {
-                          acc[key].vendas++;
-                        }
-
-                        return acc;
-                      }, {} as Record<string, { qualificados: number; vendas: number }>);
-
-                      return Object.entries(estadosData)
-                        .map(([estado, data]) => {
-                          const taxa =
-                            data.qualificados > 0
-                              ? (data.vendas / data.qualificados) * 100
-                              : 0;
-
-                          return {
-                            estado,
-                            qualificados: data.qualificados,
-                            vendas: data.vendas,
-                            taxa,
-                          };
-                        })
-                        .sort((a, b) => b.taxa - a.taxa)
-                        .map((row, index) => (
-                          <tr
-                            key={row.estado}
-                            className={index % 2 === 0 ? "bg-muted/20" : ""}
-                          >
-                            <td className="py-3 px-2 font-medium">
+                        return (
+                          <TableRow key={row.estado}>
+                            <TableCell className="font-medium">
                               {row.estado}
-                            </td>
-                            <td className="py-3 px-2 text-center">
+                            </TableCell>
+                            <TableCell className="text-center">
                               {row.qualificados}
-                            </td>
-                            <td className="py-3 px-2 text-center text-success font-semibold">
+                            </TableCell>
+                            <TableCell className="text-center">
                               {row.vendas}
-                            </td>
-                            <td className="py-3 px-2 text-center">
-                              <span
-                                className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-semibold ${
-                                  row.taxa >= 20
-                                    ? "bg-success/10 text-success"
-                                    : row.taxa >= 10
-                                    ? "bg-accent/10 text-accent"
-                                    : "bg-muted text-muted-foreground"
-                                }`}
-                              >
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={badgeVariant}>
                                 {row.taxa.toFixed(1)}%
-                              </span>
-                            </td>
-                          </tr>
-                        ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

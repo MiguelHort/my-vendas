@@ -1,10 +1,9 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
-import { Button } from "@/components/ui/button";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import {
   LayoutDashboard,
@@ -12,62 +11,98 @@ import {
   PlusCircle,
   MapPinned,
   CircleDollarSign,
+  UserStar,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import Image from "next/image";
+
+import { auth } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type LayoutProps = {
   children: ReactNode;
 };
 
+type MeUser = {
+  id: string;
+  firebaseUid: string;
+  email: string;
+  name: string | null;
+  admin: boolean;
+  isActive: boolean;
+  subscriptionStatus: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/dashboard/funil",
-    label: "Funil",
-    icon: Workflow,
-  },
-  {
-    href: "/dashboard/novo-lead",
-    label: "Novo Lead",
-    icon: PlusCircle,
-  },
-  {
-    href: "/dashboard/mapa-estados",
-    label: "Mapa",
-    icon: MapPinned,
-  },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/novo-lead", label: "Novo Lead", icon: PlusCircle },
+  { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
+  { href: "/dashboard/admin", label: "Admin", icon: UserStar },
 ];
 
-const navItems1 = [
-  {
-    href: "/dashboard/cotacao",
-    label: "Cotação",
-    icon: CircleDollarSign,
-  },
+const navItemsCotacao = [
+  { href: "/dashboard/cotacao", label: "Cotação", icon: CircleDollarSign },
 ];
 
 export function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+
+  const [user, setUser] = useState<User | null | undefined>(undefined); // Firebase
+  const [meUser, setMeUser] = useState<MeUser | null>(null); // Prisma (/api/me)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
         setUser(null);
+        setMeUser(null);
+        setIsAdmin(false);
         router.push("/login");
+        return;
+      }
+
+      setUser(firebaseUser);
+
+      try {
+        const token = await firebaseUser.getIdToken();
+        const res = await fetch("/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          setIsAdmin(false);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data?.user) {
+          setMeUser(data.user);
+          setIsAdmin(!!data.user.admin);
+        } else {
+          setMeUser(null);
+          setIsAdmin(false);
+        }
+      } catch {
+        setMeUser(null);
+        setIsAdmin(false);
       }
     });
 
     return () => unsubscribe();
   }, [router]);
+
+  const filteredNavItems = useMemo(() => {
+    return navItems.filter((item) => {
+      if (item.href === "/dashboard/admin") return isAdmin;
+      return true;
+    });
+  }, [isAdmin]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -90,15 +125,17 @@ export function Layout({ children }: LayoutProps) {
     );
   }
 
-  const displayName = user.displayName || "Usuário";
-  const email = user.email || "";
+  const displayName = user.displayName || meUser?.name || "Usuário";
+  const email = user.email || meUser?.email || "";
   const photo = user.photoURL || "";
 
   const initials =
     displayName
       .split(" ")
+      .filter(Boolean)
       .map((n) => n[0])
       .join("")
+      .slice(0, 2)
       .toUpperCase() || "U";
 
   return (
@@ -122,66 +159,59 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </Link>
 
-          <div className="flex gap-1">
-            {/* Navegação central (desktop) */}
-            <nav className="hidden md:flex items-center justify-center flex-1">
-              <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== "/dashboard" &&
-                      pathname?.startsWith(item.href));
+          {/* Navegação central (desktop) */}
+          <nav className="hidden md:flex items-center justify-center flex-1 gap-3">
+            <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
+              {filteredNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/dashboard" && pathname?.startsWith(item.href));
 
-                  return (
-                    <Button
-                      key={item.href}
-                      asChild
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      className={`gap-2 px-3 rounded-full text-xs font-medium ${
-                        isActive ? "shadow-sm" : "text-muted-foreground"
-                      }`}
-                    >
-                      <Link href={item.href}>
-                        <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </Button>
-                  );
-                })}
-              </div>
-            </nav>
+                return (
+                  <Button
+                    key={item.href}
+                    asChild
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
+                    className={`gap-2 px-3 rounded-full text-xs font-medium ${
+                      isActive ? "shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Link href={item.href}>
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
 
-            <nav className="hidden md:flex items-center justify-center">
-              <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
-                {navItems1.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== "/dashboard" &&
-                      pathname?.startsWith(item.href));
+            <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1 border border-border/60">
+              {navItemsCotacao.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href || pathname?.startsWith(item.href);
 
-                  return (
-                    <Button
-                      key={item.href}
-                      asChild
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      className={`gap-2 px-3 rounded-full text-xs font-medium ${
-                        isActive ? "shadow-sm" : "text-muted-foreground"
-                      }`}
-                    >
-                      <Link href={item.href}>
-                        <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </Button>
-                  );
-                })}
-              </div>
-            </nav>
-          </div>
+                return (
+                  <Button
+                    key={item.href}
+                    asChild
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
+                    className={`gap-2 px-3 rounded-full text-xs font-medium ${
+                      isActive ? "shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Link href={item.href}>
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </nav>
 
           {/* Perfil do usuário + sair */}
           <div className="flex items-center gap-3">
@@ -192,14 +222,15 @@ export function Layout({ children }: LayoutProps) {
               <span className="text-xs text-muted-foreground truncate max-w-[180px]">
                 {email}
               </span>
+              {isAdmin && (
+                <span className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wide">
+                  Admin
+                </span>
+              )}
             </div>
 
             <Avatar className="w-9 h-9 border-2 border-primary p-0.5">
-              <AvatarImage
-                src={photo}
-                alt={displayName}
-                className="rounded-full"
-              />
+              <AvatarImage src={photo} alt={displayName} className="rounded-full" />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
 
@@ -216,8 +247,8 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Navegação mobile */}
         <nav className="md:hidden border-t border-border/60 bg-background">
-          <div className="max-w-6xl mx-auto px-2 py-2 flex items-center gap-1 overflow-x-auto">
-            {navItems.map((item) => {
+          <div className="max-w-7xl mx-auto px-2 py-2 flex items-center gap-1 overflow-x-auto">
+            {[...filteredNavItems, ...navItemsCotacao].map((item) => {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
@@ -253,7 +284,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* RODAPÉ */}
       <footer className="border-t mt-4">
-        <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} WinLeads</span>
           <span>Foco em corretores de planos de saúde</span>
         </div>

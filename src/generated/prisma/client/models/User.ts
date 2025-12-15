@@ -35,6 +35,7 @@ export type UserMinAggregateOutputType = {
   stripeSubscriptionId: string | null
   subscriptionStatus: string | null
   isActive: boolean | null
+  admin: boolean | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -48,6 +49,7 @@ export type UserMaxAggregateOutputType = {
   stripeSubscriptionId: string | null
   subscriptionStatus: string | null
   isActive: boolean | null
+  admin: boolean | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -61,6 +63,7 @@ export type UserCountAggregateOutputType = {
   stripeSubscriptionId: number
   subscriptionStatus: number
   isActive: number
+  admin: number
   _all: number
 }
 
@@ -76,6 +79,7 @@ export type UserMinAggregateInputType = {
   stripeSubscriptionId?: true
   subscriptionStatus?: true
   isActive?: true
+  admin?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -89,6 +93,7 @@ export type UserMaxAggregateInputType = {
   stripeSubscriptionId?: true
   subscriptionStatus?: true
   isActive?: true
+  admin?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -102,6 +107,7 @@ export type UserCountAggregateInputType = {
   stripeSubscriptionId?: true
   subscriptionStatus?: true
   isActive?: true
+  admin?: true
   _all?: true
 }
 
@@ -188,6 +194,7 @@ export type UserGroupByOutputType = {
   stripeSubscriptionId: string | null
   subscriptionStatus: string | null
   isActive: boolean
+  admin: boolean
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
@@ -222,6 +229,7 @@ export type UserWhereInput = {
   stripeSubscriptionId?: Prisma.StringNullableFilter<"User"> | string | null
   subscriptionStatus?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  admin?: Prisma.BoolFilter<"User"> | boolean
   leads?: Prisma.LeadListRelationFilter
   lotesProducao?: Prisma.LoteProducaoListRelationFilter
 }
@@ -237,6 +245,7 @@ export type UserOrderByWithRelationInput = {
   stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
   subscriptionStatus?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  admin?: Prisma.SortOrder
   leads?: Prisma.LeadOrderByRelationAggregateInput
   lotesProducao?: Prisma.LoteProducaoOrderByRelationAggregateInput
 }
@@ -255,6 +264,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   stripeSubscriptionId?: Prisma.StringNullableFilter<"User"> | string | null
   subscriptionStatus?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  admin?: Prisma.BoolFilter<"User"> | boolean
   leads?: Prisma.LeadListRelationFilter
   lotesProducao?: Prisma.LoteProducaoListRelationFilter
 }, "id" | "firebaseUid">
@@ -270,6 +280,7 @@ export type UserOrderByWithAggregationInput = {
   stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
   subscriptionStatus?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  admin?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
@@ -289,6 +300,7 @@ export type UserScalarWhereWithAggregatesInput = {
   stripeSubscriptionId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   subscriptionStatus?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
+  admin?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
 }
 
 export type UserCreateInput = {
@@ -302,6 +314,7 @@ export type UserCreateInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   leads?: Prisma.LeadCreateNestedManyWithoutUserInput
   lotesProducao?: Prisma.LoteProducaoCreateNestedManyWithoutUserInput
 }
@@ -317,6 +330,7 @@ export type UserUncheckedCreateInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   leads?: Prisma.LeadUncheckedCreateNestedManyWithoutUserInput
   lotesProducao?: Prisma.LoteProducaoUncheckedCreateNestedManyWithoutUserInput
 }
@@ -332,6 +346,7 @@ export type UserUpdateInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUpdateManyWithoutUserNestedInput
   lotesProducao?: Prisma.LoteProducaoUpdateManyWithoutUserNestedInput
 }
@@ -347,6 +362,7 @@ export type UserUncheckedUpdateInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUncheckedUpdateManyWithoutUserNestedInput
   lotesProducao?: Prisma.LoteProducaoUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -362,6 +378,7 @@ export type UserCreateManyInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
 }
 
 export type UserUpdateManyMutationInput = {
@@ -375,6 +392,7 @@ export type UserUpdateManyMutationInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -388,6 +406,7 @@ export type UserUncheckedUpdateManyInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -401,6 +420,7 @@ export type UserCountOrderByAggregateInput = {
   stripeSubscriptionId?: Prisma.SortOrder
   subscriptionStatus?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  admin?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -414,6 +434,7 @@ export type UserMaxOrderByAggregateInput = {
   stripeSubscriptionId?: Prisma.SortOrder
   subscriptionStatus?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  admin?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -427,6 +448,7 @@ export type UserMinOrderByAggregateInput = {
   stripeSubscriptionId?: Prisma.SortOrder
   subscriptionStatus?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  admin?: Prisma.SortOrder
 }
 
 export type UserNullableScalarRelationFilter = {
@@ -496,6 +518,7 @@ export type UserCreateWithoutLeadsInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   lotesProducao?: Prisma.LoteProducaoCreateNestedManyWithoutUserInput
 }
 
@@ -510,6 +533,7 @@ export type UserUncheckedCreateWithoutLeadsInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   lotesProducao?: Prisma.LoteProducaoUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -540,6 +564,7 @@ export type UserUpdateWithoutLeadsInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lotesProducao?: Prisma.LoteProducaoUpdateManyWithoutUserNestedInput
 }
 
@@ -554,6 +579,7 @@ export type UserUncheckedUpdateWithoutLeadsInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lotesProducao?: Prisma.LoteProducaoUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -568,6 +594,7 @@ export type UserCreateWithoutLotesProducaoInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   leads?: Prisma.LeadCreateNestedManyWithoutUserInput
 }
 
@@ -582,6 +609,7 @@ export type UserUncheckedCreateWithoutLotesProducaoInput = {
   stripeSubscriptionId?: string | null
   subscriptionStatus?: string | null
   isActive?: boolean
+  admin?: boolean
   leads?: Prisma.LeadUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -612,6 +640,7 @@ export type UserUpdateWithoutLotesProducaoInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUpdateManyWithoutUserNestedInput
 }
 
@@ -626,6 +655,7 @@ export type UserUncheckedUpdateWithoutLotesProducaoInput = {
   stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   subscriptionStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  admin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   leads?: Prisma.LeadUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -680,6 +710,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   stripeSubscriptionId?: boolean
   subscriptionStatus?: boolean
   isActive?: boolean
+  admin?: boolean
   leads?: boolean | Prisma.User$leadsArgs<ExtArgs>
   lotesProducao?: boolean | Prisma.User$lotesProducaoArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -696,6 +727,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   stripeSubscriptionId?: boolean
   subscriptionStatus?: boolean
   isActive?: boolean
+  admin?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -709,6 +741,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   stripeSubscriptionId?: boolean
   subscriptionStatus?: boolean
   isActive?: boolean
+  admin?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -722,9 +755,10 @@ export type UserSelectScalar = {
   stripeSubscriptionId?: boolean
   subscriptionStatus?: boolean
   isActive?: boolean
+  admin?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firebaseUid" | "email" | "name" | "createdAt" | "updatedAt" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "isActive", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firebaseUid" | "email" | "name" | "createdAt" | "updatedAt" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "isActive" | "admin", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   leads?: boolean | Prisma.User$leadsArgs<ExtArgs>
   lotesProducao?: boolean | Prisma.User$lotesProducaoArgs<ExtArgs>
@@ -750,6 +784,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     stripeSubscriptionId: string | null
     subscriptionStatus: string | null
     isActive: boolean
+    admin: boolean
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -1185,6 +1220,7 @@ export interface UserFieldRefs {
   readonly stripeSubscriptionId: Prisma.FieldRef<"User", 'String'>
   readonly subscriptionStatus: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
+  readonly admin: Prisma.FieldRef<"User", 'Boolean'>
 }
     
 

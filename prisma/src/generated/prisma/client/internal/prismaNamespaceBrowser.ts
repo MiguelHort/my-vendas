@@ -51,9 +51,9 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  User: 'User',
-  Lead: 'Lead',
-  LoteProducao: 'LoteProducao'
+  leads: 'leads',
+  lotes_producao: 'lotes_producao',
+  users: 'users'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -72,73 +72,73 @@ export const TransactionIsolationLevel = {
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-export const UserScalarFieldEnum = {
+export const LeadsScalarFieldEnum = {
   id: 'id',
-  firebaseUid: 'firebaseUid',
+  nome: 'nome',
+  data_entrada: 'data_entrada',
+  origem: 'origem',
+  status: 'status',
+  valor_comissao: 'valor_comissao',
+  data_venda: 'data_venda',
+  user_id: 'user_id',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  estado: 'estado',
+  lote_producao_id: 'lote_producao_id',
+  cidade: 'cidade',
+  qtd_vidas: 'qtd_vidas',
+  idades: 'idades',
+  possui_cnpj: 'possui_cnpj',
+  tem_plano_anterior: 'tem_plano_anterior',
+  operadora_anterior: 'operadora_anterior',
+  tempo_plano_anterior: 'tempo_plano_anterior',
+  modalidade: 'modalidade',
+  operadora_ofertada: 'operadora_ofertada',
+  acomodacao: 'acomodacao',
+  valor_mensalidade: 'valor_mensalidade',
+  coparticipacao: 'coparticipacao',
+  motivo_dispensa: 'motivo_dispensa',
+  telefone: 'telefone',
+  last_chamado_at: 'last_chamado_at'
+} as const
+
+export type LeadsScalarFieldEnum = (typeof LeadsScalarFieldEnum)[keyof typeof LeadsScalarFieldEnum]
+
+
+export const Lotes_producaoScalarFieldEnum = {
+  id: 'id',
+  user_id: 'user_id',
+  data_acao: 'data_acao',
+  volume_total_chamado: 'volume_total_chamado',
+  estado_regiao: 'estado_regiao',
+  observacoes: 'observacoes',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  qtd_ligacao: 'qtd_ligacao',
+  qtd_leads_novos: 'qtd_leads_novos',
+  qtd_retrabalhos: 'qtd_retrabalhos',
+  qtd_indicacao: 'qtd_indicacao',
+  qtd_presencial: 'qtd_presencial'
+} as const
+
+export type Lotes_producaoScalarFieldEnum = (typeof Lotes_producaoScalarFieldEnum)[keyof typeof Lotes_producaoScalarFieldEnum]
+
+
+export const UsersScalarFieldEnum = {
+  id: 'id',
+  firebase_uid: 'firebase_uid',
   email: 'email',
   name: 'name',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  stripeCustomerId: 'stripeCustomerId',
-  stripeSubscriptionId: 'stripeSubscriptionId',
-  subscriptionStatus: 'subscriptionStatus',
-  isActive: 'isActive',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  stripe_customer_id: 'stripe_customer_id',
+  stripe_subscription_id: 'stripe_subscription_id',
+  subscription_status: 'subscription_status',
+  is_active: 'is_active',
   admin: 'admin'
 } as const
 
-export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
-
-
-export const LeadScalarFieldEnum = {
-  id: 'id',
-  nome: 'nome',
-  dataEntrada: 'dataEntrada',
-  origem: 'origem',
-  status: 'status',
-  valorComissao: 'valorComissao',
-  dataVenda: 'dataVenda',
-  userId: 'userId',
-  lastChamadoAt: 'lastChamadoAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  estado: 'estado',
-  loteProducaoId: 'loteProducaoId',
-  cidade: 'cidade',
-  qtdVidas: 'qtdVidas',
-  idades: 'idades',
-  possuiCnpj: 'possuiCnpj',
-  temPlanoAnterior: 'temPlanoAnterior',
-  operadoraAnterior: 'operadoraAnterior',
-  tempoPlanoAnterior: 'tempoPlanoAnterior',
-  modalidade: 'modalidade',
-  operadoraOfertada: 'operadoraOfertada',
-  acomodacao: 'acomodacao',
-  valorMensalidade: 'valorMensalidade',
-  coparticipacao: 'coparticipacao',
-  motivoDispensa: 'motivoDispensa',
-  telefone: 'telefone'
-} as const
-
-export type LeadScalarFieldEnum = (typeof LeadScalarFieldEnum)[keyof typeof LeadScalarFieldEnum]
-
-
-export const LoteProducaoScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  dataAcao: 'dataAcao',
-  volumeTotalChamado: 'volumeTotalChamado',
-  estadoRegiao: 'estadoRegiao',
-  observacoes: 'observacoes',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  qtdLigacao: 'qtdLigacao',
-  qtdLeadsNovos: 'qtdLeadsNovos',
-  qtdRetrabalhos: 'qtdRetrabalhos',
-  qtdIndicacao: 'qtdIndicacao',
-  qtdPresencial: 'qtdPresencial'
-} as const
-
-export type LoteProducaoScalarFieldEnum = (typeof LoteProducaoScalarFieldEnum)[keyof typeof LoteProducaoScalarFieldEnum]
+export type UsersScalarFieldEnum = (typeof UsersScalarFieldEnum)[keyof typeof UsersScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["cotacao", "public"]
+}
+
+model leads {
+  id                   String          @id @db.Uuid
+  nome                 String
+  data_entrada         DateTime        @db.Timestamptz(6)
+  origem               String
+  status               String
+  valor_comissao       Decimal?
+  data_venda           DateTime?       @db.Timestamptz(6)
+  user_id              String          @db.Uuid
+  created_at           DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime        @db.Timestamptz(6)
+  estado               String?
+  lote_producao_id     String?         @db.Uuid
+  cidade               String?
+  qtd_vidas            Int
+  idades               String?
+  possui_cnpj          Boolean?
+  tem_plano_anterior   Boolean?
+  operadora_anterior   String?
+  tempo_plano_anterior String?
+  modalidade           String?
+  operadora_ofertada   String?
+  acomodacao           String?
+  valor_mensalidade    Decimal?
+  coparticipacao       String?
+  motivo_dispensa      String?
+  telefone             String?
+  last_chamado_at      DateTime?       @db.Timestamptz(6)
+  lotes_producao       lotes_producao? @relation(fields: [lote_producao_id], references: [id])
+  users                users           @relation(fields: [user_id], references: [id])
+
+  @@index([lote_producao_id])
+  @@index([user_id])
+  @@schema("public")
+}
+
+model lotes_producao {
+  id                   String   @id @db.Uuid
+  user_id              String   @db.Uuid
+  data_acao            DateTime @db.Timestamptz(6)
+  volume_total_chamado Int
+  estado_regiao        String
+  observacoes          String?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @db.Timestamptz(6)
+  qtd_ligacao          Int
+  qtd_leads_novos      Int
+  qtd_retrabalhos      Int
+  qtd_indicacao        Int
+  qtd_presencial       Int
+  leads                leads[]
+  users                users    @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@schema("public")
+}
+
+model users {
+  id                     String           @id @db.Uuid
+  firebase_uid           String           @unique
+  email                  String
+  name                   String?
+  created_at             DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime         @db.Timestamptz(6)
+  stripe_customer_id     String?
+  stripe_subscription_id String?
+  subscription_status    String?
+  is_active              Boolean?         @default(false)
+  admin                  Boolean?         @default(false)
+  leads                  leads[]
+  lotes_producao         lotes_producao[]
+
+  @@schema("public")
+}
