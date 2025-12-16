@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const rateCards = await prisma.rateCard.findMany({
     where,
     include: {
-      operator: { select: { id: true, name: true } },
+      operator: { select: { id: true, name: true, colorHex: true } },
       product: { select: { id: true, commercialName: true } },
       planVariant: { select: { id: true, planName: true, coverageJson: true } },
       area: { select: { id: true, name: true } },
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
   const options: Array<{
     rateCardId: string;
-    operator: { id: string; name: string };
+    operator: { id: string; name: string; colorHex?: string | null };
     product: { id: string; commercialName: string };
     planVariant: { id: string; planName: string; coverageJson: any };
     area: { id: string; name: string };
