@@ -7,6 +7,9 @@ export default defineConfig({
 
   migrations: {
     path: "prisma/migrations",
+
+    // 🔥 ISSO RESOLVE O ERRO "No seed command configured"
+    seed: "tsx prisma/seed.ts",
   },
 
   // IMPORTANTE: use a conexão DIRECT (5432) aqui

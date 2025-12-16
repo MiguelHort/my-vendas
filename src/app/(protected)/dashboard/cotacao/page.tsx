@@ -1,120 +1,155 @@
-// app/dashboard/cotacao-plano-saude/page.tsx
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Loader2, Stethoscope } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
-type TipoPlano = "individual" | "familiar" | "pme";
-type Acomodacao = "enfermaria" | "apartamento" | "ambulatorial" | "todos";
-type Coparticipacao = "com" | "sem";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const FAIXAS = [
-  "0-18",
-  "19-23",
-  "24-28",
-  "29-33",
-  "34-38",
-  "39-43",
-  "44-48",
-  "49-53",
-  "54-58",
-  "59-100",
-] as const;
+type Segment = "PF" | "PME" | "ADESAO";
+type Accommodation = "ANY" | "ENFERMARIA" | "APARTAMENTO";
+type Adhesion = "ANY" | "LIVRE_ADESAO" | "COMPULSORIO";
 
-type FaixaEtaria = (typeof FAIXAS)[number];
-
-type PlanoSaude = {
-  operadora: string;
-  nomePlano: string;
-  acomodacao: string;
-  coparticipacao: string;
-  faixaEtaria: string;
-  preco: number;
-  observacoes?: string;
+type CityItem = {
+  id: string;
+  name: string;
+  uf: string;
+  area: { id: string; name: string };
 };
 
-type CotacaoPlanoSaudeResponse = {
-  planos: PlanoSaude[];
-  observacoesGerais?: string;
+type AgeQty = { age: number; qty: number };
+
+type Option = {
+  rateCardId: string;
+  operator: { id: string; name: string };
+  product: { id: string; commercialName: string };
+  planVariant: { id: string; planName: string; coverageJson: any };
+  area: { id: string; name: string };
+  accommodation: string;
+  adhesionType: string | null;
+  total: number;
+  breakdown: Array<{ age: number; qty: number; unit: number; subtotal: number }>;
 };
 
-const CotacaoPlanoSaudePage = () => {
+function money(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export default function CotacaoPage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
-  const [nome, setNome] = useState("");
-  const [cidade, setCidade] = useState("");
-  const [estado, setEstado] = useState("");
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  const [tipoPlano, setTipoPlano] = useState<TipoPlano>("individual");
-  const [acomodacao, setAcomodacao] = useState<Acomodacao>("enfermaria");
-  const [coparticipacao, setCoparticipacao] = useState<Coparticipacao>("com");
+  // passo 1
+  const [segment, setSegment] = useState<Segment>("PF");
 
-  const [observacoes, setObservacoes] = useState("");
+  // passo 2 (cidade)
+  const [openCity, setOpenCity] = useState(false);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [cityResults, setCityResults] = useState<CityItem[]>([]);
+  const [selectedCity, setSelectedCity] = useState<CityItem | null>(null);
 
-  const [faixas, setFaixas] = useState<Record<FaixaEtaria, number>>({
-    "0-18": 0,
-    "19-23": 0,
-    "24-28": 0,
-    "29-33": 0,
-    "34-38": 0,
-    "39-43": 0,
-    "44-48": 0,
-    "49-53": 0,
-    "54-58": 0,
-    "59-100": 0,
-  });
+  // passo 3 (pessoas)
+  const [pfAges, setPfAges] = useState<number[]>([56]);
+  const lives = useMemo(() => pfAges.length, [pfAges]);
 
-  const [loadingCotacao, setLoadingCotacao] = useState(false);
-  const [resultado, setResultado] =
-    useState<CotacaoPlanoSaudeResponse | null>(null);
+  // filtros opcionais pra passo 4
+  const [accommodation, setAccommodation] = useState<Accommodation>("ANY");
+  const [adhesion, setAdhesion] = useState<Adhesion>("ANY");
 
-  const totalVidas = useMemo(
-    () => Object.values(faixas).reduce((acc, qtd) => acc + (qtd || 0), 0),
-    [faixas]
-  );
+  // resultados
+  const [loading, setLoading] = useState(false);
+  const [options, setOptions] = useState<Option[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // estados básicos
+  const agesPayload: AgeQty[] = useMemo(() => {
+    return pfAges.map((age) => ({ age, qty: 1 }));
+  }, [pfAges]);
+
+  async function searchCities(q: string) {
+    const query = (q ?? "").trim();
+
+    if (query.length < 2) {
+      setCityResults([]);
+      return;
+    }
+
+    setCityLoading(true);
+    try {
+      const res = await fetch(
+        `/api/cotacoes/cidades?q=${encodeURIComponent(query)}`
+      );
+      const data = await res.json();
+      setCityResults(data.items ?? []);
+    } finally {
+      setCityLoading(false);
+    }
+  }
+
+  async function buscarPlanos() {
+    if (!selectedCity) return;
+
+    setLoading(true);
+    setError(null);
+    setOptions([]);
+
+    try {
+      const res = await fetch("/api/cotacoes/buscar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          segment,
+          areaId: selectedCity.area.id,
+          lives,
+          ages: agesPayload,
+          accommodation,
+          adhesionType: segment === "PME" ? adhesion : "ANY",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Falha na busca");
+      const data = await res.json();
+      setOptions(data.options ?? []);
+      setStep(4);
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao buscar");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ----------------- estados de loading / auth -----------------
   if (loadingAuth) {
     return (
       <Layout>
@@ -130,370 +165,335 @@ const CotacaoPlanoSaudePage = () => {
       <Layout>
         <div className="flex flex-col items-center justify-center py-12 gap-2">
           <p className="text-lg font-semibold">
-            Você precisa estar logado para gerar cotações.
+            Você precisa estar logado para acessar a cotação.
           </p>
           <p className="text-sm text-muted-foreground">
-            Acesse a tela de login e entre com sua conta Google.
+            Acesse a tela de login e entre com sua conta.
           </p>
         </div>
       </Layout>
     );
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setResultado(null);
-
-    if (!nome || !cidade || !estado) {
-      toast.error("Preencha nome, cidade e estado.");
-      return;
-    }
-
-    if (totalVidas <= 0) {
-      toast.error("Selecione pelo menos 1 vida nas faixas etárias.");
-      return;
-    }
-
-    try {
-      setLoadingCotacao(true);
-
-      const idToken = await firebaseUser.getIdToken();
-
-      const res = await fetch("/api/cotacoes/plano-saude", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          nome,
-          cidade,
-          estado,
-          tipoPlano,
-          acomodacao,
-          coparticipacao,
-          observacoes,
-          faixasEtarias: faixas,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || res.statusText);
-      }
-
-      const data = (await res.json()) as CotacaoPlanoSaudeResponse;
-      setResultado(data);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(
-        err?.message || "Erro ao gerar cotação. Tente novamente em instantes."
-      );
-    } finally {
-      setLoadingCotacao(false);
-    }
-  };
-
+  // ----------------- UI -----------------
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Stethoscope className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">
-              Cotação de Plano de Saúde
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Preencha os dados do cliente e do plano desejado. O sistema vai
-              consultar os PDFs cadastrados e gerar uma tabela de opções.
-            </p>
-          </div>
+      <div className="mx-auto max-w-5xl p-4 md:p-8 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Cotação</h1>
+          <Badge variant="secondary">Fluxo curto</Badge>
         </div>
 
-        {/* formulário em cima, resultado embaixo */}
-        <div className="space-y-6">
-          {/* FORMULÁRIO */}
-          <Card className="border border-border/60 shadow-sm">
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 md:grid-cols-3">
+            <div className="text-sm">
+              <div className="text-muted-foreground">Tipo</div>
+              <div className="font-medium">{segment}</div>
+            </div>
+            <div className="text-sm">
+              <div className="text-muted-foreground">Local</div>
+              <div className="font-medium">
+                {selectedCity ? `${selectedCity.name}/${selectedCity.uf}` : "—"}
+              </div>
+            </div>
+            <div className="text-sm">
+              <div className="text-muted-foreground">Vidas</div>
+              <div className="font-medium">{lives}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {step === 1 && (
+          <Card>
             <CardHeader>
-              <CardTitle className="text-base">Dados da cotação</CardTitle>
+              <CardTitle>1) Tipo de cotação</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Dados pessoais */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nome">Nome do cliente</Label>
-                    <Input
-                      id="nome"
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Ex: Maria Silva"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cidade">Cidade</Label>
-                    <Input
-                      id="cidade"
-                      value={cidade}
-                      onChange={(e) => setCidade(e.target.value)}
-                      placeholder="Ex: Florianópolis"
-                    />
-                  </div>
-                </div>
+            <CardContent className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-3">
+                <Button
+                  variant={segment === "PF" ? "default" : "outline"}
+                  onClick={() => setSegment("PF")}
+                >
+                  PF / Coletivo
+                </Button>
+                <Button
+                  variant={segment === "PME" ? "default" : "outline"}
+                  onClick={() => setSegment("PME")}
+                >
+                  PME até 29 vidas
+                </Button>
+                <Button variant="outline" disabled>
+                  PJ +30 vidas (em breve)
+                </Button>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label htmlFor="estado">UF</Label>
-                    <Input
-                      id="estado"
-                      value={estado}
-                      onChange={(e) => setEstado(e.target.value.toUpperCase())}
-                      maxLength={2}
-                      placeholder="SC"
-                    />
-                  </div>
-                </div>
+              <Separator />
 
-                <hr className="my-4 border-dashed" />
-
-                {/* Dados do plano */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Tipo de plano</Label>
-                    <Select
-                      value={tipoPlano}
-                      onValueChange={(v) => setTipoPlano(v as TipoPlano)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">Individual</SelectItem>
-                        <SelectItem value="familiar">Familiar</SelectItem>
-                        <SelectItem value="pme">PME / Empresarial</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Faixas etárias</Label>
-                    <div className="flex items-center gap-3">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" type="button">
-                            Selecionar faixas
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-lg">
-                          <DialogHeader>
-                            <DialogTitle>Selecione as faixas etárias</DialogTitle>
-                          </DialogHeader>
-
-                          <div className="grid grid-cols-3 gap-4 py-4">
-                            {FAIXAS.map((faixa) => (
-                              <div
-                                key={faixa}
-                                className="flex flex-col items-center gap-1"
-                              >
-                                <span className="text-xs font-medium">
-                                  {faixa.replace("-", " a ")}
-                                </span>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={faixas[faixa]}
-                                  onChange={(e) =>
-                                    setFaixas((prev) => ({
-                                      ...prev,
-                                      [faixa]: Number(e.target.value) || 0,
-                                    }))
-                                  }
-                                  className="w-20 text-center"
-                                />
-                              </div>
-                            ))}
-                          </div>
-
-                          <DialogClose asChild>
-                            <Button className="w-full mt-2">Confirmar</Button>
-                          </DialogClose>
-                        </DialogContent>
-                      </Dialog>
-
-                      <span className="text-xs text-muted-foreground">
-                        Total de vidas:{" "}
-                        <span className="font-semibold">{totalVidas}</span>
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Informe quantas pessoas existem em cada faixa etária para
-                      calcular a cotação.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Acomodação</Label>
-                    <Select
-                      value={acomodacao}
-                      onValueChange={(v) => setAcomodacao(v as Acomodacao)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="enfermaria">Enfermaria</SelectItem>
-                        <SelectItem value="apartamento">Apartamento</SelectItem>
-                        <SelectItem value="ambulatorial">Ambulatorial</SelectItem>
-                        <SelectItem value="todos">Todos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Coparticipação</Label>
-                    <Select
-                      value={coparticipacao}
-                      onValueChange={(v) =>
-                        setCoparticipacao(v as Coparticipacao)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="com">
-                          Com coparticipação
-                        </SelectItem>
-                        <SelectItem value="sem">
-                          Sem coparticipação
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="obs">Observações (opcional)</Label>
-                  <Textarea
-                    id="obs"
-                    rows={3}
-                    placeholder="Ex: preferência por plano com obstetrícia, ou rede forte em determinado hospital..."
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                  />
-                </div>
-
-                <CardFooter className="px-0 pt-4">
-                  <Button type="submit" disabled={loadingCotacao}>
-                    {loadingCotacao && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    Gerar cotação com IA
-                  </Button>
-                </CardFooter>
-              </form>
+              <div className="flex justify-end">
+                <Button onClick={() => setStep(2)}>Avançar</Button>
+              </div>
             </CardContent>
           </Card>
+        )}
 
-          {/* RESULTADO */}
-          <Card className="border border-border/60 bg-muted/30">
+        {step === 2 && (
+          <Card>
             <CardHeader>
-              <CardTitle className="text-base">Resultado da cotação</CardTitle>
+              <CardTitle>2) Local</CardTitle>
             </CardHeader>
-            <CardContent>
-              {loadingCotacao && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Gerando cotação com base nos PDFs cadastrados...
-                </div>
-              )}
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Cidade</Label>
 
-              {!loadingCotacao && !resultado && (
-                <p className="text-sm text-muted-foreground">
-                  Preencha os dados acima e clique em{" "}
-                  <span className="font-semibold">
-                    “Gerar cotação com IA”
-                  </span>
-                  . O retorno será exibido aqui em forma de tabela.
-                </p>
-              )}
+                <Popover open={openCity} onOpenChange={setOpenCity}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {selectedCity
+                        ? `${selectedCity.name}/${selectedCity.uf} — ${selectedCity.area.name}`
+                        : "Selecione a cidade"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
 
-              {!loadingCotacao && resultado && (
-                <div className="mt-2 rounded-lg border bg-background/80">
-                  <div className="max-h-[450px] overflow-auto rounded-lg">
-                    <Table className="w-full text-xs md:text-sm">
-                      <TableHeader className="bg-muted/60">
-                        <TableRow>
-                          <TableHead className="px-3 py-2">
-                            Operadora
-                          </TableHead>
-                          <TableHead className="px-3 py-2">
-                            Plano
-                          </TableHead>
-                          <TableHead className="px-3 py-2">
-                            Acomodação
-                          </TableHead>
-                          <TableHead className="px-3 py-2">
-                            Copart.
-                          </TableHead>
-                          <TableHead className="px-3 py-2">
-                            Faixa etária
-                          </TableHead>
-                          <TableHead className="px-3 py-2 text-right">
-                            Valor mensal (R$)
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {resultado.planos.map((plano, idx) => (
-                          <TableRow
-                            key={idx}
-                            className="hover:bg-muted/40 transition-colors"
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Digite a cidade..."
+                        onValueChange={searchCities}
+                      />
+                      <CommandEmpty>
+                        {cityLoading ? "Buscando..." : "Nenhuma cidade encontrada"}
+                      </CommandEmpty>
+
+                      <CommandGroup>
+                        {cityResults.map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={`${c.name}-${c.uf}`}
+                            onSelect={() => {
+                              setSelectedCity(c);
+                              setOpenCity(false);
+                            }}
                           >
-                            <TableCell className="px-3 py-2">
-                              {plano.operadora}
-                            </TableCell>
-                            <TableCell className="px-3 py-2">
-                              {plano.nomePlano}
-                            </TableCell>
-                            <TableCell className="px-3 py-2">
-                              {plano.acomodacao}
-                            </TableCell>
-                            <TableCell className="px-3 py-2">
-                              {plano.coparticipacao}
-                            </TableCell>
-                            <TableCell className="px-3 py-2">
-                              {plano.faixaEtaria}
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-right">
-                              {plano.preco.toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              })}
-                            </TableCell>
-                          </TableRow>
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedCity?.id === c.id
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {c.name}/{c.uf} — {c.area.name}
+                          </CommandItem>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
-                    {resultado.observacoesGerais && (
-                      <p className="text-[11px] md:text-xs text-muted-foreground px-3 py-2 border-t">
-                        {resultado.observacoesGerais}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  Digite ao menos 2 letras para buscar no banco.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Voltar
+                </Button>
+                <Button onClick={() => setStep(3)} disabled={!selectedCity}>
+                  Avançar
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        </div>
+        )}
+
+        {step === 3 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>3) Pessoas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {segment === "PF" ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    Informe as idades (1 por pessoa). Ex: 56
+                  </div>
+
+                  <div className="space-y-2">
+                    {pfAges.map((age, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          value={age}
+                          onChange={(e) => {
+                            const v = Number(e.target.value || 0);
+                            setPfAges((prev) =>
+                              prev.map((p, i) => (i === idx ? v : p))
+                            );
+                          }}
+                          className="w-32"
+                          min={0}
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            setPfAges((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          disabled={pfAges.length === 1}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setPfAges((prev) => [...prev, 30])}
+                  >
+                    + Adicionar pessoa
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  PME: aqui você pode trocar pra grid de faixas (0-18, 19-23,
+                  etc). Mantive PF pronto e PME você replica.
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Acomodação</Label>
+                  <Select
+                    value={accommodation}
+                    onValueChange={(v) => setAccommodation(v as Accommodation)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ANY">Tanto faz</SelectItem>
+                      <SelectItem value="ENFERMARIA">Enfermaria</SelectItem>
+                      <SelectItem value="APARTAMENTO">Apartamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {segment === "PME" && (
+                  <div className="space-y-2">
+                    <Label>Adesão</Label>
+                    <Select
+                      value={adhesion}
+                      onValueChange={(v) => setAdhesion(v as Adhesion)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ANY">Tanto faz</SelectItem>
+                        <SelectItem value="LIVRE_ADESAO">Livre adesão</SelectItem>
+                        <SelectItem value="COMPULSORIO">Compulsório</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {error && <div className="text-sm text-red-600">{error}</div>}
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(2)}>
+                  Voltar
+                </Button>
+                <Button onClick={buscarPlanos} disabled={loading || !selectedCity}>
+                  {loading ? "Buscando..." : "Ver resultados"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>4) Resultados</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Mostrando até 30 opções ordenadas por menor preço.
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {options.map((op) => (
+                  <Card key={op.rateCardId} className="border">
+                    <CardHeader className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold">{op.operator.name}</div>
+                        <Badge variant="secondary">{op.accommodation}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {op.product.commercialName}
+                      </div>
+                      <div className="font-medium">{op.planVariant.planName}</div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="text-2xl font-semibold">{money(op.total)}</div>
+
+                      <div className="text-xs text-muted-foreground">
+                        Detalhe por pessoa
+                      </div>
+                      <div className="space-y-1">
+                        {op.breakdown.map((b, idx) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span>
+                              {b.age} anos × {b.qty}
+                            </span>
+                            <span>{money(b.subtotal)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Button className="w-full" variant="outline">
+                        Selecionar
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(3)}>
+                  Voltar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStep(1);
+                    setOptions([]);
+                    setError(null);
+                  }}
+                >
+                  Nova cotação
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
-};
-
-export default CotacaoPlanoSaudePage;
+}
