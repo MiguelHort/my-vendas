@@ -125,6 +125,8 @@ model Operator {
   ansNumber String? @db.VarChar(32) @map("ansNumber")
   active    Boolean @default(true)
 
+  colorHex String?
+
   products  Product[]
   rateCards RateCard[]
 

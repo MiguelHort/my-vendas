@@ -52,14 +52,19 @@ type AgeQty = { age: number; qty: number };
 
 type Option = {
   rateCardId: string;
-  operator: { id: string; name: string };
+  operator: { id: string; name: string; colorHex?: string };
   product: { id: string; commercialName: string };
   planVariant: { id: string; planName: string; coverageJson: any };
   area: { id: string; name: string };
   accommodation: string;
   adhesionType: string | null;
   total: number;
-  breakdown: Array<{ age: number; qty: number; unit: number; subtotal: number }>;
+  breakdown: Array<{
+    age: number;
+    qty: number;
+    unit: number;
+    subtotal: number;
+  }>;
 };
 
 function money(v: number) {
@@ -269,7 +274,9 @@ export default function CotacaoPage() {
                         onValueChange={searchCities}
                       />
                       <CommandEmpty>
-                        {cityLoading ? "Buscando..." : "Nenhuma cidade encontrada"}
+                        {cityLoading
+                          ? "Buscando..."
+                          : "Nenhuma cidade encontrada"}
                       </CommandEmpty>
 
                       <CommandGroup>
@@ -347,7 +354,9 @@ export default function CotacaoPage() {
                         <Button
                           variant="outline"
                           onClick={() =>
-                            setPfAges((prev) => prev.filter((_, i) => i !== idx))
+                            setPfAges((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
                           }
                           disabled={pfAges.length === 1}
                         >
@@ -403,7 +412,9 @@ export default function CotacaoPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ANY">Tanto faz</SelectItem>
-                        <SelectItem value="LIVRE_ADESAO">Livre adesão</SelectItem>
+                        <SelectItem value="LIVRE_ADESAO">
+                          Livre adesão
+                        </SelectItem>
                         <SelectItem value="COMPULSORIO">Compulsório</SelectItem>
                       </SelectContent>
                     </Select>
@@ -417,7 +428,10 @@ export default function CotacaoPage() {
                 <Button variant="outline" onClick={() => setStep(2)}>
                   Voltar
                 </Button>
-                <Button onClick={buscarPlanos} disabled={loading || !selectedCity}>
+                <Button
+                  onClick={buscarPlanos}
+                  disabled={loading || !selectedCity}
+                >
                   {loading ? "Buscando..." : "Ver resultados"}
                 </Button>
               </div>
@@ -437,26 +451,42 @@ export default function CotacaoPage() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 {options.map((op) => (
-                  <Card key={op.rateCardId} className="border">
+                  <Card
+                    key={op.rateCardId}
+                    className="border-t-4"
+                    style={{ borderTopColor: op.operator.colorHex }}
+                  >
                     <CardHeader className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <div className="font-semibold">{op.operator.name}</div>
+                        <div
+                          className="font-semibold"
+                          style={{ color: op.operator.colorHex }}
+                        >
+                          {op.operator.name}
+                        </div>
                         <Badge variant="secondary">{op.accommodation}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {op.product.commercialName}
                       </div>
-                      <div className="font-medium">{op.planVariant.planName}</div>
+                      <div className="font-medium">
+                        {op.planVariant.planName}
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <div className="text-2xl font-semibold">{money(op.total)}</div>
+                      <div className="text-2xl font-semibold">
+                        {money(op.total)}
+                      </div>
 
                       <div className="text-xs text-muted-foreground">
                         Detalhe por pessoa
                       </div>
                       <div className="space-y-1">
                         {op.breakdown.map((b, idx) => (
-                          <div key={idx} className="flex justify-between text-sm">
+                          <div
+                            key={idx}
+                            className="flex justify-between text-sm"
+                          >
                             <span>
                               {b.age} anos × {b.qty}
                             </span>
