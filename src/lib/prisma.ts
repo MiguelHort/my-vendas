@@ -1,5 +1,5 @@
 // lib/prisma.ts
-import { PrismaClient } from "@/generated/prisma/client/client"; // agora existe
+import { PrismaClient } from "@prisma/client"; // agora existe
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
