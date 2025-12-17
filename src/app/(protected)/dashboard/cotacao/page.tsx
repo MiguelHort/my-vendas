@@ -330,7 +330,7 @@ export default function CotacaoPage() {
               <CardTitle>3) Pessoas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {segment === "PF" ? (
+              {segment === "PF" || "PME" ? (
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">
                     Informe as idades (1 por pessoa). Ex: 56
