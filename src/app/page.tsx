@@ -89,7 +89,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button size="lg" asChild>
                   <Link href="#cta">
-                    Começar gratuitamente
+                    Começar agora
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -101,7 +101,7 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Sem cartão de crédito</span>
+                  <span>Aceitamos cartão de crédito</span>
                 </div>
                 <div className="w-px h-4 bg-border" />
                 <div className="flex items-center gap-2">
@@ -341,33 +341,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Plano 1 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span>Iniciante</span>
-                    <Badge variant="outline">Até 100 leads</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div>
-                    <span className="text-2xl font-semibold">R$ 0</span>
-                    <span className="text-muted-foreground text-xs ml-1">
-                      / mês
-                    </span>
-                  </div>
-                  <ul className="space-y-2 text-muted-foreground">
-                    <li>• 1 corretor</li>
-                    <li>• Funil completo de vendas</li>
-                    <li>• Cadastro básico de leads</li>
-                    <li>• Relatórios simples</li>
-                  </ul>
-                  <Button className="w-full mt-2" variant="outline" asChild>
-                    <Link href="#cta">Começar grátis</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+            <div className="grid md:grid-cols-2 gap-6">
 
               {/* Plano 2 - destaque */}
               <Card className="border-primary shadow-sm relative">
@@ -382,7 +356,7 @@ export default function LandingPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div>
-                    <span className="text-2xl font-semibold">R$ 97</span>
+                    <span className="text-2xl font-semibold">R$ 47,90</span>
                     <span className="text-muted-foreground text-xs ml-1">
                       / mês
                     </span>
