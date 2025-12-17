@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   } catch {
     return badRequest("JSON inválido");
   }
-
+  console.log(body)
   if (!body.areaId) return badRequest("areaId é obrigatório");
   if (!body.segment || (body.segment !== "PF" && body.segment !== "PME")) return badRequest("segment inválido");
   if (!Number.isFinite(body.lives) || body.lives <= 0) return badRequest("lives inválido");
