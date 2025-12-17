@@ -124,17 +124,17 @@ export default function LandingPage() {
             <div className="absolute top-32 left-1/2 h-[480px] w-[900px] -translate-x-1/2 rounded-full blur-3xl" />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-4 py-20">
+          <div className="relative max-w-7xl mx-auto px-4 py-10 2xl:py-20">
             {/* TEXTO */}
             <div className="text-center max-w-3xl mx-auto space-y-4">
 
-              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight">
+              <h1 className="text-3xl 2xl:text-5xl font-semibold tracking-tight">
                 Chega de vender no improviso.
                 <br className="hidden md:block" />
-                Tenha controle real do seu funil e da sua comissão.
+                Tenha controle real do seu funil e da <br /> sua comissão.
               </h1>
 
-              <p className="text-base md:text-lg text-muted-foreground">
+              <p className="text-sm 2xl:text-xl text-muted-foreground">
                 O Winleads profissionaliza seu atendimento com métricas reais de
                 produção, vendas, conversão e região.
               </p>
@@ -154,7 +154,7 @@ export default function LandingPage() {
             </div>
 
             {/* MOCK COM PERSPECTIVA */}
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 xl: flex justify-center">
               <div
                 ref={mockRef}
                 className="relative w-full max-w-6xl rounded-xl border bg-muted/20 transition-transform duration-300 will-change-transform"
