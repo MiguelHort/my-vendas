@@ -49,7 +49,6 @@ export async function PUT(
   }
 
   const { id } = await context.params;
-
   const body = await req.json();
 
   const {
@@ -76,12 +75,14 @@ export async function PUT(
 
     // Atualiza no Firebase (email / displayName)
     const updateFirebasePayload: { email?: string; displayName?: string } = {};
+
     if (email && email !== existing.email) {
       updateFirebasePayload.email = email;
     }
     if (name && name !== existing.name) {
       updateFirebasePayload.displayName = name;
     }
+
     if (Object.keys(updateFirebasePayload).length > 0) {
       await firebaseAdmin.updateUser(existing.firebaseUid, updateFirebasePayload);
     }
@@ -89,8 +90,8 @@ export async function PUT(
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
-        email: email ?? existing.email,
-        name: name ?? existing.name,
+        email: typeof email === "string" ? email : existing.email,
+        name: typeof name === "string" ? name : existing.name,
         admin: typeof admin === "boolean" ? admin : existing.admin,
         isActive: typeof isActive === "boolean" ? isActive : existing.isActive,
         subscriptionStatus:
@@ -131,7 +132,6 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
-
 
   try {
     const existing = await prisma.user.findUnique({

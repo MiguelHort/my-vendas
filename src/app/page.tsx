@@ -1,4 +1,7 @@
 // app/page.tsx
+"use client";
+
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +21,59 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Clock,
+  Plus,
 } from "lucide-react";
 import Image from "next/image";
 
 export default function LandingPage() {
+  const mockRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = mockRef.current;
+    if (!el) return;
+
+    let raf = 0;
+
+    const onScroll = () => {
+      if (raf) return;
+
+      raf = requestAnimationFrame(() => {
+        const scrollY = window.scrollY;
+        const start = 0;
+        const end = 400;
+
+        const progress = Math.min(Math.max(scrollY - start, 0) / end, 1);
+
+        // valores iniciais (imagem inclinada)
+        const rotateX = 14 - 14 * progress; // 14deg -> 0
+        const translateY = 40 - 40 * progress;
+        const scale = 0.96 + 0.04 * progress;
+
+        el.style.transform = `
+          perspective(1200px)
+          rotateX(${rotateX}deg)
+          translateY(${translateY}px)
+          scale(${scale})
+        `;
+
+        el.style.boxShadow = `
+          0 ${10 - 0 * progress}px ${20 - 0 * progress}px
+          rgba(34,197,94,${0.70 - 0.2 * progress})
+        `;
+
+        raf = 0;
+      });
+    };
+
+    window.addEventListener("scroll", onScroll);
+    onScroll();
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* NAVBAR */}
@@ -66,27 +118,28 @@ export default function LandingPage() {
       {/* CONTEÚDO PRINCIPAL */}
       <main className="flex-1">
         {/* HERO */}
-        <section className="border-b">
-          <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 grid md:grid-cols-2 gap-10 items-center">
-            <div className="space-y-6">
-              <Badge className="rounded-full px-3 py-1 text-xs">
-                Feito para corretores de planos de saúde
-              </Badge>
+        <section className="relative border-b overflow-hidden">
+          {/* Glow verde */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute top-32 left-1/2 h-[480px] w-[900px] -translate-x-1/2 rounded-full blur-3xl" />
+          </div>
 
-              <div className="space-y-3">
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight">
-                  Chega de vender no improviso, comece a ter controle de verdade
-                  pelo processo que coloca dinheiro no seu bolso.
-                </h1>
-                <p className="text-base md:text-lg text-muted-foreground">
-                  O WinLead é uma solução pensada para corretores que querem
-                  profissionalizar seu processo de atendimento com números reais
-                  de produção, vendas, conversão, região, comissão, além de
-                  outras métricas - e não somente no "eu acho".
-                </p>
-              </div>
+          <div className="relative max-w-7xl mx-auto px-4 py-20">
+            {/* TEXTO */}
+            <div className="text-center max-w-3xl mx-auto space-y-4">
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight">
+                Chega de vender no improviso.
+                <br className="hidden md:block" />
+                Tenha controle real do seu funil e da sua comissão.
+              </h1>
+
+              <p className="text-base md:text-lg text-muted-foreground">
+                O Winleads profissionaliza seu atendimento com métricas reais de
+                produção, vendas, conversão e região.
+              </p>
+
+              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
                 <Button size="lg" asChild>
                   <Link href="#cta">
                     Começar agora
@@ -111,65 +164,26 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* “Mock” do painel / funil */}
-            <div className="hidden md:flex justify-end">
-              <Card className="w-full max-w-md border-muted shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <LayoutDashboard className="h-4 w-4" />
-                    Visão geral do corretor
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-xs text-muted-foreground">
-                    Últimas 4 semanas
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 text-xs">
-                    <div className="rounded-lg border px-3 py-2">
-                      <span className="text-muted-foreground">Leads</span>
-                      <div className="text-lg font-semibold">128</div>
-                    </div>
-                    <div className="rounded-lg border px-3 py-2">
-                      <span className="text-muted-foreground">Propostas</span>
-                      <div className="text-lg font-semibold">47</div>
-                    </div>
-                    <div className="rounded-lg border px-3 py-2">
-                      <span className="text-muted-foreground">Fechados</span>
-                      <div className="text-lg font-semibold text-emerald-600">
-                        19
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span>Funil de vendas</span>
-                      <span className="text-muted-foreground">
-                        Dispensado → Concluído
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-5 gap-1 text-[10px]">
-                      {[
-                        "Dispensado",
-                        "Abordagem",
-                        "Avaliando",
-                        "Fechamento",
-                        "Concluído",
-                      ].map((step, idx) => (
-                        <div
-                          key={step}
-                          className="rounded-md border px-2 py-1 text-center truncate"
-                        >
-                          <span className={idx === 4 ? "font-semibold" : ""}>
-                            {step}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* MOCK COM PERSPECTIVA */}
+            <div className="mt-6 flex justify-center">
+              <div
+                ref={mockRef}
+                className="relative w-full max-w-6xl rounded-xl border bg-muted/20 transition-transform duration-300 will-change-transform"
+                style={{
+                  transform:
+                    "perspective(1200px) rotateX(14deg) translateY(40px) scale(0.96)",
+                  boxShadow: "0 10px 20px rgba(34,197,94,0.70)",
+                }}
+              >
+                <Image
+                  src="/tela-dashboard1.png"
+                  alt="Dashboard WinLeads"
+                  width={1600}
+                  height={1000}
+                  className="w-full h-auto rounded-xl"
+                  priority
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -183,7 +197,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold">
-                  Como o WinLead transforma sua performance nas vendas de
+                  Como o Winleads transforma sua performance nas vendas de
                   achismo, para números reais:
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
@@ -252,7 +266,8 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-[1.2fr,1fr] gap-10">
             <div className="space-y-4">
               <h2 className="text-2xl md:text-3xl font-semibold">
-                Um sistema de Corretor para Corretor, feito por quem entende o <br/>
+                Um sistema de Corretor para Corretor, feito por quem entende o{" "}
+                <br />
                 dia-a-dia de quem vive de vendas
               </h2>
               <p className="text-sm md:text-base text-muted-foreground max-w-xl">

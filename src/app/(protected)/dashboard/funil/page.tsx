@@ -45,25 +45,25 @@ const statusColumns = [
   {
     id: "Abordagem",
     title: "Abordagem",
-    color: "bg-blue-500/10",
+    color: "bg-blue-500/20",
     tooltip: "Primeiro contato realizado",
   },
   {
     id: "Avaliando",
     title: "Avaliando",
-    color: "bg-yellow-500/10",
+    color: "bg-yellow-500/20",
     tooltip: "Lead interessado, em análise",
   },
   {
     id: "Fechamento",
     title: "Fechamento",
-    color: "bg-purple-500/10",
+    color: "bg-purple-500/20",
     tooltip: "Negociação final em andamento",
   },
   {
     id: "Concluído",
     title: "Concluído",
-    color: "bg-green-500/10",
+    color: "bg-green-500/20",
     tooltip: "Venda realizada com sucesso",
   },
 ];
