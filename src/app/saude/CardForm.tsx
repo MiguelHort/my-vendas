@@ -1,0 +1,1084 @@
+// app/CardForm.tsx
+"use client";
+
+import * as React from "react";
+import {
+  BadgeCheck,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  IdCard,
+  Mail,
+  MapPin,
+  PartyPopper,
+  Phone,
+  Rocket,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  User,
+  ArrowLeft,
+  ArrowRight,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+type StepId = 1 | 2 | 3;
+type Modality = "PF" | "PJ" | "MEI";
+type CityOption = { value: string; label: string };
+
+const UF = [
+  { value: "AC", label: "AC - Acre" },
+  { value: "AL", label: "AL - Alagoas" },
+  { value: "AP", label: "AP - Amapá" },
+  { value: "AM", label: "AM - Amazonas" },
+  { value: "BA", label: "BA - Bahia" },
+  { value: "CE", label: "CE - Ceará" },
+  { value: "DF", label: "DF - Distrito Federal" },
+  { value: "ES", label: "ES - Espírito Santo" },
+  { value: "GO", label: "GO - Goiás" },
+  { value: "MA", label: "MA - Maranhão" },
+  { value: "MT", label: "MT - Mato Grosso" },
+  { value: "MS", label: "MS - Mato Grosso do Sul" },
+  { value: "MG", label: "MG - Minas Gerais" },
+  { value: "PA", label: "PA - Pará" },
+  { value: "PB", label: "PB - Paraíba" },
+  { value: "PR", label: "PR - Paraná" },
+  { value: "PE", label: "PE - Pernambuco" },
+  { value: "PI", label: "PI - Piauí" },
+  { value: "RJ", label: "RJ - Rio de Janeiro" },
+  { value: "RN", label: "RN - Rio Grande do Norte" },
+  { value: "RS", label: "RS - Rio Grande do Sul" },
+  { value: "RO", label: "RO - Rondônia" },
+  { value: "RR", label: "RR - Roraima" },
+  { value: "SC", label: "SC - Santa Catarina" },
+  { value: "SP", label: "SP - São Paulo" },
+  { value: "SE", label: "SE - Sergipe" },
+  { value: "TO", label: "TO - Tocantins" },
+];
+
+const FALLBACK_CITIES: CityOption[] = [
+  { value: "Outra", label: "Outra (selecionar e informar depois)" },
+];
+
+const PROFESSIONS = [
+  "Autônomo(a) / Freelancer",
+  "Empresário(a) / Dono(a) de Negócio",
+  "CLT (Empregado(a) com carteira)",
+  "Servidor(a) Público(a)",
+  "MEI (Microempreendedor Individual)",
+  "Profissional Liberal (ex: médico, dentista, advogado, contador)",
+  "Comerciante / Lojista",
+  "Vendedor(a) / Representante Comercial",
+  "Motorista (App / Entregas / Transporte)",
+  "Professor(a) / Educação",
+  "Área Administrativa (Administração / RH / Financeiro)",
+  "Área de Tecnologia (TI / Dev / Suporte)",
+  "Área da Saúde (Enfermagem / Técnico / Saúde em geral)",
+  "Área de Engenharia / Construção",
+  "Serviços Gerais (Manutenção / Limpeza / Portaria)",
+  "Operacional / Produção (Indústria / Estoque)",
+  "Agricultura / Campo",
+  "Estudante",
+  "Desempregado(a)",
+  "Aposentado(a)",
+  "Outro",
+];
+
+const AGE_BUCKETS = [
+  { key: "0_18", label: "0 a 18 anos" },
+  { key: "19_23", label: "19 a 23 anos" },
+  { key: "24_28", label: "24 a 28 anos" },
+  { key: "29_33", label: "29 a 33 anos" },
+  { key: "34_38", label: "34 a 38 anos" },
+  { key: "39_43", label: "39 a 43 anos" },
+  { key: "44_48", label: "44 a 48 anos" },
+  { key: "49_53", label: "49 a 53 anos" },
+  { key: "54_58", label: "54 a 58 anos" },
+  { key: "59+", label: "59+ anos" },
+] as const;
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+function onlyDigits(v: string) {
+  return v.replace(/\D/g, "");
+}
+function formatPhoneBR(value: string) {
+  const d = onlyDigits(value).slice(0, 11);
+  if (d.length <= 2) return d ? `(${d}` : "";
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+function formatCPF(value: string) {
+  const d = onlyDigits(value).slice(0, 11);
+  const p1 = d.slice(0, 3);
+  const p2 = d.slice(3, 6);
+  const p3 = d.slice(6, 9);
+  const p4 = d.slice(9, 11);
+  let out = p1;
+  if (p2) out += `.${p2}`;
+  if (p3) out += `.${p3}`;
+  if (p4) out += `-${p4}`;
+  return out;
+}
+function formatCEP(value: string) {
+  const d = onlyDigits(value).slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+/** Brand pill (reutilizável) */
+function BrandPill({
+  children,
+  variant = "soft",
+  className,
+}: {
+  children: React.ReactNode;
+  variant?: "soft" | "solid" | "outline";
+  className?: string;
+}) {
+  const base =
+    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium";
+  const styles =
+    variant === "solid"
+      ? "bg-emerald-600 text-white shadow-sm"
+      : variant === "outline"
+        ? "border border-emerald-200/70 bg-background/60 text-foreground"
+        : "bg-emerald-50/70 text-emerald-800 border border-emerald-200/70";
+  return <div className={cn(base, styles, className)}>{children}</div>;
+}
+
+function CounterRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3">
+      <div className="text-sm">{label}</div>
+      <div className="flex items-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-9 w-9 rounded-full",
+            "hover:border-emerald-200 hover:bg-emerald-50",
+          )}
+          onClick={() => onChange(clamp(value - 1, 0, 99))}
+          aria-label={`Diminuir ${label}`}
+        >
+          –
+        </Button>
+        <div className="w-6 text-center text-sm font-medium tabular-nums">
+          {value}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "h-9 w-9 rounded-full",
+            "hover:border-emerald-200 hover:bg-emerald-50",
+          )}
+          onClick={() => onChange(clamp(value + 1, 0, 99))}
+          aria-label={`Aumentar ${label}`}
+        >
+          +
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ModalityCard({
+  value,
+  selected,
+  title,
+  subtitle,
+  badge,
+  icon,
+  onSelect,
+}: {
+  value: Modality;
+  selected: boolean;
+  title: string;
+  subtitle: string;
+  badge: string;
+  icon: React.ReactNode;
+  onSelect: (v: Modality) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={cn(
+        "w-full text-left rounded-2xl border p-5 transition-all relative overflow-hidden",
+        selected
+          ? "border-emerald-300 bg-emerald-50/60 shadow-sm"
+          : "border-border hover:bg-emerald-50/30 hover:border-emerald-200/70 hover:shadow-sm",
+      )}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute -inset-10 opacity-0 transition",
+          selected && "opacity-100",
+        )}
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(circle at 30% 20%, rgba(16,185,129,0.22), transparent 55%)",
+        }}
+      />
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              "mt-0.5 h-9 w-9 rounded-xl border flex items-center justify-center shadow-sm",
+              selected
+                ? "border-emerald-300 bg-white"
+                : "border-border bg-background",
+            )}
+            aria-hidden
+          >
+            {icon}
+          </div>
+          <div>
+            <div className="text-base font-semibold">{title}</div>
+            <div className="text-sm text-muted-foreground mt-1">{subtitle}</div>
+          </div>
+        </div>
+
+        <Badge
+          className={cn(
+            "rounded-full",
+            selected
+              ? "bg-emerald-600 text-white hover:bg-emerald-600"
+              : "bg-emerald-50 text-emerald-800 border border-emerald-200/70 hover:bg-emerald-50",
+          )}
+        >
+          {badge}
+        </Badge>
+      </div>
+    </button>
+  );
+}
+
+// ---- IBGE helpers (client-side) ----
+const IBGE_CACHE = new Map<string, CityOption[]>();
+
+async function fetchCitiesByUF(
+  uf: string,
+  signal?: AbortSignal,
+): Promise<CityOption[]> {
+  const key = uf.toUpperCase().trim();
+  if (!key) return [];
+  const cached = IBGE_CACHE.get(key);
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(
+      key,
+    )}/municipios`,
+    { signal },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Falha ao buscar cidades do IBGE (${key}).`);
+  }
+
+  const data: Array<{ nome: string }> = await res.json();
+
+  const cities: CityOption[] = data
+    .map((c) => c?.nome?.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .map((name) => ({ value: name, label: name }));
+
+  IBGE_CACHE.set(key, cities);
+  return cities;
+}
+
+/** Pequeno helper para inputs com ícone */
+function Field({
+  id,
+  icon,
+  placeholder,
+  value,
+  onChange,
+  inputMode,
+}: {
+  id: string;
+  icon: React.ReactNode;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+}) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2">{icon}</span>
+      <Input
+        id={id}
+        placeholder={placeholder}
+        className={cn(
+          "pl-10 h-12 rounded-2xl bg-background/70",
+          "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+        )}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode={inputMode}
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  icon,
+  placeholder,
+  value,
+  onValueChange,
+  disabled,
+  children,
+}: {
+  icon: React.ReactNode;
+  placeholder: string;
+  value: string;
+  onValueChange: (v: string) => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger
+        className={cn(
+          "h-12 rounded-2xl bg-background/70",
+          "focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-300",
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <SelectValue placeholder={placeholder} />
+        </div>
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
+  );
+}
+
+const CTA =
+  "w-full h-12 rounded-2xl text-base bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-600 hover:to-emerald-500 shadow-[0_12px_30px_-18px_rgba(16,185,129,0.85)] disabled:opacity-60 disabled:shadow-none";
+
+export default function CardForm() {
+  const [step, setStep] = React.useState<StepId>(1);
+
+  // Step 1
+  const [fullName, setFullName] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [city, setCity] = React.useState("");
+  const [uf, setUf] = React.useState("");
+
+  // Cities
+  const [citiesForUf, setCitiesForUf] = React.useState<CityOption[]>([]);
+  const [citiesLoading, setCitiesLoading] = React.useState(false);
+  const [citiesError, setCitiesError] = React.useState<string | null>(null);
+
+  // Step 2
+  const [modality, setModality] = React.useState<Modality | "">("");
+  const [profession, setProfession] = React.useState("");
+  const [ageCounts, setAgeCounts] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries(AGE_BUCKETS.map((b) => [b.key, 0])),
+  );
+
+  // Step 3
+  const [cpf, setCpf] = React.useState("");
+  const [cep, setCep] = React.useState("");
+  const [street, setStreet] = React.useState("");
+  const [number, setNumber] = React.useState("");
+  const [complement, setComplement] = React.useState("");
+
+  // submit
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const totalPeople = React.useMemo(
+    () => Object.values(ageCounts).reduce((a, b) => a + b, 0),
+    [ageCounts],
+  );
+
+  const minPeople =
+    modality === "PF" ? 1 : modality === "PJ" || modality === "MEI" ? 2 : 1;
+
+  React.useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    async function run() {
+      const nextUf = uf?.trim().toUpperCase();
+      if (!nextUf) {
+        setCitiesForUf([]);
+        setCitiesLoading(false);
+        setCitiesError(null);
+        return;
+      }
+
+      setCitiesLoading(true);
+      setCitiesError(null);
+
+      try {
+        const cities = await fetchCitiesByUF(nextUf, controller.signal);
+        if (!mounted) return;
+        setCitiesForUf(cities);
+      } catch (err: any) {
+        if (!mounted) return;
+        if (err?.name === "AbortError") return;
+        setCitiesForUf([]);
+        setCitiesError("Não foi possível carregar as cidades. Tente novamente.");
+      } finally {
+        if (!mounted) return;
+        setCitiesLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [uf]);
+
+  const citiesToShow = React.useMemo(() => {
+    if (!uf || citiesLoading) return [];
+    if (citiesForUf.length) return citiesForUf;
+    return FALLBACK_CITIES;
+  }, [uf, citiesLoading, citiesForUf]);
+
+  const canGoNextStep1 =
+    fullName.trim().length >= 3 &&
+    onlyDigits(phone).length >= 10 &&
+    !!uf &&
+    !!city;
+
+  const canGoNextStep2 =
+    !!modality && !!profession && totalPeople >= (modality ? minPeople : 1);
+
+  const canFinalize =
+    email.includes("@") &&
+    onlyDigits(cpf).length === 11 &&
+    onlyDigits(cep).length === 8 &&
+    street.trim().length >= 3 &&
+    number.trim().length >= 1 &&
+    city.trim().length >= 2 &&
+    uf.trim().length >= 2;
+
+  function next() {
+    setSubmitError(null);
+    if (step === 1 && canGoNextStep1) setStep(2);
+    else if (step === 2 && canGoNextStep2) setStep(3);
+  }
+
+  function back() {
+    setSubmitError(null);
+    if (submitted) return;
+    if (step === 3) setStep(2);
+    else if (step === 2) setStep(1);
+  }
+
+  async function handleCepSearch() {
+    const cepDigits = onlyDigits(cep);
+    if (cepDigits.length !== 8) return;
+
+    // placeholder
+    setStreet((v) => v || "Rua Exemplo");
+  }
+
+  async function handleSubmit() {
+    if (!canFinalize || submitting) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const payload = {
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        uf: uf.trim(),
+        city: city.trim(),
+        modality,
+        profession,
+        ageCounts,
+        totalPeople,
+        cpf: cpf.trim(),
+        cep: cep.trim(),
+        street: street.trim(),
+        number: number.trim(),
+        complement: complement.trim() || null,
+      };
+
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Falha ao enviar. Tente novamente.");
+      }
+
+      setSubmitted(true);
+    } catch (e: any) {
+      setSubmitError(e?.message || "Falha ao enviar. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card className="mx-auto py-10 max-w-3xl rounded-3xl border border-emerald-200/50 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
+      <CardContent className="p-6 md:p-8">
+        {/* Botão voltar (agora controlado pelo CardForm) */}
+        {!submitted && step !== 1 && (
+          <div className="mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={back}
+              className="hover:bg-emerald-50"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+          </div>
+        )}
+
+        {/* SUCESSO */}
+        {submitted && (
+          <div className="space-y-6 text-center">
+            <div className="mx-auto h-14 w-14 rounded-2xl border border-emerald-200/60 flex items-center justify-center bg-emerald-50/60 shadow-sm">
+              <PartyPopper className="h-7 w-7 text-emerald-700" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl md:text-3xl font-semibold">
+                Perfeito, {fullName.split(" ")[0] || "pronto"}! 🎉
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                Recebemos seus dados e já colocamos na fila de atendimento.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-5 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm text-muted-foreground">Próximo passo</div>
+                  <div className="text-lg font-semibold">
+                    Um corretor vai te chamar em até{" "}
+                    <span className="underline decoration-emerald-400/60">15 minutos</span>
+                  </div>
+                </div>
+                <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">
+                  Em andamento
+                </Badge>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                  <div className="text-muted-foreground">Contato</div>
+                  <div className="font-medium">{phone}</div>
+                </div>
+                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                  <div className="text-muted-foreground">Cidade</div>
+                  <div className="font-medium">
+                    {city} - {uf}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                  <div className="text-muted-foreground">Modalidade</div>
+                  <div className="font-medium">{modality}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              Ao enviar, você autoriza contato por WhatsApp/telefone/e-mail.
+            </div>
+
+            <Button
+              className="w-full h-12 rounded-2xl text-base"
+              onClick={() => window.location.reload()}
+              variant="secondary"
+            >
+              Fazer outra simulação
+            </Button>
+          </div>
+        )}
+
+        {/* STEP 1 */}
+        {!submitted && step === 1 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-xl md:text-2xl font-semibold">Bora começar 🌿</h1>
+                <p className="text-sm text-muted-foreground">
+                  Preencha rapidinho e já liberamos a próxima etapa.
+                </p>
+              </div>
+              <BrandPill variant="outline" className="hidden sm:inline-flex">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                1/3
+              </BrandPill>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/45 p-4 text-sm">
+              <div className="font-medium flex items-center gap-2 text-emerald-900">
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                Dica rápida
+              </div>
+              <div className="text-muted-foreground mt-1">
+                Use seu WhatsApp principal — é por lá que o corretor te chama mais rápido.
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="name" className="sr-only">
+                Nome completo
+              </Label>
+              <Field
+                id="name"
+                placeholder="Seu nome completo"
+                icon={<User className="h-4 w-4 text-emerald-700/70" />}
+                value={fullName}
+                onChange={setFullName}
+              />
+
+              <Label htmlFor="phone" className="sr-only">
+                WhatsApp
+              </Label>
+              <Field
+                id="phone"
+                placeholder="WhatsApp"
+                icon={<Phone className="h-4 w-4 text-emerald-700/70" />}
+                value={phone}
+                onChange={(v) => setPhone(formatPhoneBR(v))}
+                inputMode="tel"
+              />
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="sr-only">Estado</Label>
+                  <SelectField
+                    icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
+                    placeholder="Estado (UF)"
+                    value={uf}
+                    onValueChange={(nextUf) => {
+                      setUf(nextUf);
+                      setCity("");
+                    }}
+                  >
+                    {UF.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectField>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="sr-only">Cidade</Label>
+                  <SelectField
+                    icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
+                    placeholder={
+                      !uf ? "Escolha o estado" : citiesLoading ? "Carregando..." : "Cidade"
+                    }
+                    value={city}
+                    onValueChange={setCity}
+                    disabled={!uf || citiesLoading}
+                  >
+                    {citiesLoading ? (
+                      <SelectItem value="__loading" disabled>
+                        Carregando...
+                      </SelectItem>
+                    ) : citiesError ? (
+                      <>
+                        <SelectItem value="__error" disabled>
+                          {citiesError}
+                        </SelectItem>
+                        {FALLBACK_CITIES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </>
+                    ) : (
+                      (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectField>
+                </div>
+              </div>
+            </div>
+
+            <Button className={CTA} onClick={next} disabled={!canGoNextStep1}>
+              Continuar
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck className="h-4 w-4 text-emerald-700/80" />
+              Sem spam. Contato apenas para te atender.
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2 */}
+        {!submitted && step === 2 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-xl md:text-2xl font-semibold">Seu perfil 🧠</h1>
+                <p className="text-sm text-muted-foreground">
+                  Isso ajuda a encontrar a contratação ideal.
+                </p>
+              </div>
+              <BrandPill variant="outline" className="hidden sm:inline-flex">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                2/3
+              </BrandPill>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm font-medium">Qual modalidade você quer?</div>
+
+              <div className="space-y-3">
+                <ModalityCard
+                  value="PF"
+                  selected={modality === "PF"}
+                  title="Pessoa Física"
+                  subtitle="Pra você e sua família."
+                  badge="Mín. 1 pessoa"
+                  icon={<User className="h-4 w-4 text-emerald-700" />}
+                  onSelect={setModality}
+                />
+                <ModalityCard
+                  value="PJ"
+                  selected={modality === "PJ"}
+                  title="Pessoa Jurídica"
+                  subtitle="Para empresa (CNPJ ativo)."
+                  badge="Mín. 2 pessoas"
+                  icon={<Building2 className="h-4 w-4 text-emerald-700" />}
+                  onSelect={setModality}
+                />
+                <ModalityCard
+                  value="MEI"
+                  selected={modality === "MEI"}
+                  title="MEI"
+                  subtitle="MEI com CNPJ ativo (regras variam por operadora)."
+                  badge="Mín. 2 pessoas"
+                  icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700" />}
+                  onSelect={setModality}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Sua profissão</Label>
+                <SelectField
+                  icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700/70" />}
+                  placeholder="Selecione"
+                  value={profession}
+                  onValueChange={setProfession}
+                >
+                  {PROFESSIONS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectField>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Quantas pessoas e idades</Label>
+
+                <Card className="rounded-3xl border border-emerald-200/50 bg-background/70">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground tabular-nums">
+                          {totalPeople}
+                        </span>{" "}
+                        pessoa{totalPeople === 1 ? "" : "s"}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-emerald-200/70 bg-emerald-50/60"
+                      >
+                        mínimo: {minPeople}
+                      </Badge>
+                    </div>
+
+                    <div className="divide-y">
+                      {AGE_BUCKETS.map((b) => (
+                        <CounterRow
+                          key={b.key}
+                          label={b.label}
+                          value={ageCounts[b.key]}
+                          onChange={(nextVal) =>
+                            setAgeCounts((prev) => ({ ...prev, [b.key]: nextVal }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div
+                  className={cn(
+                    "rounded-2xl border p-3 text-sm flex items-start gap-2",
+                    totalPeople >= minPeople
+                      ? "border-emerald-200/70 bg-emerald-50/60 text-muted-foreground"
+                      : "border-amber-300/60 bg-amber-50/50 text-muted-foreground",
+                  )}
+                >
+                  <div className="mt-0.5">⚡</div>
+                  <div>
+                    {totalPeople >= minPeople ? (
+                      <>
+                        Boa! Já dá pra seguir.{" "}
+                        <span className="font-medium text-foreground">Você está elegível</span>{" "}
+                        para continuar.
+                      </>
+                    ) : (
+                      <>
+                        Falta pouco: coloque no mínimo{" "}
+                        <span className="font-semibold text-foreground">
+                          {minPeople} pessoa{minPeople === 1 ? "" : "s"}
+                        </span>{" "}
+                        para essa modalidade.
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Button className={CTA} onClick={next} disabled={!canGoNextStep2}>
+              Ir para a última etapa
+              <Rocket className="h-4 w-4 ml-2" />
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Você está a um passo de receber atendimento.
+            </p>
+          </div>
+        )}
+
+        {/* STEP 3 */}
+        {!submitted && step === 3 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-xl md:text-2xl font-semibold">Finalizar ✅</h1>
+                <p className="text-sm text-muted-foreground">
+                  Últimos dados para um corretor te chamar com tudo alinhado.
+                </p>
+              </div>
+              <BrandPill variant="outline" className="hidden sm:inline-flex">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                3/3
+              </BrandPill>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/45 p-4 text-sm">
+              <div className="font-medium flex items-center gap-2 text-emerald-900">
+                <Clock3 className="h-4 w-4 text-emerald-700" />
+                Depois de enviar…
+              </div>
+              <div className="text-muted-foreground mt-1">
+                Você será chamado por um dos nossos corretores verificados em até{" "}
+                <span className="font-semibold text-foreground">15 minutos</span>.
+              </div>
+            </div>
+
+            {submitError && (
+              <div className="rounded-2xl border border-red-300/60 bg-red-50/40 p-3 text-sm">
+                <div className="font-medium">Ops…</div>
+                <div className="text-muted-foreground">{submitError}</div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <Field
+                id="email2"
+                placeholder="Email"
+                icon={<Mail className="h-4 w-4 text-emerald-700/70" />}
+                value={email}
+                onChange={setEmail}
+                inputMode="email"
+              />
+
+              <Field
+                id="cpf"
+                placeholder="CPF"
+                icon={<IdCard className="h-4 w-4 text-emerald-700/70" />}
+                value={cpf}
+                onChange={(v) => setCpf(formatCPF(v))}
+                inputMode="numeric"
+              />
+
+              <div className="flex gap-2">
+                <Input
+                  className={cn(
+                    "h-12 rounded-2xl bg-background/70",
+                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                  )}
+                  value={cep}
+                  onChange={(e) => setCep(formatCEP(e.target.value))}
+                  placeholder="CEP"
+                  inputMode="numeric"
+                />
+                <Button
+                  type="button"
+                  className={cn(
+                    "h-12 rounded-2xl px-5",
+                    "border-emerald-200/70 hover:bg-emerald-50",
+                  )}
+                  variant="secondary"
+                  onClick={handleCepSearch}
+                  disabled={onlyDigits(cep).length !== 8}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar
+                </Button>
+              </div>
+
+              <Input
+                className={cn(
+                  "h-12 rounded-2xl bg-background/70",
+                  "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                )}
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder="Rua / Av."
+              />
+
+              <div className="grid grid-cols-[140px,1fr] gap-3">
+                <Input
+                  className={cn(
+                    "h-12 rounded-2xl bg-background/70",
+                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                  )}
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  placeholder="Número"
+                />
+                <Input
+                  className={cn(
+                    "h-12 rounded-2xl bg-background/70",
+                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                  )}
+                  value={complement}
+                  onChange={(e) => setComplement(e.target.value)}
+                  placeholder="Complemento (opcional)"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/35 p-4 text-sm text-muted-foreground">
+                <div className="font-medium text-foreground flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                  Revisão rápida
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-muted-foreground">Nome: </span>
+                    <span className="text-foreground font-medium">{fullName || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">WhatsApp: </span>
+                    <span className="text-foreground font-medium">{phone || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cidade: </span>
+                    <span className="text-foreground font-medium">
+                      {city ? `${city} - ${uf}` : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Pessoas: </span>
+                    <span className="text-foreground font-medium">{totalPeople || 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 rounded-2xl hover:border-emerald-200 hover:bg-emerald-50"
+                onClick={back}
+                disabled={submitting}
+              >
+                Voltar
+              </Button>
+
+              <Button
+                type="button"
+                className={cn("h-12 rounded-2xl", CTA)}
+                disabled={!canFinalize || submitting}
+                onClick={handleSubmit}
+              >
+                {submitting ? (
+                  <>
+                    Enviando…
+                    <Sparkles className="h-4 w-4 ml-2 animate-pulse" />
+                  </>
+                ) : (
+                  <>
+                    Enviar e finalizar
+                    <Sparkles className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="text-xs text-muted-foreground text-center">
+              Ao enviar, você confirma que as informações são verdadeiras e autoriza contato.
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
