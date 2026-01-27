@@ -540,7 +540,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 py-6 text-xs text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span>© {new Date().getFullYear()} WinLeads.</span>
-            <span>Todos os direitos reservados.</span>
+            <span>WinLeads é um produto desenvolvido por Victor Hugo Sistemas LTDA – CNPJ 54.046.645/0001-94</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/termos" className="hover:text-foreground">

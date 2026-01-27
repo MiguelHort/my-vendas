@@ -3,23 +3,18 @@
 
 import * as React from "react";
 import {
-  BadgeCheck,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
-  Clock3,
-  IdCard,
-  Mail,
-  MapPin,
   PartyPopper,
   Phone,
   Rocket,
-  Search,
   ShieldCheck,
   Sparkles,
   User,
   ArrowLeft,
   ArrowRight,
+  MapPin,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,9 +32,18 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-type StepId = 1 | 2 | 3;
+type StepId = 1 | 2;
 type Modality = "PF" | "PJ" | "MEI";
 type CityOption = { value: string; label: string };
+
+// ✅ Sempre cadastrar no “usuário dono” (o user_id que você citou)
+// ⚠️ Sua API usa firebaseUid/email/name para localizar/criar o usuário.
+// Então aqui enviamos SEMPRE um firebaseUid fixo.
+// IMPORTANTE: o `email` abaixo precisa ser o e-mail do usuário que já existe com esse firebaseUid,
+// ou então o getOrCreateUserByFirebaseUid vai criar/atualizar esse usuário com esse e-mail.
+const OWNER_FIREBASE_UID = "nzwXmCbN4DcC1Aiag8wgqR4gQD23";
+const OWNER_EMAIL = "suporte@winleads.com.br"; // <-- troque para o e-mail real do usuário dono, se necessário
+const OWNER_NAME = "Suporte Winleads";
 
 const UF = [
   { value: "AC", label: "AC - Acre" },
@@ -124,25 +128,7 @@ function formatPhoneBR(value: string) {
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
-function formatCPF(value: string) {
-  const d = onlyDigits(value).slice(0, 11);
-  const p1 = d.slice(0, 3);
-  const p2 = d.slice(3, 6);
-  const p3 = d.slice(6, 9);
-  const p4 = d.slice(9, 11);
-  let out = p1;
-  if (p2) out += `.${p2}`;
-  if (p3) out += `.${p3}`;
-  if (p4) out += `-${p4}`;
-  return out;
-}
-function formatCEP(value: string) {
-  const d = onlyDigits(value).slice(0, 8);
-  if (d.length <= 5) return d;
-  return `${d.slice(0, 5)}-${d.slice(5)}`;
-}
 
-/** Brand pill (reutilizável) */
 function BrandPill({
   children,
   variant = "soft",
@@ -318,7 +304,6 @@ async function fetchCitiesByUF(
   return cities;
 }
 
-/** Pequeno helper para inputs com ícone */
 function Field({
   id,
   icon,
@@ -388,13 +373,29 @@ function SelectField({
 const CTA =
   "w-full h-12 rounded-2xl text-base bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-600 hover:to-emerald-500 shadow-[0_12px_30px_-18px_rgba(16,185,129,0.85)] disabled:opacity-60 disabled:shadow-none";
 
+// ---- helpers de payload para API ----
+function buildIdadesString(ageCounts: Record<string, number>) {
+  // Ex: "0 a 18 anos: 1; 29 a 33 anos: 2"
+  const parts = AGE_BUCKETS.map((b) => {
+    const n = Number(ageCounts[b.key] ?? 0);
+    if (!n) return null;
+    return `${b.label}: ${n}`;
+  }).filter(Boolean) as string[];
+
+  return parts.join("; ");
+}
+
+function mapOrigem() {
+  // ajuste se quiser: "Meta Ads", "Google Ads", etc.
+  return "Formulário (Landing)";
+}
+
 export default function CardForm() {
   const [step, setStep] = React.useState<StepId>(1);
 
   // Step 1
   const [fullName, setFullName] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [email, setEmail] = React.useState("");
   const [city, setCity] = React.useState("");
   const [uf, setUf] = React.useState("");
 
@@ -409,13 +410,6 @@ export default function CardForm() {
   const [ageCounts, setAgeCounts] = React.useState<Record<string, number>>(() =>
     Object.fromEntries(AGE_BUCKETS.map((b) => [b.key, 0])),
   );
-
-  // Step 3
-  const [cpf, setCpf] = React.useState("");
-  const [cep, setCep] = React.useState("");
-  const [street, setStreet] = React.useState("");
-  const [number, setNumber] = React.useState("");
-  const [complement, setComplement] = React.useState("");
 
   // submit
   const [submitting, setSubmitting] = React.useState(false);
@@ -480,37 +474,26 @@ export default function CardForm() {
     !!uf &&
     !!city;
 
-  const canGoNextStep2 =
-    !!modality && !!profession && totalPeople >= (modality ? minPeople : 1);
+  const idadesString = React.useMemo(
+    () => buildIdadesString(ageCounts),
+    [ageCounts],
+  );
 
   const canFinalize =
-    email.includes("@") &&
-    onlyDigits(cpf).length === 11 &&
-    onlyDigits(cep).length === 8 &&
-    street.trim().length >= 3 &&
-    number.trim().length >= 1 &&
-    city.trim().length >= 2 &&
-    uf.trim().length >= 2;
+    !!modality &&
+    !!profession &&
+    totalPeople >= (modality ? minPeople : 1) &&
+    idadesString.length > 0;
 
   function next() {
     setSubmitError(null);
     if (step === 1 && canGoNextStep1) setStep(2);
-    else if (step === 2 && canGoNextStep2) setStep(3);
   }
 
   function back() {
     setSubmitError(null);
     if (submitted) return;
-    if (step === 3) setStep(2);
-    else if (step === 2) setStep(1);
-  }
-
-  async function handleCepSearch() {
-    const cepDigits = onlyDigits(cep);
-    if (cepDigits.length !== 8) return;
-
-    // placeholder
-    setStreet((v) => v || "Rua Exemplo");
+    if (step === 2) setStep(1);
   }
 
   async function handleSubmit() {
@@ -520,27 +503,45 @@ export default function CardForm() {
     setSubmitError(null);
 
     try {
-      const payload = {
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        uf: uf.trim(),
-        city: city.trim(),
-        modality,
-        profession,
-        ageCounts,
-        totalPeople,
-        cpf: cpf.trim(),
-        cep: cep.trim(),
-        street: street.trim(),
-        number: number.trim(),
-        complement: complement.trim() || null,
+      // Monta body do jeito que /api/leads/route.ts espera
+      const body = {
+        nome: fullName.trim(),
+        telefone: onlyDigits(phone) || null,
+        origem: mapOrigem(),
+        estado: uf.trim(),
+        cidade: city.trim(),
+        qtd_vidas: totalPeople, // obrigatório
+        idades: idadesString, // obrigatório
+        // campos opcionais (mantendo null)
+        possui_cnpj: modality === "PJ" || modality === "MEI" ? true : false,
+        tem_plano_anterior: null,
+        operadora_anterior: null,
+        tempo_plano_anterior: null,
+        modalidade: modality || null,
+        operadora_ofertada: null,
+        acomodacao: null,
+        valor_mensalidade: null,
+        coparticipacao: null,
+        status: "Abordagem",
+        lote_producao_id: null,
+        valor_comissao: null,
+        data_venda: null,
+        last_chamado_at: null,
+        // Se você quiser guardar profissão também, hoje sua API não tem campo.
+        // Dá pra colocar em "motivo_dispensa" se você tiver no model, mas o POST não recebe esse campo.
+        // Então por enquanto fica só no front.
       };
 
-      const res = await fetch("/api/leads", {
+      const qs = new URLSearchParams({
+        firebaseUid: OWNER_FIREBASE_UID,
+        email: OWNER_EMAIL,
+        name: OWNER_NAME,
+      }).toString();
+
+      const res = await fetch(`/api/leads?${qs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -559,7 +560,7 @@ export default function CardForm() {
   return (
     <Card className="mx-auto py-10 max-w-3xl rounded-3xl border border-emerald-200/50 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
       <CardContent className="p-6 md:p-8">
-        {/* Botão voltar (agora controlado pelo CardForm) */}
+        {/* Botão voltar */}
         {!submitted && step !== 1 && (
           <div className="mb-4">
             <Button
@@ -594,10 +595,14 @@ export default function CardForm() {
             <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-5 text-left">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm text-muted-foreground">Próximo passo</div>
+                  <div className="text-sm text-muted-foreground">
+                    Próximo passo
+                  </div>
                   <div className="text-lg font-semibold">
                     Um corretor vai te chamar em até{" "}
-                    <span className="underline decoration-emerald-400/60">15 minutos</span>
+                    <span className="underline decoration-emerald-400/60">
+                      15 minutos
+                    </span>
                   </div>
                 </div>
                 <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">
@@ -644,14 +649,16 @@ export default function CardForm() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <h1 className="text-xl md:text-2xl font-semibold">Bora começar 🌿</h1>
+                <h1 className="text-xl md:text-2xl font-semibold">
+                  Bora começar 🌿
+                </h1>
                 <p className="text-sm text-muted-foreground">
                   Preencha rapidinho e já liberamos a próxima etapa.
                 </p>
               </div>
               <BrandPill variant="outline" className="hidden sm:inline-flex">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                1/3
+                1/2
               </BrandPill>
             </div>
 
@@ -661,7 +668,8 @@ export default function CardForm() {
                 Dica rápida
               </div>
               <div className="text-muted-foreground mt-1">
-                Use seu WhatsApp principal — é por lá que o corretor te chama mais rápido.
+                Use seu WhatsApp principal — é por lá que o corretor te chama
+                mais rápido.
               </div>
             </div>
 
@@ -689,6 +697,7 @@ export default function CardForm() {
                 inputMode="tel"
               />
 
+
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="sr-only">Estado</Label>
@@ -714,7 +723,11 @@ export default function CardForm() {
                   <SelectField
                     icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
                     placeholder={
-                      !uf ? "Escolha o estado" : citiesLoading ? "Carregando..." : "Cidade"
+                      !uf
+                        ? "Escolha o estado"
+                        : citiesLoading
+                          ? "Carregando..."
+                          : "Cidade"
                     }
                     value={city}
                     onValueChange={setCity}
@@ -736,11 +749,13 @@ export default function CardForm() {
                         ))}
                       </>
                     ) : (
-                      (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          {c.label}
-                        </SelectItem>
-                      ))
+                      (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map(
+                        (c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ),
+                      )
                     )}
                   </SelectField>
                 </div>
@@ -764,14 +779,16 @@ export default function CardForm() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <h1 className="text-xl md:text-2xl font-semibold">Seu perfil 🧠</h1>
+                <h1 className="text-xl md:text-2xl font-semibold">
+                  Seu perfil 🧠
+                </h1>
                 <p className="text-sm text-muted-foreground">
                   Isso ajuda a encontrar a contratação ideal.
                 </p>
               </div>
               <BrandPill variant="outline" className="hidden sm:inline-flex">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                2/3
+                2/2
               </BrandPill>
             </div>
 
@@ -855,7 +872,10 @@ export default function CardForm() {
                           label={b.label}
                           value={ageCounts[b.key]}
                           onChange={(nextVal) =>
-                            setAgeCounts((prev) => ({ ...prev, [b.key]: nextVal }))
+                            setAgeCounts((prev) => ({
+                              ...prev,
+                              [b.key]: nextVal,
+                            }))
                           }
                         />
                       ))}
@@ -875,9 +895,11 @@ export default function CardForm() {
                   <div>
                     {totalPeople >= minPeople ? (
                       <>
-                        Boa! Já dá pra seguir.{" "}
-                        <span className="font-medium text-foreground">Você está elegível</span>{" "}
-                        para continuar.
+                        Boa!{" "}
+                        <span className="font-medium text-foreground">
+                          Você está elegível
+                        </span>{" "}
+                        para finalizar.
                       </>
                     ) : (
                       <>
@@ -890,192 +912,37 @@ export default function CardForm() {
                     )}
                   </div>
                 </div>
+
+                {/* Ajuda: garante que idades não fique vazio */}
+                {totalPeople > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      Resumo idades:
+                    </span>{" "}
+                    {idadesString || "—"}
+                  </div>
+                )}
               </div>
             </div>
 
-            <Button className={CTA} onClick={next} disabled={!canGoNextStep2}>
-              Ir para a última etapa
+            {submitError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
+                {submitError}
+              </div>
+            )}
+
+            <Button
+              className={CTA}
+              onClick={handleSubmit}
+              disabled={!canFinalize || submitting}
+            >
+              {submitting ? "Enviando..." : "Finalizar e pedir atendimento"}
               <Rocket className="h-4 w-4 ml-2" />
             </Button>
 
             <p className="text-xs text-muted-foreground text-center">
               Você está a um passo de receber atendimento.
             </p>
-          </div>
-        )}
-
-        {/* STEP 3 */}
-        {!submitted && step === 3 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h1 className="text-xl md:text-2xl font-semibold">Finalizar ✅</h1>
-                <p className="text-sm text-muted-foreground">
-                  Últimos dados para um corretor te chamar com tudo alinhado.
-                </p>
-              </div>
-              <BrandPill variant="outline" className="hidden sm:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                3/3
-              </BrandPill>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/45 p-4 text-sm">
-              <div className="font-medium flex items-center gap-2 text-emerald-900">
-                <Clock3 className="h-4 w-4 text-emerald-700" />
-                Depois de enviar…
-              </div>
-              <div className="text-muted-foreground mt-1">
-                Você será chamado por um dos nossos corretores verificados em até{" "}
-                <span className="font-semibold text-foreground">15 minutos</span>.
-              </div>
-            </div>
-
-            {submitError && (
-              <div className="rounded-2xl border border-red-300/60 bg-red-50/40 p-3 text-sm">
-                <div className="font-medium">Ops…</div>
-                <div className="text-muted-foreground">{submitError}</div>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <Field
-                id="email2"
-                placeholder="Email"
-                icon={<Mail className="h-4 w-4 text-emerald-700/70" />}
-                value={email}
-                onChange={setEmail}
-                inputMode="email"
-              />
-
-              <Field
-                id="cpf"
-                placeholder="CPF"
-                icon={<IdCard className="h-4 w-4 text-emerald-700/70" />}
-                value={cpf}
-                onChange={(v) => setCpf(formatCPF(v))}
-                inputMode="numeric"
-              />
-
-              <div className="flex gap-2">
-                <Input
-                  className={cn(
-                    "h-12 rounded-2xl bg-background/70",
-                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
-                  )}
-                  value={cep}
-                  onChange={(e) => setCep(formatCEP(e.target.value))}
-                  placeholder="CEP"
-                  inputMode="numeric"
-                />
-                <Button
-                  type="button"
-                  className={cn(
-                    "h-12 rounded-2xl px-5",
-                    "border-emerald-200/70 hover:bg-emerald-50",
-                  )}
-                  variant="secondary"
-                  onClick={handleCepSearch}
-                  disabled={onlyDigits(cep).length !== 8}
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Buscar
-                </Button>
-              </div>
-
-              <Input
-                className={cn(
-                  "h-12 rounded-2xl bg-background/70",
-                  "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
-                )}
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Rua / Av."
-              />
-
-              <div className="grid grid-cols-[140px,1fr] gap-3">
-                <Input
-                  className={cn(
-                    "h-12 rounded-2xl bg-background/70",
-                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
-                  )}
-                  value={number}
-                  onChange={(e) => setNumber(e.target.value)}
-                  placeholder="Número"
-                />
-                <Input
-                  className={cn(
-                    "h-12 rounded-2xl bg-background/70",
-                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
-                  )}
-                  value={complement}
-                  onChange={(e) => setComplement(e.target.value)}
-                  placeholder="Complemento (opcional)"
-                />
-              </div>
-
-              <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/35 p-4 text-sm text-muted-foreground">
-                <div className="font-medium text-foreground flex items-center gap-2 mb-1">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                  Revisão rápida
-                </div>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-muted-foreground">Nome: </span>
-                    <span className="text-foreground font-medium">{fullName || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">WhatsApp: </span>
-                    <span className="text-foreground font-medium">{phone || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Cidade: </span>
-                    <span className="text-foreground font-medium">
-                      {city ? `${city} - ${uf}` : "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Pessoas: </span>
-                    <span className="text-foreground font-medium">{totalPeople || 0}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-2xl hover:border-emerald-200 hover:bg-emerald-50"
-                onClick={back}
-                disabled={submitting}
-              >
-                Voltar
-              </Button>
-
-              <Button
-                type="button"
-                className={cn("h-12 rounded-2xl", CTA)}
-                disabled={!canFinalize || submitting}
-                onClick={handleSubmit}
-              >
-                {submitting ? (
-                  <>
-                    Enviando…
-                    <Sparkles className="h-4 w-4 ml-2 animate-pulse" />
-                  </>
-                ) : (
-                  <>
-                    Enviar e finalizar
-                    <Sparkles className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </div>
-
-            <div className="text-xs text-muted-foreground text-center">
-              Ao enviar, você confirma que as informações são verdadeiras e autoriza contato.
-            </div>
           </div>
         )}
       </CardContent>
