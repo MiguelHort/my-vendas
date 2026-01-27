@@ -85,7 +85,7 @@ export default function Page() {
       <footer className="border-t bg-background/60 backdrop-blur">
         <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            © {new Date().getFullYear()} WinLeads. Todos os direitos reservados.
+            © {new Date().getFullYear()} WinLeads. WinLeads é um produto desenvolvido por Victor Hugo Sistemas LTDA – CNPJ 54.046.645/0001-94
           </div>
           <div className="flex items-center gap-4">
             <Link href="/termos" className="hover:text-foreground">
