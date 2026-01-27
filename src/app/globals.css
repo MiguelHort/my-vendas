@@ -121,15 +121,20 @@
   }
 }
 
-@keyframes scroll-vertical {
+@keyframes scrollY {
   0% {
     transform: translateY(0);
   }
   100% {
-    transform: translateY(-50%);
+    transform: translateY(-33.333%);
   }
 }
-
 .animate-scroll-vertical {
-  animation: scroll-vertical 18s linear infinite;
+  animation: scrollY 16s linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-vertical {
+    animation: none;
+  }
 }

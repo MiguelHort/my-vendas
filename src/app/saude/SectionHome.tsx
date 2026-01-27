@@ -18,12 +18,12 @@ import { cn } from "@/lib/utils";
 
 export default function SectionHome() {
   const items = [
-    { name: "NotreDame" },
-    { name: "Hapvida" },
-    { name: "Clinipam" },
-    { name: "Bradesco Saúde" },
-    { name: "SulAmérica" },
-    { name: "Amil" },
+    { name: "NotreDame", path: "notredame" },
+    { name: "Hapvida", path: "hapvida" },
+    { name: "Clinipam", path: "clinipam" },
+    { name: "Bradesco Saúde", path: "bradescosaude" },
+    { name: "SulAmérica", path: "sulamerica" },
+    { name: "Amil", path: "amil" },
   ];
 
   const BENEFITS = [
@@ -148,7 +148,7 @@ export default function SectionHome() {
 
                 <div className="animate-scroll-vertical space-y-3 py-2">
                   {[...items, ...items, ...items].map((item, index) => {
-                    const file = toFileName(item.name);
+                    const file = item.path;
                     return (
                       <div
                         key={`${item.name}-${index}`}
@@ -185,27 +185,6 @@ export default function SectionHome() {
           </div>
         </div>
       </div>
-
-      {/* animação do right */}
-      <style jsx>{`
-        @keyframes scrollY {
-          0% {
-            transform: translateY(0);
-          }
-          100% {
-            transform: translateY(-33.333%);
-          }
-        }
-        .animate-scroll-vertical {
-          animation: scrollY 16s linear infinite;
-          will-change: transform;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .animate-scroll-vertical {
-            animation: none;
-          }
-        }
-      `}</style>
     </section>
   );
 }
