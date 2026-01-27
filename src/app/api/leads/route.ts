@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     console.error(e);
     return NextResponse.json(
       { error: "Erro ao carregar leads" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
   if (!nome || !origem || !estado || !cidade || !qtd_vidas || !idades) {
     return NextResponse.json(
       { error: "Campos obrigatórios não preenchidos" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -129,9 +129,7 @@ export async function POST(req: NextRequest) {
         temPlanoAnterior:
           tem_plano_anterior !== null ? !!tem_plano_anterior : null,
         operadoraAnterior:
-          tem_plano_anterior && operadora_anterior
-            ? operadora_anterior
-            : null,
+          tem_plano_anterior && operadora_anterior ? operadora_anterior : null,
         tempoPlanoAnterior:
           tem_plano_anterior && tempo_plano_anterior
             ? tempo_plano_anterior
@@ -157,12 +155,45 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (origem === "Formulário (Landing)") {
+      try {
+        const response = await fetch(
+          `https://graph.facebook.com/v24.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: process.env.WHATSAPP_NOTIFY_TO,
+              type: "text",
+              text: {
+                body: `🆕 Novo lead: ${nome} - ${telefone}`,
+              },
+            }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("❌ WhatsApp API erro:", {
+            status: response.status,
+            data,
+          });
+        } else {
+          console.log("✅ WhatsApp enviado com sucesso:", data);
+        }
+      } catch (error) {
+        console.error("🔥 Erro inesperado ao enviar WhatsApp:", error);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);
-    return NextResponse.json(
-      { error: "Erro ao criar lead" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro ao criar lead" }, { status: 500 });
   }
 }
