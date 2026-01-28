@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ArrowRight,
   MapPin,
+  MessageCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,6 @@ type Modality = "PF" | "PJ" | "MEI";
 type CityOption = { value: string; label: string };
 
 // ✅ Sempre cadastrar no “usuário dono” (via firebaseUid/email/name)
-// OBS: mantenho como você passou (não mexi nas APIs).
 const OWNER_FIREBASE_UID = "nzwXmCbN4DcC1Aiag8wgqR4gQD23";
 const OWNER_EMAIL = "suporte@winleads.com.br";
 const OWNER_NAME = "Suporte Winleads";
@@ -125,6 +125,9 @@ function formatPhoneBR(value: string) {
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+function firstName(full: string) {
+  return (full || "").trim().split(/\s+/)[0] || "";
+}
 
 function BrandPill({
   children,
@@ -164,7 +167,7 @@ function CounterRow({
           variant="outline"
           size="icon"
           className={cn(
-            "h-9 w-9 rounded-full",
+            "h-10 w-10 rounded-full",
             "hover:border-emerald-200 hover:bg-emerald-50",
           )}
           onClick={() => onChange(clamp(value - 1, 0, 99))}
@@ -172,7 +175,7 @@ function CounterRow({
         >
           –
         </Button>
-        <div className="w-6 text-center text-sm font-medium tabular-nums">
+        <div className="w-7 text-center text-sm font-medium tabular-nums">
           {value}
         </div>
         <Button
@@ -180,7 +183,7 @@ function CounterRow({
           variant="outline"
           size="icon"
           className={cn(
-            "h-9 w-9 rounded-full",
+            "h-10 w-10 rounded-full",
             "hover:border-emerald-200 hover:bg-emerald-50",
           )}
           onClick={() => onChange(clamp(value + 1, 0, 99))}
@@ -236,7 +239,7 @@ function ModalityCard({
         <div className="flex items-start gap-3">
           <div
             className={cn(
-              "mt-0.5 h-9 w-9 rounded-xl border flex items-center justify-center shadow-sm",
+              "mt-0.5 h-10 w-10 rounded-xl border flex items-center justify-center shadow-sm",
               selected
                 ? "border-emerald-300 bg-white"
                 : "border-border bg-background",
@@ -308,6 +311,7 @@ function Field({
   value,
   onChange,
   inputMode,
+  autoComplete,
 }: {
   id: string;
   icon: React.ReactNode;
@@ -315,6 +319,7 @@ function Field({
   value: string;
   onChange: (v: string) => void;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoComplete?: string;
 }) {
   return (
     <div className="relative">
@@ -323,12 +328,13 @@ function Field({
         id={id}
         placeholder={placeholder}
         className={cn(
-          "pl-10 h-12 rounded-2xl bg-background/70",
+          "pl-10 h-12 rounded-2xl bg-background/80 text-base",
           "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
         )}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         inputMode={inputMode}
+        autoComplete={autoComplete}
       />
     </div>
   );
@@ -353,7 +359,7 @@ function SelectField({
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
-          "h-12 rounded-2xl bg-background/70",
+          "h-12 rounded-2xl bg-background/80 text-base",
           "focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-300",
         )}
       >
@@ -370,7 +376,107 @@ function SelectField({
 const CTA =
   "w-full h-12 rounded-2xl text-base bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-600 hover:to-emerald-500 shadow-[0_12px_30px_-18px_rgba(16,185,129,0.85)] disabled:opacity-60 disabled:shadow-none";
 
-// ---- helpers de payload para API ----
+function StepProgress({
+  step,
+  submitted,
+}: {
+  step: StepId;
+  submitted: boolean;
+}) {
+  const current = submitted ? 2 : step;
+  const percent = current === 1 ? 50 : 100;
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <BrandPill variant="soft" className="hidden sm:inline-flex">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+              Rápido e simples
+            </BrandPill>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Leva menos de 1 minuto. Sem complicação.
+          </div>
+        </div>
+
+        <div className="sm:hidden">
+          <BrandPill variant="outline">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+            {current}/2
+          </BrandPill>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <div className="h-3 w-full rounded-full bg-emerald-100/70 border border-emerald-200/50 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-emerald-600 transition-[width] duration-300"
+            style={{ width: `${percent}%` }}
+            aria-label={`Progresso: ${percent}%`}
+          />
+        </div>
+
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                "h-7 w-7 rounded-full border flex items-center justify-center",
+                current >= 1
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-border bg-background",
+              )}
+              aria-hidden
+            >
+              {current > 1 ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+              ) : (
+                <span className="text-emerald-700 font-semibold">1</span>
+              )}
+            </div>
+            <span
+              className={cn(
+                current >= 1 ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              Dados básicos
+            </span>
+          </div>
+
+          <div className="h-px flex-1 mx-3 bg-emerald-200/70" aria-hidden />
+
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                "h-7 w-7 rounded-full border flex items-center justify-center",
+                current >= 2
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-border bg-background",
+              )}
+              aria-hidden
+            >
+              {current >= 2 ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+              ) : (
+                <span className="text-muted-foreground font-semibold">2</span>
+              )}
+            </div>
+            <span
+              className={cn(
+                current >= 2 ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              Perfil
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function buildIdadesString(ageCounts: Record<string, number>) {
   const parts = AGE_BUCKETS.map((b) => {
     const n = Number(ageCounts[b.key] ?? 0);
@@ -409,6 +515,10 @@ export default function CardForm() {
   const [uf, setUf] = React.useState("");
   const [leadId, setLeadId] = React.useState<string | null>(null);
 
+  // UX (mais “mobile + 40+”)
+  const nameRef = React.useRef<HTMLInputElement | null>(null);
+  const phoneRef = React.useRef<HTMLInputElement | null>(null);
+
   // Cities
   const [citiesForUf, setCitiesForUf] = React.useState<CityOption[]>([]);
   const [citiesLoading, setCitiesLoading] = React.useState(false);
@@ -426,6 +536,9 @@ export default function CardForm() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
 
+  // UX: feedback “salvando…”
+  const [savingStep1, setSavingStep1] = React.useState(false);
+
   const totalPeople = React.useMemo(
     () => Object.values(ageCounts).reduce((a, b) => a + b, 0),
     [ageCounts],
@@ -433,6 +546,20 @@ export default function CardForm() {
 
   const minPeople =
     modality === "PF" ? 1 : modality === "PJ" || modality === "MEI" ? 2 : 1;
+
+  // Focus inicial (bom pra mobile)
+  React.useEffect(() => {
+    const t = setTimeout(() => nameRef.current?.focus(), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Focus quando muda step
+  React.useEffect(() => {
+    if (step === 1) {
+      const t = setTimeout(() => nameRef.current?.focus(), 200);
+      return () => clearTimeout(t);
+    }
+  }, [step]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -527,7 +654,6 @@ export default function CardForm() {
   }
 
   async function resolveCreatedLeadId(): Promise<string> {
-    // tenta achar o lead recém-criado por match de campos + mais recente
     const desiredPhone = onlyDigits(phone);
     const desiredNome = fullName.trim();
     const desiredCidade = city.trim();
@@ -536,7 +662,6 @@ export default function CardForm() {
 
     const leads = await fetchAllLeads();
 
-    // já vem orderBy dataEntrada desc na API -> mais recente primeiro
     const found =
       leads.find((l) => {
         const apiPhone = onlyDigits(l.telefone ?? "");
@@ -551,7 +676,6 @@ export default function CardForm() {
 
     if (found?.id) return String(found.id);
 
-    // fallback: pega o mais recente com telefone igual (se existir)
     if (desiredPhone) {
       const byPhone = leads.find((l) => {
         const apiPhone = onlyDigits(l.telefone ?? "");
@@ -560,13 +684,10 @@ export default function CardForm() {
       if (byPhone?.id) return String(byPhone.id);
     }
 
-    throw new Error(
-      "Criei o lead, mas não consegui localizar o ID. Tente novamente.",
-    );
+    throw new Error("Criei o lead, mas não consegui localizar o ID. Tente novamente.");
   }
 
   async function createLeadFromStep1(): Promise<string> {
-    // payload com o que você tem no step 1
     // OBS: seu POST exige qtd_vidas e idades (truthy), então mando placeholders
     const body = {
       nome: fullName.trim(),
@@ -603,7 +724,7 @@ export default function CardForm() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data?.error || "Erro ao criar lead (Step 1)");
+      throw new Error(data?.error || "Erro ao criar lead (Etapa 1)");
     }
 
     // seu POST retorna { success: true }, então resolvemos o ID via GET
@@ -613,27 +734,51 @@ export default function CardForm() {
 
   async function next() {
     setSubmitError(null);
-    if (step !== 1 || !canGoNextStep1) return;
+    if (step !== 1) return;
+
+    // pequenos “nudges” bem diretos (40+ gosta de clareza)
+    if (fullName.trim().length < 3) {
+      setSubmitError("Por favor, digite seu nome completo.");
+      nameRef.current?.focus();
+      return;
+    }
+    if (onlyDigits(phone).length < 10) {
+      setSubmitError("Digite seu WhatsApp com DDD (ex: 41 99999-9999).");
+      phoneRef.current?.focus();
+      return;
+    }
+    if (!uf) {
+      setSubmitError("Escolha seu estado (UF).");
+      return;
+    }
+    if (!city) {
+      setSubmitError("Escolha sua cidade.");
+      return;
+    }
+
+    if (!canGoNextStep1) return;
 
     try {
+      setSavingStep1(true);
+
       // se já criou (ex: usuário voltou pro step 1), não cria de novo
       const id = leadId ?? (await createLeadFromStep1());
       if (!leadId) setLeadId(id);
 
       setStep(2);
+      setSubmitError(null);
     } catch (e: any) {
-      setSubmitError(e?.message || "Erro ao salvar Step 1.");
+      setSubmitError(e?.message || "Erro ao salvar a Etapa 1.");
+    } finally {
+      setSavingStep1(false);
     }
   }
 
   async function handleSubmit() {
     if (!leadId) {
-      setSubmitError(
-        "Não foi possível identificar o lead. Volte e tente novamente.",
-      );
+      setSubmitError("Não foi possível identificar o lead. Volte e tente novamente.");
       return;
     }
-
     if (!canFinalize || submitting) return;
 
     setSubmitting(true);
@@ -641,7 +786,7 @@ export default function CardForm() {
 
     try {
       const body = {
-        id: leadId, // 👈 essencial pro PUT /api/leads/update
+        id: leadId,
 
         nome: fullName.trim(),
         telefone: onlyDigits(phone) || null,
@@ -655,7 +800,6 @@ export default function CardForm() {
         possui_cnpj: modality === "PJ" || modality === "MEI",
         modalidade: modality || null,
 
-        // opcionais (mantive nulos como você já estava)
         tem_plano_anterior: null,
         operadora_anterior: null,
         tempo_plano_anterior: null,
@@ -688,407 +832,423 @@ export default function CardForm() {
   }
 
   return (
-    <Card className="mx-auto py-10 max-w-3xl rounded-3xl border border-emerald-200/50 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
-      <CardContent className="p-6 md:p-8">
-        {/* Botão voltar */}
-        {!submitted && step !== 1 && (
-          <div className="mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={back}
-              className="hover:bg-emerald-50"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-          </div>
-        )}
+    <div className="w-full">
+      {/* Fundo bem leve (limpo / feminino / 40+) */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(circle at 20% 10%, rgba(16,185,129,0.12), transparent 40%), radial-gradient(circle at 90% 20%, rgba(34,197,94,0.10), transparent 45%), linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,1))",
+        }}
+      />
 
-        {/* SUCESSO */}
-        {submitted && (
-          <div className="space-y-6 text-center">
-            <div className="mx-auto h-14 w-14 rounded-2xl border border-emerald-200/60 flex items-center justify-center bg-emerald-50/60 shadow-sm">
-              <PartyPopper className="h-7 w-7 text-emerald-700" />
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl md:text-3xl font-semibold">
-                Perfeito, {fullName.split(" ")[0] || "pronto"}! 🎉
-              </h1>
-              <p className="text-sm md:text-base text-muted-foreground">
-                Recebemos seus dados e já colocamos na fila de atendimento.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-5 text-left">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm text-muted-foreground">
-                    Próximo passo
-                  </div>
-                  <div className="text-lg font-semibold">
-                    Um corretor vai te chamar em até{" "}
-                    <span className="underline decoration-emerald-400/60">
-                      15 minutos
-                    </span>
-                  </div>
-                </div>
-                <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">
-                  Em andamento
-                </Badge>
-              </div>
-
-              <Separator className="my-4" />
-
-              <div className="grid sm:grid-cols-3 gap-3 text-sm">
-                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
-                  <div className="text-muted-foreground">Contato</div>
-                  <div className="font-medium">{phone}</div>
-                </div>
-                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
-                  <div className="text-muted-foreground">Cidade</div>
-                  <div className="font-medium">
-                    {city} - {uf}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
-                  <div className="text-muted-foreground">Modalidade</div>
-                  <div className="font-medium">{modality}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-xs text-muted-foreground">
-              Ao enviar, você autoriza contato por WhatsApp/telefone/e-mail.
-            </div>
-
-            <Button
-              className="w-full h-12 rounded-2xl text-base"
-              onClick={() => window.location.reload()}
-              variant="secondary"
-            >
-              Fazer outra simulação
-            </Button>
-          </div>
-        )}
-
-        {/* STEP 1 */}
-        {!submitted && step === 1 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+      <Card className="mx-auto my-6 max-w-[520px] rounded-3xl border border-emerald-200/50 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
+        <CardContent className="p-6">
+          {/* Header mais humano e simples */}
+          <div className="mb-5">
+            <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <h1 className="text-xl md:text-2xl font-semibold">
-                  Bora começar 🌿
+                <div className="text-sm text-muted-foreground">
+                  Simulação rápida de plano de saúde
+                </div>
+                <div className="text-xl font-semibold leading-tight">
+                  Saiba qual plano é ideal para você em 2 clicks
+                </div>
+              </div>
+
+
+            </div>
+
+            <div className="mt-4">
+              <StepProgress step={step} submitted={submitted} />
+            </div>
+          </div>
+
+          {/* Botão voltar */}
+          {!submitted && step !== 1 && (
+            <div className="mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={back}
+                className="hover:bg-emerald-50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            </div>
+          )}
+
+          {/* SUCESSO */}
+          {submitted && (
+            <div className="space-y-6 text-center">
+              <div className="mx-auto h-14 w-14 rounded-2xl border border-emerald-200/60 flex items-center justify-center bg-emerald-50/60 shadow-sm">
+                <PartyPopper className="h-7 w-7 text-emerald-700" />
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-2xl font-semibold">
+                  Pronto, {firstName(fullName) || "tudo certo"}! 🎉
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Preencha rapidinho e já liberamos a próxima etapa.
+                  Recebemos seus dados e já colocamos na fila de atendimento.
                 </p>
               </div>
-              <BrandPill variant="outline" className="hidden sm:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                1/2
-              </BrandPill>
-            </div>
 
-            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/45 p-4 text-sm">
-              <div className="font-medium flex items-center gap-2 text-emerald-900">
-                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                Dica rápida
+              <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-5 text-left">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-muted-foreground">
+                      Próximo passo
+                    </div>
+                    <div className="text-lg font-semibold">
+                      Um corretor vai te chamar em até{" "}
+                      <span className="underline decoration-emerald-400/60">
+                        15 minutos
+                      </span>
+                    </div>
+                  </div>
+                  <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">
+                    Em andamento
+                  </Badge>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="grid gap-3 text-sm">
+                  <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                    <div className="text-muted-foreground">WhatsApp</div>
+                    <div className="font-medium">{phone}</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                    <div className="text-muted-foreground">Cidade</div>
+                    <div className="font-medium">
+                      {city} - {uf}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200/50 bg-background p-3">
+                    <div className="text-muted-foreground">Modalidade</div>
+                    <div className="font-medium">{modality}</div>
+                  </div>
+                </div>
               </div>
-              <div className="text-muted-foreground mt-1">
-                Use seu WhatsApp principal — é por lá que o corretor te chama
-                mais rápido.
+
+              <div className="text-xs text-muted-foreground">
+                Ao enviar, você autoriza contato por WhatsApp/telefone.
+              </div>
+
+              <Button
+                className="w-full h-12 rounded-2xl text-base"
+                onClick={() => window.location.reload()}
+                variant="secondary"
+              >
+                Fazer outra simulação
+              </Button>
+            </div>
+          )}
+
+          {/* STEP 1 */}
+          {!submitted && step === 1 && (
+            <div className="space-y-5">
+
+              <div className="space-y-4">
+                <Label htmlFor="name" className="sr-only">
+                  Nome completo
+                </Label>
+                <Input
+                  ref={nameRef}
+                  id="name"
+                  placeholder="Seu nome completo"
+                  className={cn(
+                    "h-12 rounded-2xl bg-background/80 text-base",
+                    "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                  )}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  autoComplete="name"
+                />
+
+                <Label htmlFor="phone" className="sr-only">
+                  WhatsApp
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <Phone className="h-4 w-4 text-emerald-700/70" />
+                  </span>
+                  <Input
+                    ref={phoneRef}
+                    id="phone"
+                    placeholder="WhatsApp com DDD (ex: 41 99999-9999)"
+                    className={cn(
+                      "pl-10 h-12 rounded-2xl bg-background/80 text-base",
+                      "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
+                    )}
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="sr-only">Estado</Label>
+                    <SelectField
+                      icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
+                      placeholder="Estado (UF)"
+                      value={uf}
+                      onValueChange={(nextUf) => {
+                        setUf(nextUf);
+                        setCity("");
+                      }}
+                    >
+                      {UF.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectField>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="sr-only">Cidade</Label>
+                    <SelectField
+                      icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
+                      placeholder={
+                        !uf
+                          ? "Escolha o estado"
+                          : citiesLoading
+                            ? "Carregando..."
+                            : "Cidade"
+                      }
+                      value={city}
+                      onValueChange={setCity}
+                      disabled={!uf || citiesLoading}
+                    >
+                      {citiesLoading ? (
+                        <SelectItem value="__loading" disabled>
+                          Carregando...
+                        </SelectItem>
+                      ) : citiesError ? (
+                        <>
+                          <SelectItem value="__error" disabled>
+                            {citiesError}
+                          </SelectItem>
+                          {FALLBACK_CITIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : (
+                        (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map(
+                          (c) => (
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.label}
+                            </SelectItem>
+                          ),
+                        )
+                      )}
+                    </SelectField>
+                  </div>
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
+                  {submitError}
+                </div>
+              )}
+
+              <Button
+                className={CTA}
+                onClick={next}
+                disabled={!canGoNextStep1 || savingStep1}
+              >
+                {savingStep1 ? "Salvando..." : "Continuar"}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <ShieldCheck className="h-4 w-4 text-emerald-700/80" />
+                Seus dados são usados apenas para atendimento.
               </div>
             </div>
+          )}
 
-            <div className="space-y-4">
-              <Label htmlFor="name" className="sr-only">
-                Nome completo
-              </Label>
-              <Field
-                id="name"
-                placeholder="Seu nome completo"
-                icon={<User className="h-4 w-4 text-emerald-700/70" />}
-                value={fullName}
-                onChange={setFullName}
-              />
+          {/* STEP 2 */}
+          {!submitted && step === 2 && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/45 p-4 text-sm">
+                <div className="font-medium flex items-center gap-2 text-emerald-900">
+                  <Sparkles className="h-4 w-4 text-emerald-700" />
+                  Só mais 2 perguntas
+                </div>
+                <div className="text-muted-foreground mt-1">
+                  Assim a gente já te indica a opção mais adequada.
+                </div>
+              </div>
 
-              <Label htmlFor="phone" className="sr-only">
-                WhatsApp
-              </Label>
-              <Field
-                id="phone"
-                placeholder="WhatsApp"
-                icon={<Phone className="h-4 w-4 text-emerald-700/70" />}
-                value={phone}
-                onChange={(v) => setPhone(formatPhoneBR(v))}
-                inputMode="tel"
-              />
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Qual modalidade você quer?</div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-3">
+                  <ModalityCard
+                    value="PF"
+                    selected={modality === "PF"}
+                    title="Pessoa Física"
+                    subtitle="Pra você e sua família."
+                    badge="Mín. 1 pessoa"
+                    icon={<User className="h-4 w-4 text-emerald-700" />}
+                    onSelect={setModality}
+                  />
+                  <ModalityCard
+                    value="PJ"
+                    selected={modality === "PJ"}
+                    title="Pessoa Jurídica"
+                    subtitle="Para empresa (CNPJ ativo)."
+                    badge="Mín. 2 pessoas"
+                    icon={<Building2 className="h-4 w-4 text-emerald-700" />}
+                    onSelect={setModality}
+                  />
+                  <ModalityCard
+                    value="MEI"
+                    selected={modality === "MEI"}
+                    title="MEI"
+                    subtitle="MEI com CNPJ ativo (regras variam)."
+                    badge="Mín. 2 pessoas"
+                    icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700" />}
+                    onSelect={setModality}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="sr-only">Estado</Label>
+                  <Label className="text-sm font-medium">Sua profissão</Label>
                   <SelectField
-                    icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
-                    placeholder="Estado (UF)"
-                    value={uf}
-                    onValueChange={(nextUf) => {
-                      setUf(nextUf);
-                      setCity("");
-                    }}
+                    icon={
+                      <BriefcaseBusiness className="h-4 w-4 text-emerald-700/70" />
+                    }
+                    placeholder="Selecione"
+                    value={profession}
+                    onValueChange={setProfession}
                   >
-                    {UF.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
+                    {PROFESSIONS.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
                       </SelectItem>
                     ))}
                   </SelectField>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="sr-only">Cidade</Label>
-                  <SelectField
-                    icon={<MapPin className="h-4 w-4 text-emerald-700/70" />}
-                    placeholder={
-                      !uf
-                        ? "Escolha o estado"
-                        : citiesLoading
-                          ? "Carregando..."
-                          : "Cidade"
-                    }
-                    value={city}
-                    onValueChange={setCity}
-                    disabled={!uf || citiesLoading}
-                  >
-                    {citiesLoading ? (
-                      <SelectItem value="__loading" disabled>
-                        Carregando...
-                      </SelectItem>
-                    ) : citiesError ? (
-                      <>
-                        <SelectItem value="__error" disabled>
-                          {citiesError}
-                        </SelectItem>
-                        {FALLBACK_CITIES.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            {c.label}
-                          </SelectItem>
-                        ))}
-                      </>
-                    ) : (
-                      (citiesToShow.length
-                        ? citiesToShow
-                        : FALLBACK_CITIES
-                      ).map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          {c.label}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectField>
-                </div>
-              </div>
-            </div>
+                  <Label className="text-sm font-medium">
+                    Quantas pessoas e idades
+                  </Label>
 
-            {submitError && (
-              <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
-                {submitError}
-              </div>
-            )}
-
-            <Button className={CTA} onClick={next} disabled={!canGoNextStep1}>
-              Continuar
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-emerald-700/80" />
-              Sem spam. Contato apenas para te atender.
-            </div>
-          </div>
-        )}
-
-        {/* STEP 2 */}
-        {!submitted && step === 2 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h1 className="text-xl md:text-2xl font-semibold">
-                  Seu perfil 🧠
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Isso ajuda a encontrar a contratação ideal.
-                </p>
-              </div>
-              <BrandPill variant="outline" className="hidden sm:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                2/2
-              </BrandPill>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm font-medium">
-                Qual modalidade você quer?
-              </div>
-
-              <div className="space-y-3">
-                <ModalityCard
-                  value="PF"
-                  selected={modality === "PF"}
-                  title="Pessoa Física"
-                  subtitle="Pra você e sua família."
-                  badge="Mín. 1 pessoa"
-                  icon={<User className="h-4 w-4 text-emerald-700" />}
-                  onSelect={setModality}
-                />
-                <ModalityCard
-                  value="PJ"
-                  selected={modality === "PJ"}
-                  title="Pessoa Jurídica"
-                  subtitle="Para empresa (CNPJ ativo)."
-                  badge="Mín. 2 pessoas"
-                  icon={<Building2 className="h-4 w-4 text-emerald-700" />}
-                  onSelect={setModality}
-                />
-                <ModalityCard
-                  value="MEI"
-                  selected={modality === "MEI"}
-                  title="MEI"
-                  subtitle="MEI com CNPJ ativo (regras variam por operadora)."
-                  badge="Mín. 2 pessoas"
-                  icon={
-                    <BriefcaseBusiness className="h-4 w-4 text-emerald-700" />
-                  }
-                  onSelect={setModality}
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Sua profissão</Label>
-                <SelectField
-                  icon={
-                    <BriefcaseBusiness className="h-4 w-4 text-emerald-700/70" />
-                  }
-                  placeholder="Selecione"
-                  value={profession}
-                  onValueChange={setProfession}
-                >
-                  {PROFESSIONS.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectField>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Quantas pessoas e idades
-                </Label>
-
-                <Card className="rounded-3xl border border-emerald-200/50 bg-background/70">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground tabular-nums">
-                          {totalPeople}
-                        </span>{" "}
-                        pessoa{totalPeople === 1 ? "" : "s"}
+                  <Card className="rounded-3xl border border-emerald-200/50 bg-background/70">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-semibold text-foreground tabular-nums">
+                            {totalPeople}
+                          </span>{" "}
+                          pessoa{totalPeople === 1 ? "" : "s"}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-emerald-200/70 bg-emerald-50/60"
+                        >
+                          mínimo: {minPeople}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className="rounded-full border-emerald-200/70 bg-emerald-50/60"
-                      >
-                        mínimo: {minPeople}
-                      </Badge>
-                    </div>
 
-                    <div className="divide-y">
-                      {AGE_BUCKETS.map((b) => (
-                        <CounterRow
-                          key={b.key}
-                          label={b.label}
-                          value={ageCounts[b.key]}
-                          onChange={(nextVal) =>
-                            setAgeCounts((prev) => ({
-                              ...prev,
-                              [b.key]: nextVal,
-                            }))
-                          }
-                        />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="divide-y">
+                        {AGE_BUCKETS.map((b) => (
+                          <CounterRow
+                            key={b.key}
+                            label={b.label}
+                            value={ageCounts[b.key]}
+                            onChange={(nextVal) =>
+                              setAgeCounts((prev) => ({
+                                ...prev,
+                                [b.key]: nextVal,
+                              }))
+                            }
+                          />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <div
-                  className={cn(
-                    "rounded-2xl border p-3 text-sm flex items-start gap-2",
-                    totalPeople >= minPeople
-                      ? "border-emerald-200/70 bg-emerald-50/60 text-muted-foreground"
-                      : "border-amber-300/60 bg-amber-50/50 text-muted-foreground",
-                  )}
-                >
-                  <div className="mt-0.5">⚡</div>
-                  <div>
-                    {totalPeople >= minPeople ? (
-                      <>
-                        Boa!{" "}
-                        <span className="font-medium text-foreground">
-                          Você está elegível
-                        </span>{" "}
-                        para finalizar.
-                      </>
-                    ) : (
-                      <>
-                        Falta pouco: coloque no mínimo{" "}
-                        <span className="font-semibold text-foreground">
-                          {minPeople} pessoa{minPeople === 1 ? "" : "s"}
-                        </span>{" "}
-                        para essa modalidade.
-                      </>
+                  <div
+                    className={cn(
+                      "rounded-2xl border p-3 text-sm flex items-start gap-2",
+                      totalPeople >= minPeople
+                        ? "border-emerald-200/70 bg-emerald-50/60 text-muted-foreground"
+                        : "border-amber-300/60 bg-amber-50/50 text-muted-foreground",
                     )}
+                  >
+                    <div className="mt-0.5">⚡</div>
+                    <div>
+                      {totalPeople >= minPeople ? (
+                        <>
+                          Pronto!{" "}
+                          <span className="font-medium text-foreground">
+                            Você já pode finalizar
+                          </span>
+                          .
+                        </>
+                      ) : (
+                        <>
+                          Falta pouco: coloque no mínimo{" "}
+                          <span className="font-semibold text-foreground">
+                            {minPeople} pessoa{minPeople === 1 ? "" : "s"}
+                          </span>{" "}
+                          para essa modalidade.
+                        </>
+                      )}
+                    </div>
                   </div>
+
+                  {totalPeople > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Resumo idades:
+                      </span>{" "}
+                      {idadesString || "—"}
+                    </div>
+                  )}
                 </div>
-
-                {totalPeople > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      Resumo idades:
-                    </span>{" "}
-                    {idadesString || "—"}
-                  </div>
-                )}
               </div>
+
+              {submitError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
+                  {submitError}
+                </div>
+              )}
+
+              <Button
+                className={CTA}
+                onClick={handleSubmit}
+                disabled={!canFinalize || submitting}
+              >
+                {submitting ? "Enviando..." : "Finalizar e pedir atendimento"}
+                <Rocket className="h-4 w-4 ml-2" />
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Ao finalizar, um corretor entra em contato no WhatsApp.
+              </p>
             </div>
-
-            {submitError && (
-              <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
-                {submitError}
-              </div>
-            )}
-
-            <Button
-              className={CTA}
-              onClick={handleSubmit}
-              disabled={!canFinalize || submitting}
-            >
-              {submitting ? "Enviando..." : "Finalizar e pedir atendimento"}
-              <Rocket className="h-4 w-4 ml-2" />
-            </Button>
-
-            <p className="text-xs text-muted-foreground text-center">
-              Você está a um passo de receber atendimento.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
