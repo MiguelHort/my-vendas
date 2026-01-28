@@ -65,11 +65,14 @@ export default function Page() {
 
       {/* BODY */}
       <main>
-        <SectionHome />
+        <div className="hidden sm:flex">
+          <SectionHome />
+        </div>
+        
 
         {/* FORMULÁRIO */}
 
-        <section className="mt-20 py-8">
+        <section className="mt-4 sm:mt-20 py-8">
           <CardForm />
 
           <div className="mt-8 flex items-center justify-center gap-3 text-xs text-muted-foreground">
