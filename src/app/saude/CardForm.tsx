@@ -36,13 +36,10 @@ type StepId = 1 | 2;
 type Modality = "PF" | "PJ" | "MEI";
 type CityOption = { value: string; label: string };
 
-// ✅ Sempre cadastrar no “usuário dono” (o user_id que você citou)
-// ⚠️ Sua API usa firebaseUid/email/name para localizar/criar o usuário.
-// Então aqui enviamos SEMPRE um firebaseUid fixo.
-// IMPORTANTE: o `email` abaixo precisa ser o e-mail do usuário que já existe com esse firebaseUid,
-// ou então o getOrCreateUserByFirebaseUid vai criar/atualizar esse usuário com esse e-mail.
+// ✅ Sempre cadastrar no “usuário dono” (via firebaseUid/email/name)
+// OBS: mantenho como você passou (não mexi nas APIs).
 const OWNER_FIREBASE_UID = "nzwXmCbN4DcC1Aiag8wgqR4gQD23";
-const OWNER_EMAIL = "suporte@winleads.com.br"; // <-- troque para o e-mail real do usuário dono, se necessário
+const OWNER_EMAIL = "suporte@winleads.com.br";
 const OWNER_NAME = "Suporte Winleads";
 
 const UF = [
@@ -365,7 +362,7 @@ function SelectField({
           <SelectValue placeholder={placeholder} />
         </div>
       </SelectTrigger>
-      <SelectContent>{children}</SelectContent>
+      <SelectContent className="max-h-[320px]">{children}</SelectContent>
     </Select>
   );
 }
@@ -375,7 +372,6 @@ const CTA =
 
 // ---- helpers de payload para API ----
 function buildIdadesString(ageCounts: Record<string, number>) {
-  // Ex: "0 a 18 anos: 1; 29 a 33 anos: 2"
   const parts = AGE_BUCKETS.map((b) => {
     const n = Number(ageCounts[b.key] ?? 0);
     if (!n) return null;
@@ -386,8 +382,21 @@ function buildIdadesString(ageCounts: Record<string, number>) {
 }
 
 function mapOrigem() {
-  // ajuste se quiser: "Meta Ads", "Google Ads", etc.
   return "Formulário (Landing)";
+}
+
+type LeadFromApi = {
+  id: string;
+  nome: string;
+  origem: string;
+  estado: string;
+  cidade: string;
+  telefone: string | null;
+  data_entrada: string;
+};
+
+function sameStr(a?: string | null, b?: string | null) {
+  return (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 }
 
 export default function CardForm() {
@@ -398,6 +407,7 @@ export default function CardForm() {
   const [phone, setPhone] = React.useState("");
   const [city, setCity] = React.useState("");
   const [uf, setUf] = React.useState("");
+  const [leadId, setLeadId] = React.useState<string | null>(null);
 
   // Cities
   const [citiesForUf, setCitiesForUf] = React.useState<CityOption[]>([]);
@@ -485,61 +495,181 @@ export default function CardForm() {
     totalPeople >= (modality ? minPeople : 1) &&
     idadesString.length > 0;
 
-  function next() {
-    setSubmitError(null);
-    if (step === 1 && canGoNextStep1) setStep(2);
-  }
-
   function back() {
     setSubmitError(null);
     if (submitted) return;
     if (step === 2) setStep(1);
   }
 
+  function ownerParams() {
+    return new URLSearchParams({
+      firebaseUid: OWNER_FIREBASE_UID,
+      email: OWNER_EMAIL,
+      name: OWNER_NAME,
+    });
+  }
+
+  async function fetchAllLeads(): Promise<LeadFromApi[]> {
+    const res = await fetch(`/api/leads?${ownerParams().toString()}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || "Erro ao carregar leads para conferência.");
+    }
+
+    const payload = (await res.json().catch(() => [])) as LeadFromApi[];
+    if (!Array.isArray(payload)) return [];
+    return payload;
+  }
+
+  async function resolveCreatedLeadId(): Promise<string> {
+    // tenta achar o lead recém-criado por match de campos + mais recente
+    const desiredPhone = onlyDigits(phone);
+    const desiredNome = fullName.trim();
+    const desiredCidade = city.trim();
+    const desiredEstado = uf.trim().toUpperCase();
+    const desiredOrigem = mapOrigem();
+
+    const leads = await fetchAllLeads();
+
+    // já vem orderBy dataEntrada desc na API -> mais recente primeiro
+    const found =
+      leads.find((l) => {
+        const apiPhone = onlyDigits(l.telefone ?? "");
+        return (
+          sameStr(l.nome, desiredNome) &&
+          sameStr(l.cidade, desiredCidade) &&
+          sameStr(l.estado, desiredEstado) &&
+          sameStr(l.origem, desiredOrigem) &&
+          (!!desiredPhone ? apiPhone === desiredPhone : true)
+        );
+      }) ?? null;
+
+    if (found?.id) return String(found.id);
+
+    // fallback: pega o mais recente com telefone igual (se existir)
+    if (desiredPhone) {
+      const byPhone = leads.find((l) => {
+        const apiPhone = onlyDigits(l.telefone ?? "");
+        return apiPhone === desiredPhone;
+      });
+      if (byPhone?.id) return String(byPhone.id);
+    }
+
+    throw new Error(
+      "Criei o lead, mas não consegui localizar o ID. Tente novamente.",
+    );
+  }
+
+  async function createLeadFromStep1(): Promise<string> {
+    // payload com o que você tem no step 1
+    // OBS: seu POST exige qtd_vidas e idades (truthy), então mando placeholders
+    const body = {
+      nome: fullName.trim(),
+      telefone: onlyDigits(phone) || null,
+      origem: mapOrigem(),
+      estado: uf.trim().toUpperCase(),
+      cidade: city.trim(),
+
+      // obrigatórios do POST
+      qtd_vidas: 1,
+      idades: "A definir",
+
+      status: "Abordagem",
+      possui_cnpj: null,
+      tem_plano_anterior: null,
+      operadora_anterior: null,
+      tempo_plano_anterior: null,
+      modalidade: null,
+      operadora_ofertada: null,
+      acomodacao: null,
+      valor_mensalidade: null,
+      coparticipacao: null,
+      lote_producao_id: null,
+      valor_comissao: null,
+      data_venda: null,
+      last_chamado_at: null,
+    };
+
+    const res = await fetch(`/api/leads?${ownerParams().toString()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || "Erro ao criar lead (Step 1)");
+    }
+
+    // seu POST retorna { success: true }, então resolvemos o ID via GET
+    const id = await resolveCreatedLeadId();
+    return id;
+  }
+
+  async function next() {
+    setSubmitError(null);
+    if (step !== 1 || !canGoNextStep1) return;
+
+    try {
+      // se já criou (ex: usuário voltou pro step 1), não cria de novo
+      const id = leadId ?? (await createLeadFromStep1());
+      if (!leadId) setLeadId(id);
+
+      setStep(2);
+    } catch (e: any) {
+      setSubmitError(e?.message || "Erro ao salvar Step 1.");
+    }
+  }
+
   async function handleSubmit() {
+    if (!leadId) {
+      setSubmitError(
+        "Não foi possível identificar o lead. Volte e tente novamente.",
+      );
+      return;
+    }
+
     if (!canFinalize || submitting) return;
 
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      // Monta body do jeito que /api/leads/route.ts espera
       const body = {
+        id: leadId, // 👈 essencial pro PUT /api/leads/update
+
         nome: fullName.trim(),
         telefone: onlyDigits(phone) || null,
         origem: mapOrigem(),
-        estado: uf.trim(),
+        estado: uf.trim().toUpperCase(),
         cidade: city.trim(),
-        qtd_vidas: totalPeople, // obrigatório
-        idades: idadesString, // obrigatório
-        // campos opcionais (mantendo null)
-        possui_cnpj: modality === "PJ" || modality === "MEI" ? true : false,
+
+        qtd_vidas: totalPeople,
+        idades: idadesString,
+
+        possui_cnpj: modality === "PJ" || modality === "MEI",
+        modalidade: modality || null,
+
+        // opcionais (mantive nulos como você já estava)
         tem_plano_anterior: null,
         operadora_anterior: null,
         tempo_plano_anterior: null,
-        modalidade: modality || null,
         operadora_ofertada: null,
         acomodacao: null,
         valor_mensalidade: null,
         coparticipacao: null,
-        status: "Abordagem",
-        lote_producao_id: null,
         valor_comissao: null,
         data_venda: null,
         last_chamado_at: null,
-        // Se você quiser guardar profissão também, hoje sua API não tem campo.
-        // Dá pra colocar em "motivo_dispensa" se você tiver no model, mas o POST não recebe esse campo.
-        // Então por enquanto fica só no front.
       };
 
-      const qs = new URLSearchParams({
-        firebaseUid: OWNER_FIREBASE_UID,
-        email: OWNER_EMAIL,
-        name: OWNER_NAME,
-      }).toString();
-
-      const res = await fetch(`/api/leads?${qs}`, {
-        method: "POST",
+      const res = await fetch(`/api/leads/update?${ownerParams().toString()}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -697,7 +827,6 @@ export default function CardForm() {
                 inputMode="tel"
               />
 
-
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="sr-only">Estado</Label>
@@ -749,18 +878,25 @@ export default function CardForm() {
                         ))}
                       </>
                     ) : (
-                      (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map(
-                        (c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            {c.label}
-                          </SelectItem>
-                        ),
-                      )
+                      (citiesToShow.length
+                        ? citiesToShow
+                        : FALLBACK_CITIES
+                      ).map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))
                     )}
                   </SelectField>
                 </div>
               </div>
             </div>
+
+            {submitError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-sm text-red-900">
+                {submitError}
+              </div>
+            )}
 
             <Button className={CTA} onClick={next} disabled={!canGoNextStep1}>
               Continuar
@@ -793,7 +929,9 @@ export default function CardForm() {
             </div>
 
             <div className="space-y-3">
-              <div className="text-sm font-medium">Qual modalidade você quer?</div>
+              <div className="text-sm font-medium">
+                Qual modalidade você quer?
+              </div>
 
               <div className="space-y-3">
                 <ModalityCard
@@ -820,7 +958,9 @@ export default function CardForm() {
                   title="MEI"
                   subtitle="MEI com CNPJ ativo (regras variam por operadora)."
                   badge="Mín. 2 pessoas"
-                  icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700" />}
+                  icon={
+                    <BriefcaseBusiness className="h-4 w-4 text-emerald-700" />
+                  }
                   onSelect={setModality}
                 />
               </div>
@@ -832,7 +972,9 @@ export default function CardForm() {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Sua profissão</Label>
                 <SelectField
-                  icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700/70" />}
+                  icon={
+                    <BriefcaseBusiness className="h-4 w-4 text-emerald-700/70" />
+                  }
                   placeholder="Selecione"
                   value={profession}
                   onValueChange={setProfession}
@@ -846,7 +988,9 @@ export default function CardForm() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Quantas pessoas e idades</Label>
+                <Label className="text-sm font-medium">
+                  Quantas pessoas e idades
+                </Label>
 
                 <Card className="rounded-3xl border border-emerald-200/50 bg-background/70">
                   <CardContent className="p-4">
@@ -913,7 +1057,6 @@ export default function CardForm() {
                   </div>
                 </div>
 
-                {/* Ajuda: garante que idades não fique vazio */}
                 {totalPeople > 0 && (
                   <div className="text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">

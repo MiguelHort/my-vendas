@@ -65,7 +65,7 @@ export default function Page() {
 
       {/* BODY */}
       <main>
-        <div className="hidden sm:flex">
+        <div className="hidden sm:block">
           <SectionHome />
         </div>
         
