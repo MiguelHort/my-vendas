@@ -72,7 +72,7 @@ export default function Page() {
 
         {/* FORMULÁRIO */}
 
-        <section className="mt-4 sm:mt-20 py-8">
+        <section id="quiz-section" className="py-8">
           <CardForm />
 
           <div className="mt-8 flex items-center justify-center gap-3 text-xs text-muted-foreground">
