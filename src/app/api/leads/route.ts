@@ -170,8 +170,15 @@ export async function POST(req: NextRequest) {
               to: process.env.WHATSAPP_NOTIFY_TO,
               type: "text",
               text: {
-                body: `🆕 Novo lead: ${nome} - ${telefone}`,
-              },
+  body: `🚨 *Novo lead recebido!*
+
+👤 *Nome:* ${nome}
+📞 *Telefone:* ${telefone}
+📍 *Localização:* ${cidade} - ${estado}
+
+⏰ *Importante:* entre em contato em até 15 minutos.`,
+},
+
             }),
           },
         );
