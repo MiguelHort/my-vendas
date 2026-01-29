@@ -1,20 +1,19 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import Image from "next/image";
 import {
-  CheckCircle2,
   ArrowRight,
+  BadgeCheck,
+  CheckCircle2,
+  Lock,
   Shield,
   Sparkles,
-  Lock,
-  BadgeCheck,
+  UserCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 export default function SectionHome() {
   const items = [
@@ -26,162 +25,189 @@ export default function SectionHome() {
     { name: "Amil", path: "amil" },
   ];
 
-  const BENEFITS = [
-    "Comparação gratuita",
-    "Sem compromisso",
-    "Melhores preços",
-  ];
-
-  const toFileName = (planName: string) =>
-    planName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // remove acentos
-      .replace(/\s+/g, "") // remove espaços
-      .replace(/[^a-zA-Z0-9]/g, ""); // remove caracteres especiais
-
   const handleScrollToQuiz = () => {
     const quizSection = document.getElementById("quiz-section");
     if (!quizSection) return;
 
-    quizSection.scrollIntoView({ behavior: "smooth" });
+    quizSection.scrollIntoView({ behavior: "smooth", block: "start" });
+
     setTimeout(() => {
       const firstButton = quizSection.querySelector("button");
       if (firstButton) (firstButton as HTMLButtonElement).focus();
-    }, 800);
+    }, 700);
   };
 
   return (
     <section className="relative overflow-hidden">
-      {/* BG (simplificado, mais “hero”) */}
+      {/* BG mais clean (menos “show”, mais “confiança”) */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-linear-to-b from-emerald-50 via-white to-white" />
-        <div className="absolute top-0 right-0 h-[600px] w-[600px] -translate-y-1/3 translate-x-1/4 rounded-full bg-emerald-300/15 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-[420px] w-[420px] translate-y-1/3 -translate-x-1/4 rounded-full bg-emerald-200/15 blur-3xl" />
+        <div className="absolute -top-20 right-[-140px] h-[520px] w-[520px] rounded-full bg-emerald-300/10 blur-3xl" />
+        <div className="absolute bottom-[-180px] left-[-180px] h-[520px] w-[520px] rounded-full bg-emerald-200/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-12 md:py-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[2fr_1fr]">
-          {/* Left */}
+      <div className="mx-auto max-w-7xl px-6 py-6 md:py-16">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.35fr_1fr]">
+          {/* LEFT */}
           <div className="text-center lg:text-left">
+            {/* Badges de valor + segurança */}
             <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
-              <Badge className="rounded-full bg-primary/15 px-4 py-1.5 text-primary">
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                Compare e economize
-              </Badge>
+              <div className="flex gap-2">
+                <Badge className="rounded-full bg-transparent border-primary border-2 px-4 py-1.5 text-primary text-[10px]">
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  Simulação rápida
+                </Badge>
+                <Badge className="rounded-full bg-white/75 px-4 py-1.5 text-primary ring-1 ring-primary/10 backdrop-blur text-[10px]">
+                  <BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                  100% gratuito
+                </Badge>
+              </div>
 
-              <Badge className="rounded-full bg-white/70 px-4 py-1.5 text-primary ring-1 ring-primary/10 backdrop-blur">
-                <BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                Cotação gratuita
+              <Badge className="rounded-full bg-white/75 px-4 py-1.5 text-primary ring-1 ring-primary/10 backdrop-blur text-[10px]">
+                <Lock className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                Sem ligações automáticas
               </Badge>
             </div>
 
-            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Encontre o <span className="text-primary">Plano de Saúde</span>{" "}
-              ideal para você
+            {/* PROMESSA (alinhada com anúncio) */}
+            <h1 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-5xl">
+              Descubra se você pode{" "}
+              <span className="text-primary">pagar menos</span> no plano de
+              saúde
             </h1>
 
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground lg:mx-0">
-              Compare as melhores operadoras do Brasil e receba uma cotação
-              personalizada em minutos.
+            <p className="mx-auto mt-4 max-w-2xl text-ls text-muted-foreground lg:mx-0">
+              Em menos de 1 minuto, você faz uma simulação e recebe opções para
+              o seu perfil.{" "}
               <span className="font-semibold text-foreground">
-                {" "}
-                Sem compromisso!
+                Você decide se quer falar com um corretor.
               </span>
             </p>
 
-            {/* Benefits Pills */}
-            <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
-              {BENEFITS.map((benefit) => (
-                <div
-                  key={benefit}
-                  className="flex items-center gap-2 rounded-full border bg-white/70 px-3 py-2 text-sm backdrop-blur"
-                >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </span>
-                  <span className="text-sm font-medium text-foreground">
-                    {benefit}
-                  </span>
+            {/* MICRO-PROVAS / BENEFÍCIOS (curtos e claros) */}
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
+              <div className="flex items-start gap-3 rounded-2xl border bg-white/70 p-4 backdrop-blur">
+                <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <CheckCircle2 className="h-4 w-4" />
+                </span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-foreground">
+                    Veja opções para seu perfil
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Individual, família, empresa ou MEI.
+                  </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="flex items-start gap-3 rounded-2xl border bg-white/70 p-4 backdrop-blur">
+                <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Shield className="h-4 w-4" />
+                </span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-foreground">
+                    Atendimento humano e sem pressão
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Nada de robôs ou insistência.
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* CTA (não mexer no ArrowRight) */}
+            {/* CTA principal + texto de segurança */}
             <div className="mt-10">
               <Button
                 onClick={handleScrollToQuiz}
                 size="lg"
-                className="h-16 rounded-2xl"
+                className="h-16 w-full rounded-2xl sm:w-auto"
               >
-                Iniciar cotação gratuita
+                Fazer simulação gratuita
                 <ArrowRight className="ml-3 h-5 w-5" />
               </Button>
-
-              <p className="mt-3 text-sm text-muted-foreground">
-                Responda algumas perguntas e receba ofertas exclusivas
-              </p>
             </div>
           </div>
 
-          {/* Right (AGORA COM LOGOS) */}
+          {/* RIGHT */}
           <div className="relative">
-            {/* frame */}
-            <div className="rounded-3xl border bg-white/60 p-4 shadow-xl shadow-primary/5 backdrop-blur">
-              <div className="flex items-center justify-between gap-3 rounded-2xl border bg-white/70 px-4 py-3">
+            <div className="rounded-3xl border bg-white/65 p-4 shadow-xl shadow-primary/5 backdrop-blur">
+              {/* Cabeçalho do card */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border bg-white/75 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Shield className="h-4 w-4" />
                   </span>
-                  <div className="text-sm font-semibold">
-                    Operadoras populares
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">
+                      Operadoras populares
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Escolha melhor custo-benefício
+                    </div>
                   </div>
                 </div>
+
                 <Badge className="rounded-full bg-primary/15 px-3 py-1 text-primary">
                   Atualizado
                 </Badge>
               </div>
 
-              <div className="relative mt-4 h-[360px] overflow-hidden rounded-2xl">
-                {/* fade mask */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-linear-to-b from-white/95 to-transparent" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-linear-to-t from-white/95 to-transparent" />
-
-                <div className="animate-scroll-vertical space-y-3 py-2">
-                  {[...items, ...items, ...items].map((item, index) => {
-                    const file = item.path;
-                    return (
-                      <div
-                        key={`${item.name}-${index}`}
-                        className="mx-auto flex w-[92%] items-center justify-between gap-4 rounded-2xl border bg-white/75 p-4 shadow-sm backdrop-blur"
-                      >
-                        <div className="relative">
-                          <Image
-                            src={`/imgs/planos/${file}.png`}
-                            alt={`Logo ${item.name}`}
-                            width={68}
-                            height={48}
-                            className="h-full w-full object-contain"
-                            priority={index < 3}
-                          />
-                        </div>
-
-                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                          Ver ofertas
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+              {/* Logos */}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {items.map((item, idx) => (
+                  <div
+                    key={item.path}
+                    className="flex items-center justify-center rounded-2xl border bg-white/75 p-3 backdrop-blur"
+                    aria-label={`Operadora ${item.name}`}
+                  >
+                    <Image
+                      src={`/imgs/planos/${item.path}.png`}
+                      alt={`Logo ${item.name}`}
+                      width={120}
+                      height={60}
+                      className="h-9 w-auto object-contain"
+                      priority={idx < 3}
+                    />
+                  </div>
+                ))}
               </div>
 
-              <div className="mt-4 rounded-2xl border bg-white/70 p-4 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground/80">Dica:</span>{" "}
-                quanto mais completo o perfil, melhor a cotação.
+              {/* Prova social + confiança */}
+              <div className="mt-4 rounded-2xl border bg-white/75 p-4 backdrop-blur">
+                <div className="text-sm font-semibold text-foreground">
+                  Mais confiança antes de você preencher
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Simulação gratuita, sem compromisso e sem ligações
+                  automáticas. Você escolhe se quer atendimento.
+                </p>
+
+                <div className="mt-3 grid gap-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </span>
+                    Receba opções para seu perfil e região
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <Lock className="h-4 w-4" /> 
+                    </span>
+                    Seus dados são usados apenas para atendimento
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <UserCheck className="h-4 w-4" />
+                    </span>
+                    + 700 pessoas já simularam seu plano com a WinLeads Saúde e
+                    seus corretores
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* floating accent */}
-            <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
+            {/* acento */}
+            <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-primary/15 blur-2xl" />
           </div>
         </div>
       </div>

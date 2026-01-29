@@ -388,27 +388,6 @@ function StepProgress({
 
   return (
     <div className="mb-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <BrandPill variant="soft" className="hidden sm:inline-flex">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-              Rápido e simples
-            </BrandPill>
-          </div>
-
-          <div className="text-xs text-muted-foreground">
-            Leva menos de 1 minuto. Sem complicação.
-          </div>
-        </div>
-
-        <div className="sm:hidden">
-          <BrandPill variant="outline">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-            {current}/2
-          </BrandPill>
-        </div>
-      </div>
 
       <div className="mt-3">
         <div className="h-3 w-full rounded-full bg-emerald-100/70 border border-emerald-200/50 overflow-hidden">
@@ -832,7 +811,7 @@ export default function CardForm() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full px-1">
       {/* Fundo bem leve (limpo / feminino / 40+) */}
       <div
         className="pointer-events-none fixed inset-0 -z-10"
@@ -843,7 +822,7 @@ export default function CardForm() {
         }}
       />
 
-      <Card className="mx-auto my-6 max-w-[520px] rounded-3xl border border-emerald-200/50 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
+      <Card className="mx-auto my-6 max-w-[520px] rounded-3xl border border-emerald-700 bg-background/70 backdrop-blur shadow-[0_14px_40px_-28px_rgba(16,185,129,0.55)]">
         <CardContent className="p-6">
           {/* Header mais humano e simples */}
           <div className="mb-5">
@@ -980,7 +959,7 @@ export default function CardForm() {
                   <Input
                     ref={phoneRef}
                     id="phone"
-                    placeholder="WhatsApp com DDD (ex: 41 99999-9999)"
+                    placeholder="WhatsApp"
                     className={cn(
                       "pl-10 h-12 rounded-2xl bg-background/80 text-base",
                       "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
