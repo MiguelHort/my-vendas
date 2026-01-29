@@ -191,7 +191,7 @@ export default function SectionHome() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Lock className="h-4 w-4" />
+                      <Lock className="h-4 w-4" /> 
                     </span>
                     Seus dados são usados apenas para atendimento
                   </div>
