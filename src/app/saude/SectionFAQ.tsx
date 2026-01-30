@@ -31,9 +31,42 @@ const faqItems = [
   },
 ];
 
+// helpers locais (pra não depender de outro arquivo)
+function claritySet(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  const c = (window as any).clarity;
+  if (typeof c === "function") c("set", key, value);
+}
+
+function clarityEvent(name: string) {
+  claritySet(`evt_${name}`, String(Date.now()));
+}
+
 export function SectionFAQ() {
+  React.useEffect(() => {
+    const el = document.getElementById("faq-section");
+    if (!el) return;
+
+    let fired = false;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !fired) {
+          fired = true;
+          clarityEvent("FAQViewed");
+          claritySet("FAQViewed", "true");
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <section className="py-16 px-4 bg-accent">
+    <section id="faq-section" className="py-16 px-4 bg-accent">
       <div className="mx-auto max-w-3xl">
         <header className="mb-10 text-center">
           <h2 className="text-2xl font-bold text-foreground md:text-3xl">

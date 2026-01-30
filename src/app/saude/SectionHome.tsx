@@ -15,6 +15,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+function claritySet(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  const c = (window as any).clarity;
+  if (typeof c === "function") c("set", key, value);
+}
+
+function clarityEvent(name: string) {
+  // Clarity não tem "track" oficial como GA,
+  // mas dá pra registrar eventos como set com timestamp (funciona bem p/ filtrar)
+  claritySet(`evt_${name}`, String(Date.now()));
+}
+
 export default function SectionHome() {
   const items = [
     { name: "NotreDame", path: "notredame" },
@@ -25,7 +37,15 @@ export default function SectionHome() {
     { name: "Amil", path: "amil" },
   ];
 
+  React.useEffect(() => {
+    // chegou a renderizar o hero
+    claritySet("HeroViewed", "true");
+  }, []);
+
   const handleScrollToQuiz = () => {
+    clarityEvent("HeroCTAClick");
+    claritySet("ClickedCTA", "hero");
+
     const quizSection = document.getElementById("quiz-section");
     if (!quizSection) return;
 
@@ -191,7 +211,7 @@ export default function SectionHome() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Lock className="h-4 w-4" /> 
+                      <Lock className="h-4 w-4" />
                     </span>
                     Seus dados são usados apenas para atendimento
                   </div>

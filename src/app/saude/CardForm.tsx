@@ -33,6 +33,18 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+function claritySet(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  const c = (window as any).clarity;
+  if (typeof c === "function") c("set", key, value);
+}
+
+function clarityEvent(name: string) {
+  // Clarity não tem "track" oficial como GA,
+  // mas dá pra registrar eventos como set com timestamp (funciona bem p/ filtrar)
+  claritySet(`evt_${name}`, String(Date.now()));
+}
+
 type StepId = 1 | 2;
 type Modality = "PF" | "PJ" | "MEI";
 type CityOption = { value: string; label: string };
@@ -388,7 +400,6 @@ function StepProgress({
 
   return (
     <div className="mb-5">
-
       <div className="mt-3">
         <div className="h-3 w-full rounded-full bg-emerald-100/70 border border-emerald-200/50 overflow-hidden">
           <div
@@ -518,6 +529,8 @@ export default function CardForm() {
   // UX: feedback “salvando…”
   const [savingStep1, setSavingStep1] = React.useState(false);
 
+  const [started, setStarted] = React.useState(false);
+
   const totalPeople = React.useMemo(
     () => Object.values(ageCounts).reduce((a, b) => a + b, 0),
     [ageCounts],
@@ -526,19 +539,23 @@ export default function CardForm() {
   const minPeople =
     modality === "PF" ? 1 : modality === "PJ" || modality === "MEI" ? 2 : 1;
 
-  // Focus inicial (bom pra mobile)
   React.useEffect(() => {
-    const t = setTimeout(() => nameRef.current?.focus(), 200);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Focus quando muda step
-  React.useEffect(() => {
-    if (step === 1) {
-      const t = setTimeout(() => nameRef.current?.focus(), 200);
-      return () => clearTimeout(t);
-    }
+    claritySet("FormStep", String(step));
+    clarityEvent(`Step${step}Viewed`);
   }, [step]);
+
+  React.useEffect(() => {
+    function onBeforeUnload() {
+      if (!submitted && started) {
+        clarityEvent("FormAbandon");
+        claritySet("FormAbandon", "true");
+        claritySet("AbandonStep", String(step));
+      }
+    }
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [started, submitted, step]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -564,7 +581,9 @@ export default function CardForm() {
         if (!mounted) return;
         if (err?.name === "AbortError") return;
         setCitiesForUf([]);
-        setCitiesError("Não foi possível carregar as cidades. Tente novamente.");
+        setCitiesError(
+          "Não foi possível carregar as cidades. Tente novamente.",
+        );
       } finally {
         if (!mounted) return;
         setCitiesLoading(false);
@@ -577,6 +596,13 @@ export default function CardForm() {
       controller.abort();
     };
   }, [uf]);
+
+  function markStartOnce() {
+    if (started) return;
+    setStarted(true);
+    clarityEvent("FormStart");
+    claritySet("FormStarted", "true");
+  }
 
   const citiesToShow = React.useMemo(() => {
     if (!uf || citiesLoading) return [];
@@ -624,7 +650,9 @@ export default function CardForm() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data?.error || "Erro ao carregar leads para conferência.");
+      throw new Error(
+        data?.error || "Erro ao carregar leads para conferência.",
+      );
     }
 
     const payload = (await res.json().catch(() => [])) as LeadFromApi[];
@@ -663,7 +691,9 @@ export default function CardForm() {
       if (byPhone?.id) return String(byPhone.id);
     }
 
-    throw new Error("Criei o lead, mas não consegui localizar o ID. Tente novamente.");
+    throw new Error(
+      "Criei o lead, mas não consegui localizar o ID. Tente novamente.",
+    );
   }
 
   async function createLeadFromStep1(): Promise<string> {
@@ -744,9 +774,15 @@ export default function CardForm() {
       const id = leadId ?? (await createLeadFromStep1());
       if (!leadId) setLeadId(id);
 
+      clarityEvent("Step1Saved");
+      claritySet("Step1Saved", "true");
       setStep(2);
       setSubmitError(null);
     } catch (e: any) {
+      clarityEvent("Step1SaveFailed");
+      claritySet("Step1SaveFailed", "true");
+      claritySet("LastError", "step1_save_failed");
+
       setSubmitError(e?.message || "Erro ao salvar a Etapa 1.");
     } finally {
       setSavingStep1(false);
@@ -755,7 +791,9 @@ export default function CardForm() {
 
   async function handleSubmit() {
     if (!leadId) {
-      setSubmitError("Não foi possível identificar o lead. Volte e tente novamente.");
+      setSubmitError(
+        "Não foi possível identificar o lead. Volte e tente novamente.",
+      );
       return;
     }
     if (!canFinalize || submitting) return;
@@ -803,6 +841,8 @@ export default function CardForm() {
       }
 
       setSubmitted(true);
+      clarityEvent("LeadSubmitted");
+      claritySet("LeadSubmitted", "true");
     } catch (e: any) {
       setSubmitError(e?.message || "Falha ao enviar. Tente novamente.");
     } finally {
@@ -835,8 +875,6 @@ export default function CardForm() {
                   Saiba qual plano é ideal para você em 2 clicks
                 </div>
               </div>
-
-
             </div>
 
             <div className="mt-4">
@@ -931,7 +969,6 @@ export default function CardForm() {
           {/* STEP 1 */}
           {!submitted && step === 1 && (
             <div className="space-y-5">
-
               <div className="space-y-4">
                 <Label htmlFor="name" className="sr-only">
                   Nome completo
@@ -945,6 +982,10 @@ export default function CardForm() {
                     "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
                   )}
                   value={fullName}
+                  onFocus={() => {
+                    markStartOnce();
+                    clarityEvent("NameFocus");
+                  }}
                   onChange={(e) => setFullName(e.target.value)}
                   autoComplete="name"
                 />
@@ -965,6 +1006,11 @@ export default function CardForm() {
                       "focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:border-emerald-300",
                     )}
                     value={phone}
+                    onFocus={() => {
+                      markStartOnce();
+                      clarityEvent("PhoneFocus");
+                      claritySet("PhoneFocused", "true");
+                    }}
                     onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
                     inputMode="tel"
                     autoComplete="tel"
@@ -979,6 +1025,8 @@ export default function CardForm() {
                       placeholder="Estado (UF)"
                       value={uf}
                       onValueChange={(nextUf) => {
+                        markStartOnce();
+                        clarityEvent("UFFilled");
                         setUf(nextUf);
                         setCity("");
                       }}
@@ -1003,7 +1051,11 @@ export default function CardForm() {
                             : "Cidade"
                       }
                       value={city}
-                      onValueChange={setCity}
+                      onValueChange={(v) => {
+                        markStartOnce();
+                        clarityEvent("CityFilled");
+                        setCity(v);
+                      }}
                       disabled={!uf || citiesLoading}
                     >
                       {citiesLoading ? (
@@ -1022,13 +1074,14 @@ export default function CardForm() {
                           ))}
                         </>
                       ) : (
-                        (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map(
-                          (c) => (
-                            <SelectItem key={c.value} value={c.value}>
-                              {c.label}
-                            </SelectItem>
-                          ),
-                        )
+                        (citiesToShow.length
+                          ? citiesToShow
+                          : FALLBACK_CITIES
+                        ).map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ))
                       )}
                     </SelectField>
                   </div>
@@ -1043,7 +1096,10 @@ export default function CardForm() {
 
               <Button
                 className={CTA}
-                onClick={next}
+                onClick={() => {
+                  clarityEvent("Step1ContinueClick");
+                  next();
+                }}
                 disabled={!canGoNextStep1 || savingStep1}
               >
                 {savingStep1 ? "Salvando..." : "Continuar"}
@@ -1071,7 +1127,9 @@ export default function CardForm() {
               </div>
 
               <div className="space-y-3">
-                <div className="text-sm font-medium">Qual modalidade você quer?</div>
+                <div className="text-sm font-medium">
+                  Qual modalidade você quer?
+                </div>
 
                 <div className="space-y-3">
                   <ModalityCard
@@ -1098,7 +1156,9 @@ export default function CardForm() {
                     title="MEI"
                     subtitle="MEI com CNPJ ativo (regras variam)."
                     badge="Mín. 2 pessoas"
-                    icon={<BriefcaseBusiness className="h-4 w-4 text-emerald-700" />}
+                    icon={
+                      <BriefcaseBusiness className="h-4 w-4 text-emerald-700" />
+                    }
                     onSelect={setModality}
                   />
                 </div>
@@ -1214,7 +1274,10 @@ export default function CardForm() {
 
               <Button
                 className={CTA}
-                onClick={handleSubmit}
+                onClick={() => {
+                  clarityEvent("Step2SubmitClick");
+                  handleSubmit();
+                }}
                 disabled={!canFinalize || submitting}
               >
                 {submitting ? "Enviando..." : "Finalizar e pedir atendimento"}

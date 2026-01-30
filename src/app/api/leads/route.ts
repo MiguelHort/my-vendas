@@ -168,17 +168,22 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               messaging_product: "whatsapp",
               to: process.env.WHATSAPP_NOTIFY_TO,
-              type: "text",
-              text: {
-  body: `🚨 *Novo lead recebido!*
-
-👤 *Nome:* ${nome}
-📞 *Telefone:* ${telefone}
-📍 *Localização:* ${cidade} - ${estado}
-
-⏰ *Importante:* entre em contato em até 15 minutos.`,
-},
-
+              type: "template",
+              template: {
+                name: "new_lead",
+                language: { code: "pt_BR" },
+                components: [
+                  {
+                    type: "body",
+                    parameters: [
+                      { type: "text", text: nome, parameter_name: "name" },
+                      { type: "text", text: telefone || "Não informado", parameter_name: "phone" },
+                      { type: "text", text: cidade, parameter_name: "city" },
+                      { type: "text", text: estado, parameter_name: "uf" },
+                    ],
+                  },
+                ],
+              },
             }),
           },
         );
