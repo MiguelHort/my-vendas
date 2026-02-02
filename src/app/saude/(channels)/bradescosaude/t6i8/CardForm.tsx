@@ -158,7 +158,7 @@ function CounterRow({
           size="icon"
           className={cn(
             "h-10 w-10 rounded-full",
-            "border-white/20 bg-white/5 text-white hover:bg-blue-900 hover:text-white",
+            "border-white/20 bg-white/5 text-white hover:bg-red-900 hover:text-white",
           )}
           onClick={() => onChange(clamp(value - 1, 0, 99))}
           aria-label={`Diminuir ${label}`}
@@ -174,7 +174,7 @@ function CounterRow({
           size="icon"
           className={cn(
             "h-10 w-10 rounded-full",
-            "border-white/20 bg-white/5 text-white hover:bg-blue-900 hover:text-white",
+            "border-white/20 bg-white/5 text-white hover:bg-red-900 hover:text-white",
           )}
           onClick={() => onChange(clamp(value + 1, 0, 99))}
           aria-label={`Aumentar ${label}`}
@@ -210,8 +210,8 @@ function ModalityCard({
       className={cn(
         "w-full text-left rounded-2xl border p-5 transition-all relative overflow-hidden",
         selected
-          ? "border-orange-400/60 bg-white/15 shadow-sm"
-          : "border-white/15 bg-white/5 hover:bg-blue-900 hover:border-white/25",
+          ? "border-zinc-400/60 bg-white/15 shadow-sm"
+          : "border-white/15 bg-white/5 hover:bg-red-900 hover:border-white/25",
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -220,12 +220,12 @@ function ModalityCard({
             className={cn(
               "mt-0.5 h-10 w-10 rounded-xl border flex items-center justify-center shadow-sm",
               selected
-                ? "border-orange-400/50 bg-orange-500/10"
+                ? "border-zinc-400/50 bg-zinc-500/10"
                 : "border-white/15 bg-white/5",
             )}
             aria-hidden
           >
-            <span className="text-orange-500">{icon}</span>
+            <span className="text-zinc-500">{icon}</span>
           </div>
           <div>
             <div className="text-base font-semibold text-white">{title}</div>
@@ -237,8 +237,8 @@ function ModalityCard({
           className={cn(
             "rounded-full border",
             selected
-              ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-500"
-              : "bg-orange-500/10 text-orange-500 border-orange-400/40 hover:bg-orange-500/10",
+              ? "bg-zinc-500 text-white border-zinc-500 hover:bg-zinc-500"
+              : "bg-zinc-500/10 text-zinc-500 border-zinc-400/40 hover:bg-zinc-500/10",
           )}
         >
           {badge}
@@ -302,9 +302,9 @@ function SelectField({
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
-          "h-12 rounded-2xl bg-blue-900 text-white border border-white/20",
+          "h-12 rounded-2xl bg-red-900 text-white border border-white/20",
           "placeholder:text-white/60",
-          "focus:ring-2 focus:ring-orange-500/40 focus:border-orange-400",
+          "focus:ring-2 focus:ring-zinc-500/40 focus:border-zinc-400",
         )}
       >
         <div className="flex items-center gap-2">
@@ -318,7 +318,7 @@ function SelectField({
 }
 
 const CTA =
-  "w-full h-14 rounded-2xl text-base font-semibold bg-orange-500 text-white hover:bg-orange-600 shadow-lg disabled:opacity-60 disabled:shadow-none";
+  "w-full h-14 rounded-2xl text-base font-semibold bg-zinc-500 text-white hover:bg-zinc-600 shadow-lg disabled:opacity-60 disabled:shadow-none";
 
 function StepProgress({
   step,
@@ -349,7 +349,7 @@ function StepProgress({
 
       <div className="mt-2 h-2 w-full rounded-full bg-white/20 overflow-hidden">
         <div
-          className="h-full rounded-full bg-orange-500 transition-[width] duration-300"
+          className="h-full rounded-full bg-zinc-500 transition-[width] duration-300"
           style={{ width: `${percent}%` }}
           aria-label={`Progresso: ${percent}%`}
         />
@@ -365,18 +365,18 @@ function StepProgress({
                 className={cn(
                   "h-7 w-7 shrink-0 rounded-full border flex items-center justify-center",
                   done || active
-                    ? "border-orange-400/50 bg-orange-500/10"
+                    ? "border-zinc-400/50 bg-zinc-500/10"
                     : "border-white/20 bg-white/5",
                 )}
                 aria-hidden
               >
                 {done ? (
-                  <CheckCircle2 className="h-4 w-4 text-orange-500" />
+                  <CheckCircle2 className="h-4 w-4 text-zinc-500" />
                 ) : (
                   <span
                     className={cn(
                       "font-semibold",
-                      active ? "text-orange-500" : "text-white/60",
+                      active ? "text-zinc-500" : "text-white/60",
                     )}
                   >
                     {s}
@@ -724,12 +724,12 @@ export default function CardForm() {
 
   return (
     <div className="w-full px-1">
-      <Card className="mx-auto my-6 pb-0 max-w-[620px] rounded-3xl border border-white/15 bg-blue-900 backdrop-blur shadow-xl">
+      <Card className="mx-auto my-6 pb-0 max-w-[620px] rounded-3xl border border-white/15 bg-red-900 backdrop-blur shadow-xl">
         <CardContent className="p-6">
           {/* Header */}
           <div className="mb-6 text-center">
-            <Badge className="mb-3 rounded-full bg-blue-900 text-white border border-white/20 px-4 py-1.5 text-[11px] backdrop-blur">
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-orange-500" />
+            <Badge className="mb-3 rounded-full bg-red-900 text-white border border-white/20 px-4 py-1.5 text-[11px] backdrop-blur">
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-zinc-500" />
               Simulação Hapvida
             </Badge>
 
@@ -754,7 +754,7 @@ export default function CardForm() {
                 size="sm"
                 type="button"
                 onClick={back}
-                className="text-white hover:bg-blue-900"
+                className="text-white hover:bg-red-900"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
@@ -765,8 +765,8 @@ export default function CardForm() {
           {/* SUCESSO */}
           {submitted && (
             <div className="space-y-6 text-center">
-              <div className="mx-auto h-16 w-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-400/30">
-                <PartyPopper className="h-8 w-8 text-orange-500" />
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-zinc-500/20 flex items-center justify-center border border-zinc-400/30">
+                <PartyPopper className="h-8 w-8 text-zinc-500" />
               </div>
 
               <div className="space-y-2">
@@ -778,16 +778,16 @@ export default function CardForm() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-5 text-left backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-5 text-left backdrop-blur">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm text-white/70">Próximo passo</div>
                     <div className="text-lg font-semibold text-white">
                       Um corretor chama em até{" "}
-                      <span className="text-orange-500">15 minutos</span>
+                      <span className="text-zinc-500">15 minutos</span>
                     </div>
                   </div>
-                  <Badge className="rounded-full bg-orange-500 text-white hover:bg-orange-500">
+                  <Badge className="rounded-full bg-zinc-500 text-white hover:bg-zinc-500">
                     Em andamento
                   </Badge>
                 </div>
@@ -821,7 +821,7 @@ export default function CardForm() {
               </div>
 
               <Button
-                className="w-full h-12 rounded-2xl text-base bg-blue-900 text-white hover:bg-white/15 border border-white/15"
+                className="w-full h-12 rounded-2xl text-base bg-red-900 text-white hover:bg-white/15 border border-white/15"
                 onClick={() => window.location.reload()}
                 variant="secondary"
               >
@@ -833,9 +833,9 @@ export default function CardForm() {
           {/* STEP 1 - Qual modalidade */}
           {!submitted && step === 1 && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-4 text-sm backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-4 text-sm backdrop-blur">
                 <div className="font-medium flex items-center gap-2 text-white">
-                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  <Sparkles className="h-4 w-4 text-zinc-500" />
                   Etapa 1 de 4
                 </div>
                 <div className="text-white/70 mt-1">
@@ -893,7 +893,7 @@ export default function CardForm() {
               </div>
 
               {submitError && (
-                <div className="rounded-2xl border border-orange-400/40 bg-orange-500/10 p-4 text-sm text-white">
+                <div className="rounded-2xl border border-zinc-400/40 bg-zinc-500/10 p-4 text-sm text-white">
                   {submitError}
                 </div>
               )}
@@ -911,7 +911,7 @@ export default function CardForm() {
               </Button>
 
               <div className="flex items-center justify-center gap-2 text-xs text-white/70">
-                <ShieldCheck className="h-4 w-4 text-orange-500" />
+                <ShieldCheck className="h-4 w-4 text-zinc-500" />
                 Seus dados são usados apenas para atendimento.
               </div>
             </div>
@@ -920,9 +920,9 @@ export default function CardForm() {
           {/* STEP 2 - Idades */}
           {!submitted && step === 2 && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-4 text-sm backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-4 text-sm backdrop-blur">
                 <div className="font-medium flex items-center gap-2 text-white">
-                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  <Sparkles className="h-4 w-4 text-zinc-500" />
                   Etapa 2 de 4
                 </div>
                 <div className="text-white/70 mt-1">
@@ -935,7 +935,7 @@ export default function CardForm() {
                   Quantas pessoas e idades
                 </Label>
 
-                <Card className="rounded-3xl border border-white/15 bg-blue-900 backdrop-blur">
+                <Card className="rounded-3xl border border-white/15 bg-red-900 backdrop-blur">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-sm text-white/70">
@@ -944,12 +944,12 @@ export default function CardForm() {
                         </span>{" "}
                         pessoa{totalPeople === 1 ? "" : "s"}
                       </div>
-                      <Badge className="rounded-full bg-blue-900 text-white border border-white/20">
+                      <Badge className="rounded-full bg-red-900 text-white border border-white/20">
                         mínimo: {minPeople}
                       </Badge>
                     </div>
 
-                    <div className="divide-y divide-blue-900">
+                    <div className="divide-y divide-red-900">
                       {AGE_BUCKETS.map((b) => (
                         <CounterRow
                           key={b.key}
@@ -973,11 +973,11 @@ export default function CardForm() {
                   className={cn(
                     "rounded-2xl border p-3 text-sm flex items-start gap-2 backdrop-blur",
                     totalPeople >= minPeople
-                      ? "border-white/15 bg-blue-900 text-white/80"
-                      : "border-orange-400/40 bg-orange-500/10 text-white/80",
+                      ? "border-white/15 bg-red-900 text-white/80"
+                      : "border-zinc-400/40 bg-zinc-500/10 text-white/80",
                   )}
                 >
-                  <div className="mt-0.5 text-orange-500">⚡</div>
+                  <div className="mt-0.5 text-zinc-500">⚡</div>
                   <div>
                     {totalPeople >= minPeople ? (
                       <>
@@ -1010,7 +1010,7 @@ export default function CardForm() {
               </div>
 
               {submitError && (
-                <div className="rounded-2xl border border-orange-400/40 bg-orange-500/10 p-4 text-sm text-white">
+                <div className="rounded-2xl border border-zinc-400/40 bg-zinc-500/10 p-4 text-sm text-white">
                   {submitError}
                 </div>
               )}
@@ -1027,10 +1027,10 @@ export default function CardForm() {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
 
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-4 text-sm backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-4 text-sm backdrop-blur">
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-400/30">
-                    <Lock className="h-4 w-4 text-orange-500" />
+                  <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-500/15 border border-zinc-400/30">
+                    <Lock className="h-4 w-4 text-zinc-500" />
                   </div>
                   <div>
                     <div className="font-semibold text-white">
@@ -1049,9 +1049,9 @@ export default function CardForm() {
           {/* STEP 3 - Cidade e Estado */}
           {!submitted && step === 3 && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-4 text-sm backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-4 text-sm backdrop-blur">
                 <div className="font-medium flex items-center gap-2 text-white">
-                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  <Sparkles className="h-4 w-4 text-zinc-500" />
                   Etapa 3 de 4
                 </div>
                 <div className="text-white/70 mt-1">
@@ -1063,7 +1063,7 @@ export default function CardForm() {
                 <div className="space-y-2">
                   <Label className="sr-only">Estado</Label>
                   <SelectField
-                    icon={<MapPin className="h-4 w-4 text-orange-500" />}
+                    icon={<MapPin className="h-4 w-4 text-zinc-500" />}
                     placeholder="Estado (UF)"
                     value={uf}
                     onValueChange={(nextUf) => {
@@ -1084,7 +1084,7 @@ export default function CardForm() {
                 <div className="space-y-2">
                   <Label className="sr-only">Cidade</Label>
                   <SelectField
-                    icon={<MapPin className="h-4 w-4 text-orange-500" />}
+                    icon={<MapPin className="h-4 w-4 text-zinc-500" />}
                     placeholder={
                       !uf
                         ? "Escolha o estado"
@@ -1129,7 +1129,7 @@ export default function CardForm() {
               </div>
 
               {submitError && (
-                <div className="rounded-2xl border border-orange-400/40 bg-orange-500/10 p-4 text-sm text-white">
+                <div className="rounded-2xl border border-zinc-400/40 bg-zinc-500/10 p-4 text-sm text-white">
                   {submitError}
                 </div>
               )}
@@ -1155,9 +1155,9 @@ export default function CardForm() {
           {/* STEP 4 - Sua profissão (e finalização) */}
           {!submitted && step === 4 && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-white/15 bg-blue-900 p-4 text-sm backdrop-blur">
+              <div className="rounded-2xl border border-white/15 bg-red-900 p-4 text-sm backdrop-blur">
                 <div className="font-medium flex items-center gap-2 text-white">
-                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  <Sparkles className="h-4 w-4 text-zinc-500" />
                   Etapa 4 de 4
                 </div>
                 <div className="text-white/70 mt-1">
@@ -1172,7 +1172,7 @@ export default function CardForm() {
                   </Label>
                   <SelectField
                     icon={
-                      <BriefcaseBusiness className="h-4 w-4 text-orange-500" />
+                      <BriefcaseBusiness className="h-4 w-4 text-zinc-500" />
                     }
                     placeholder="Selecione"
                     value={profession}
@@ -1200,9 +1200,9 @@ export default function CardForm() {
                   id="name"
                   placeholder="Seu nome completo"
                   className={cn(
-                    "h-12 rounded-2xl bg-blue-900 text-white border border-white/20",
+                    "h-12 rounded-2xl bg-red-900 text-white border border-white/20",
                     "placeholder:text-white/60",
-                    "focus-visible:ring-2 focus-visible:ring-orange-500/40 focus-visible:border-orange-400",
+                    "focus-visible:ring-2 focus-visible:ring-zinc-500/40 focus-visible:border-zinc-400",
                   )}
                   value={fullName}
                   onFocus={() => {
@@ -1218,16 +1218,16 @@ export default function CardForm() {
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2">
-                    <Phone className="h-4 w-4 text-orange-500" />
+                    <Phone className="h-4 w-4 text-zinc-500" />
                   </span>
                   <Input
                     ref={phoneRef}
                     id="phone"
                     placeholder="WhatsApp com DDD"
                     className={cn(
-                      "pl-10 h-12 rounded-2xl bg-blue-900 text-white border border-white/20",
+                      "pl-10 h-12 rounded-2xl bg-red-900 text-white border border-white/20",
                       "placeholder:text-white/60",
-                      "focus-visible:ring-2 focus-visible:ring-orange-500/40 focus-visible:border-orange-400",
+                      "focus-visible:ring-2 focus-visible:ring-zinc-500/40 focus-visible:border-zinc-400",
                     )}
                     value={phone}
                     onFocus={() => {
@@ -1243,7 +1243,7 @@ export default function CardForm() {
               </div>
 
               {submitError && (
-                <div className="rounded-2xl border border-orange-400/40 bg-orange-500/10 p-4 text-sm text-white">
+                <div className="rounded-2xl border border-zinc-400/40 bg-zinc-500/10 p-4 text-sm text-white">
                   {submitError}
                 </div>
               )}

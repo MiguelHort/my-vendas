@@ -74,7 +74,7 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-blue-800">
+    <div className="min-h-screen bg-white text-red-800">
       {/* textura sutil */}
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.06]"
@@ -86,18 +86,18 @@ export default function Page() {
       />
 
       {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-blue-100 bg-white/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-red-100 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-800 text-white shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-800 text-white shadow-sm">
               <Heart className="h-5 w-5" />
             </div>
 
             <div className="leading-tight">
-              <div className="text-base font-semibold text-blue-800">
-                WinLeads <span className="text-orange-500">Saúde</span>
+              <div className="text-base font-semibold text-red-800">
+                WinLeads <span className="text-zinc-500">Saúde</span>
               </div>
-              <div className="hidden text-xs text-blue-600 sm:block">
+              <div className="hidden text-xs text-red-600 sm:block">
                 Triagem rápida • Cotação personalizada
               </div>
             </div>
@@ -109,7 +109,7 @@ export default function Page() {
               size="sm"
               type="button"
               className={cn(
-                "opacity-0 pointer-events-none text-blue-800 hover:bg-blue-50",
+                "opacity-0 pointer-events-none text-red-800 hover:bg-red-50",
               )}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -117,7 +117,7 @@ export default function Page() {
             </Button>
 
             <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium
-              bg-orange-50 text-orange-600 border border-orange-200">
+              bg-zinc-50 text-zinc-600 border border-zinc-200">
               Atendimento em até 15 min
             </div>
           </div>
@@ -135,8 +135,8 @@ export default function Page() {
         <section id="quiz-section" className="py-10">
           <CardForm />
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-blue-600">
-            <ShieldCheck className="h-4 w-4 text-orange-500" />
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-red-600">
+            <ShieldCheck className="h-4 w-4 text-zinc-500" />
             <span>Fluxo otimizado para conversão • rápido e sem fricção</span>
           </div>
         </section>
@@ -145,18 +145,18 @@ export default function Page() {
       <SectionFAQ />
 
       {/* FOOTER */}
-      <footer className="border-t border-blue-100 bg-white/80 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-blue-600 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="border-t border-red-100 bg-white/80 backdrop-blur">
+        <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-red-600 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
             © {new Date().getFullYear()} WinLeads. Produto desenvolvido por Victor
             Hugo Sistemas LTDA – CNPJ 54.046.645/0001-94
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/termos" className="hover:text-blue-800">
+            <Link href="/termos" className="hover:text-red-800">
               Termos de uso
             </Link>
-            <Link href="/privacidade" className="hover:text-blue-800">
+            <Link href="/privacidade" className="hover:text-red-800">
               Privacidade
             </Link>
           </div>
