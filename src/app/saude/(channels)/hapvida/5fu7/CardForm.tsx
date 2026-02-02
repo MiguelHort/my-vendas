@@ -149,8 +149,8 @@ function CounterRow({
   onChange: (next: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-3">
-      <div className="text-sm text-white/80">{label}</div>
+    <div className="flex items-center justify-between py-3 px-3">
+      <div className="text-sm text-blue-800">{label}</div>
       <div className="flex items-center gap-3">
         <Button
           type="button"
@@ -158,14 +158,14 @@ function CounterRow({
           size="icon"
           className={cn(
             "h-10 w-10 rounded-full",
-            "border-white/20 bg-white/5 text-white hover:bg-blue-900 hover:text-white",
+            "border-white/20 bg-blue-800 text-white hover:bg-blue-900 hover:text-white",
           )}
           onClick={() => onChange(clamp(value - 1, 0, 99))}
           aria-label={`Diminuir ${label}`}
         >
           –
         </Button>
-        <div className="w-7 text-center text-sm font-semibold tabular-nums text-white">
+        <div className="w-7 text-center text-sm font-semibold tabular-nums text-blue-800">
           {value}
         </div>
         <Button
@@ -174,7 +174,7 @@ function CounterRow({
           size="icon"
           className={cn(
             "h-10 w-10 rounded-full",
-            "border-white/20 bg-white/5 text-white hover:bg-blue-900 hover:text-white",
+            "border-white/20 bg-blue-800 text-white hover:bg-blue-900 hover:text-white",
           )}
           onClick={() => onChange(clamp(value + 1, 0, 99))}
           aria-label={`Aumentar ${label}`}
@@ -210,8 +210,8 @@ function ModalityCard({
       className={cn(
         "w-full text-left rounded-2xl border p-5 transition-all relative overflow-hidden",
         selected
-          ? "border-orange-400/60 bg-white/15 shadow-sm"
-          : "border-white/15 bg-white/5 hover:bg-blue-900 hover:border-white/25",
+          ? "border-orange-400/60 bg-orange-500 shadow-sm"
+          : "border-white/15 bg-white hover:bg-white/80 hover:border-white/25",
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -221,15 +221,33 @@ function ModalityCard({
               "mt-0.5 h-10 w-10 rounded-xl border flex items-center justify-center shadow-sm",
               selected
                 ? "border-orange-400/50 bg-orange-500/10"
-                : "border-white/15 bg-white/5",
+                : "border-white/15 bg-gray-200",
             )}
             aria-hidden
           >
-            <span className="text-orange-500">{icon}</span>
+            <span
+              className={cn("text-orange-500", selected ? "text-white" : "")}
+            >
+              {icon}
+            </span>
           </div>
           <div>
-            <div className="text-base font-semibold text-white">{title}</div>
-            <div className="text-sm text-white/70 mt-1">{subtitle}</div>
+            <div
+              className={cn(
+                "text-base font-semibold text-blue-800",
+                selected ? "text-white" : "",
+              )}
+            >
+              {title}
+            </div>
+            <div
+              className={cn(
+                "text-sm text-blue-900 mt-1",
+                selected ? "text-white/80" : "",
+              )}
+            >
+              {subtitle}
+            </div>
           </div>
         </div>
 
@@ -237,7 +255,7 @@ function ModalityCard({
           className={cn(
             "rounded-full border",
             selected
-              ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-500"
+              ? "bg-orange-500 text-white border-white hover:bg-orange-500"
               : "bg-orange-500/10 text-orange-500 border-orange-400/40 hover:bg-orange-500/10",
           )}
         >
@@ -505,7 +523,9 @@ export default function CardForm() {
         if (!mounted) return;
         if (err?.name === "AbortError") return;
         setCitiesForUf([]);
-        setCitiesError("Não foi possível carregar as cidades. Tente novamente.");
+        setCitiesError(
+          "Não foi possível carregar as cidades. Tente novamente.",
+        );
       } finally {
         if (!mounted) return;
         setCitiesLoading(false);
@@ -935,10 +955,10 @@ export default function CardForm() {
                   Quantas pessoas e idades
                 </Label>
 
-                <Card className="rounded-3xl border border-white/15 bg-blue-900 backdrop-blur">
+                <Card className="rounded-3xl border border-white/15 bg-white backdrop-blur">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-white/70">
+                      <div className="text-sm text-blue-800">
                         <span className="font-semibold text-white tabular-nums">
                           {totalPeople}
                         </span>{" "}
@@ -1060,11 +1080,11 @@ export default function CardForm() {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
+                {/* Estado */}
                 <div className="space-y-2">
                   <Label className="sr-only">Estado</Label>
-                  <SelectField
-                    icon={<MapPin className="h-4 w-4 text-orange-500" />}
-                    placeholder="Estado (UF)"
+
+                  <Select
                     value={uf}
                     onValueChange={(nextUf) => {
                       markStartOnce();
@@ -1073,25 +1093,25 @@ export default function CardForm() {
                       setCity("");
                     }}
                   >
-                    {UF.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectField>
+                    <SelectTrigger className="bg-white text-blue-800">
+                      <SelectValue placeholder="Estado (UF)" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {UF.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
+                {/* Cidade */}
                 <div className="space-y-2">
                   <Label className="sr-only">Cidade</Label>
-                  <SelectField
-                    icon={<MapPin className="h-4 w-4 text-orange-500" />}
-                    placeholder={
-                      !uf
-                        ? "Escolha o estado"
-                        : citiesLoading
-                          ? "Carregando..."
-                          : "Cidade"
-                    }
+
+                  <Select
                     value={city}
                     onValueChange={(v) => {
                       markStartOnce();
@@ -1100,31 +1120,47 @@ export default function CardForm() {
                     }}
                     disabled={!uf || citiesLoading}
                   >
-                    {citiesLoading ? (
-                      <SelectItem value="__loading" disabled>
-                        Carregando...
-                      </SelectItem>
-                    ) : citiesError ? (
-                      <>
-                        <SelectItem value="__error" disabled>
-                          {citiesError}
+                    <SelectTrigger className="bg-white text-blue-800">
+                      <SelectValue
+                        placeholder={
+                          !uf
+                            ? "Escolha o estado"
+                            : citiesLoading
+                              ? "Carregando..."
+                              : "Cidade"
+                        }
+                      />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {citiesLoading ? (
+                        <SelectItem value="__loading" disabled>
+                          Carregando...
                         </SelectItem>
-                        {FALLBACK_CITIES.map((c) => (
+                      ) : citiesError ? (
+                        <>
+                          <SelectItem value="__error" disabled>
+                            {citiesError}
+                          </SelectItem>
+
+                          {FALLBACK_CITIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : (
+                        (citiesToShow.length
+                          ? citiesToShow
+                          : FALLBACK_CITIES
+                        ).map((c) => (
                           <SelectItem key={c.value} value={c.value}>
                             {c.label}
                           </SelectItem>
-                        ))}
-                      </>
-                    ) : (
-                      (citiesToShow.length ? citiesToShow : FALLBACK_CITIES).map(
-                        (c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            {c.label}
-                          </SelectItem>
-                        ),
-                      )
-                    )}
-                  </SelectField>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1170,11 +1206,8 @@ export default function CardForm() {
                   <Label className="text-sm font-medium text-white">
                     Sua profissão
                   </Label>
-                  <SelectField
-                    icon={
-                      <BriefcaseBusiness className="h-4 w-4 text-orange-500" />
-                    }
-                    placeholder="Selecione"
+
+                  <Select
                     value={profession}
                     onValueChange={(v) => {
                       markStartOnce();
@@ -1182,12 +1215,18 @@ export default function CardForm() {
                       setProfession(v);
                     }}
                   >
-                    {PROFESSIONS.map((p) => (
+                    <SelectTrigger className="bg-white text-blue-800">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {PROFESSIONS.map((p) => (
                       <SelectItem key={p} value={p}>
                         {p}
                       </SelectItem>
                     ))}
-                  </SelectField>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Separator className="bg-white/15" />
@@ -1200,8 +1239,8 @@ export default function CardForm() {
                   id="name"
                   placeholder="Seu nome completo"
                   className={cn(
-                    "h-12 rounded-2xl bg-blue-900 text-white border border-white/20",
-                    "placeholder:text-white/60",
+                    "h-12 rounded-2xl bg-white text-blue-800 border border-white/20",
+                    "placeholder:text-blue-800",
                     "focus-visible:ring-2 focus-visible:ring-orange-500/40 focus-visible:border-orange-400",
                   )}
                   value={fullName}
@@ -1225,8 +1264,8 @@ export default function CardForm() {
                     id="phone"
                     placeholder="WhatsApp com DDD"
                     className={cn(
-                      "pl-10 h-12 rounded-2xl bg-blue-900 text-white border border-white/20",
-                      "placeholder:text-white/60",
+                      "pl-10 h-12 rounded-2xl bg-white text-blue-800 border border-white/20",
+                      "placeholder:text-blue-800",
                       "focus-visible:ring-2 focus-visible:ring-orange-500/40 focus-visible:border-orange-400",
                     )}
                     value={phone}
