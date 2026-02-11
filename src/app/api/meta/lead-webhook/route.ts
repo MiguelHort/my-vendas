@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
   if (
     mode === "subscribe" &&
     token &&
-    token === process.env.WHATSAPP_TOKEN
+    token === process.env.META_WEBHOOK_VERIFY_TOKEN
   ) {
     return new NextResponse(challenge, { status: 200 });
   }
