@@ -52,6 +52,7 @@ import {
 
 type LayoutProps = {
   children: ReactNode;
+  fullWidth?: boolean;
 };
 
 type MeUser = {
@@ -151,7 +152,7 @@ function DesktopDropdown({
    LAYOUT
 ======================= */
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, fullWidth = false }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -408,7 +409,9 @@ export function Layout({ children }: LayoutProps) {
 
       {/* ================= CONTENT ================= */}
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">{children}</div>
+        <div className={fullWidth ? "px-4 lg:px-6 py-4" : "max-w-7xl mx-auto px-4 lg:px-6 py-6"}>
+          {children}
+        </div>
       </main>
 
       {/* ================= FOOTER ================= */}

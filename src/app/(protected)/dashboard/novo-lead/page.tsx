@@ -25,62 +25,86 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
-import { UserPlus, Package } from "lucide-react";
+import { UserPlus, Package, ChevronRight, ChevronLeft, SkipForward } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { OPERADORAS } from "@/components/LeadCard";
+
+// ========================
+// TIPOS
+// ========================
 
 type Lote = {
   id: string;
-  data_acao: string; // ISO
+  data_acao: string;
   estado_regiao: string;
   volume_total_chamado: number;
 };
+
+// ========================
+// ETAPAS DO WIZARD
+// ========================
+
+const STEPS = [
+  { id: 1, title: "Lote de Produção", description: "Vincule o lead a uma ação", optional: false },
+  { id: 2, title: "Dados Básicos", description: "Nome, contato e localização", optional: false },
+  { id: 3, title: "Perfil do Lead", description: "Vidas, idades e plano atual", optional: false },
+  { id: 4, title: "Proposta Ofertada", description: "Operadora, modalidade e valores", optional: true },
+];
+
+const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+
+// ========================
+// PAGE
+// ========================
 
 const NovoLeadPage = () => {
   const router = useRouter();
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingLote, setLoadingLote] = useState(false);
   const [lotes, setLotes] = useState<Lote[]>([]);
 
-  // Lote fields
-  const [qtdLigacao, setQtdLigacao] = useState<string>("0");
-  const [qtdLeadsNovos, setQtdLeadsNovos] = useState<string>("0");
-  const [qtdRetrabalhos, setQtdRetrabalhos] = useState<string>("0");
-  const [qtdIndicacao, setQtdIndicacao] = useState<string>("0");
-  const [qtdPresencial, setQtdPresencial] = useState<string>("0");
-  const [estadoRegiao, setEstadoRegiao] = useState<string>("");
-  const [observacoes, setObservacoes] = useState<string>("");
-  const [loteId, setLoteId] = useState<string>("");
-
-  // Lead fields - básicos
-  const [origem, setOrigem] = useState<string>("");
-  const [estado, setEstado] = useState<string>("");
-  const [cidade, setCidade] = useState<string>("");
-  const [telefone, setTelefone] = useState<string>("");
-
-  // Lead fields - dados do seguro
-  const [qtdVidas, setQtdVidas] = useState<string>("");
-  const [idades, setIdades] = useState<string>("");
-  const [possuiCNPJ, setPossuiCNPJ] = useState<boolean>(false);
-  const [temPlanoAnterior, setTemPlanoAnterior] = useState<boolean>(false);
-  const [operadoraAnterior, setOperadoraAnterior] = useState<string>("");
-  const [tempoPlanoAnterior, setTempoPlanoAnterior] = useState<string>("");
-
-  // Lead fields - proposta
-  const [modalidade, setModalidade] = useState<string>("");
-  const [operadoraOfertada, setOperadoraOfertada] = useState<string>("");
-  const [acomodacao, setAcomodacao] = useState<string>("");
-  const [valorMensalidade, setValorMensalidade] = useState<string>("");
-  const [coparticipacao, setCoparticipacao] = useState<string>("");
-
-  // Tipo de lead: atual (vinculado a lote) ou antigo (sem lote)
+  // Step 1 — Lote
   const [tipoLead, setTipoLead] = useState<"atual" | "antigo">("atual");
+  const [loteId, setLoteId] = useState<string>("");
+  const [qtdLigacao, setQtdLigacao] = useState("0");
+  const [qtdLeadsNovos, setQtdLeadsNovos] = useState("0");
+  const [qtdRetrabalhos, setQtdRetrabalhos] = useState("0");
+  const [qtdIndicacao, setQtdIndicacao] = useState("0");
+  const [qtdPresencial, setQtdPresencial] = useState("0");
+  const [estadoRegiao, setEstadoRegiao] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [showCriarLote, setShowCriarLote] = useState(false);
 
-  // Calcular volume total automaticamente
+  // Step 2 — Dados básicos
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [origem, setOrigem] = useState("");
+  const [estado, setEstado] = useState("");
+  const [cidade, setCidade] = useState("");
+
+  // Step 3 — Perfil
+  const [qtdVidas, setQtdVidas] = useState("");
+  const [idades, setIdades] = useState("");
+  const [possuiCNPJ, setPossuiCNPJ] = useState(false);
+  const [temPlanoAnterior, setTemPlanoAnterior] = useState(false);
+  const [operadoraAnterior, setOperadoraAnterior] = useState("");
+  const [tempoPlanoAnterior, setTempoPlanoAnterior] = useState("");
+
+  // Step 4 — Proposta (opcional)
+  const [modalidade, setModalidade] = useState("");
+  const [operadoraOfertada, setOperadoraOfertada] = useState("");
+  const [operadoraCustom, setOperadoraCustom] = useState(false);
+  const [acomodacao, setAcomodacao] = useState("");
+  const [valorMensalidade, setValorMensalidade] = useState("");
+  const [coparticipacao, setCoparticipacao] = useState("");
+
   const volumeTotal =
     parseInt(qtdLigacao || "0") +
     parseInt(qtdLeadsNovos || "0") +
@@ -96,31 +120,19 @@ const NovoLeadPage = () => {
 
   const fetchLotes = async () => {
     if (!firebaseUser) return;
-
     try {
       const params = new URLSearchParams({
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email || "",
         name: firebaseUser.displayName || "",
       });
-
       const res = await fetch(`/api/lotes-producao?${params.toString()}`);
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error("Erro ao carregar lotes:", body);
-        return;
-      }
-
+      if (!res.ok) return;
       const data: Lote[] = await res.json();
       setLotes(data);
-
-      // Pré-selecionar lote de hoje se existir
       const hoje = new Date().toISOString().split("T")[0];
       const loteHoje = data.find((l) => l.data_acao.startsWith(hoje));
-      if (loteHoje) {
-        setLoteId(loteHoje.id);
-      }
+      if (loteHoje) setLoteId(loteHoje.id);
     } catch (error) {
       console.error("Erro ao carregar lotes:", error);
     }
@@ -128,20 +140,14 @@ const NovoLeadPage = () => {
 
   const handleCreateLote = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firebaseUser) {
-      toast.error("Usuário não autenticado");
-      return;
-    }
-
+    if (!firebaseUser) return;
     setLoadingLote(true);
-
     try {
       const params = new URLSearchParams({
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email || "",
         name: firebaseUser.displayName || "",
       });
-
       const res = await fetch(`/api/lotes-producao?${params.toString()}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,21 +162,16 @@ const NovoLeadPage = () => {
           observacoes: observacoes || null,
         }),
       });
-
       setLoadingLote(false);
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         toast.error("Erro ao criar lote: " + (body.error || res.statusText));
         return;
       }
-
       const data: Lote = await res.json();
       setLoteId(data.id);
-      toast.success("Lote de produção criado com sucesso!");
+      toast.success("Lote de produção criado!");
       fetchLotes();
-
-      // Limpar campos do lote
       setQtdLigacao("0");
       setQtdLeadsNovos("0");
       setQtdRetrabalhos("0");
@@ -178,6 +179,7 @@ const NovoLeadPage = () => {
       setQtdPresencial("0");
       setEstadoRegiao("");
       setObservacoes("");
+      setShowCriarLote(false);
     } catch (error) {
       console.error(error);
       setLoadingLote(false);
@@ -185,19 +187,44 @@ const NovoLeadPage = () => {
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // ========================
+  // VALIDAÇÕES POR ETAPA
+  // ========================
 
+  const canAdvanceStep1 = tipoLead === "antigo" || !!loteId;
+  const canAdvanceStep2 = !!nome.trim() && !!origem && !!estado && !!cidade.trim();
+  const canAdvanceStep3 = !!qtdVidas && !!idades.trim();
+
+  const canAdvance = () => {
+    if (currentStep === 1) return canAdvanceStep1;
+    if (currentStep === 2) return canAdvanceStep2;
+    if (currentStep === 3) return canAdvanceStep3;
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!canAdvance()) return;
+    setCurrentStep((s) => Math.min(s + 1, STEPS.length));
+  };
+
+  const handleBack = () => {
+    setCurrentStep((s) => Math.max(s - 1, 1));
+  };
+
+  const handleSkip = () => {
+    setCurrentStep((s) => Math.min(s + 1, STEPS.length));
+  };
+
+  // ========================
+  // SUBMIT FINAL
+  // ========================
+
+  const handleSubmit = async () => {
     if (!firebaseUser) {
       toast.error("Usuário não autenticado");
       return;
     }
-
     setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const nome = (formData.get("nome") as string) || "";
-
     try {
       const params = new URLSearchParams({
         firebaseUid: firebaseUser.uid,
@@ -218,18 +245,12 @@ const NovoLeadPage = () => {
           idades,
           possui_cnpj: possuiCNPJ || null,
           tem_plano_anterior: temPlanoAnterior || null,
-          operadora_anterior: temPlanoAnterior
-            ? operadoraAnterior || null
-            : null,
-          tempo_plano_anterior: temPlanoAnterior
-            ? tempoPlanoAnterior || null
-            : null,
+          operadora_anterior: temPlanoAnterior ? operadoraAnterior || null : null,
+          tempo_plano_anterior: temPlanoAnterior ? tempoPlanoAnterior || null : null,
           modalidade: modalidade || null,
           operadora_ofertada: operadoraOfertada || null,
           acomodacao: acomodacao || null,
-          valor_mensalidade: valorMensalidade
-            ? parseFloat(valorMensalidade)
-            : null,
+          valor_mensalidade: valorMensalidade ? parseFloat(valorMensalidade) : null,
           coparticipacao: coparticipacao || null,
           status: "Abordagem",
           lote_producao_id: tipoLead === "antigo" ? null : loteId,
@@ -237,7 +258,6 @@ const NovoLeadPage = () => {
       });
 
       setLoading(false);
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         toast.error("Erro ao criar lead: " + (body.error || res.statusText));
@@ -251,6 +271,10 @@ const NovoLeadPage = () => {
       toast.error("Erro ao criar lead");
     }
   };
+
+  // ========================
+  // RENDER
+  // ========================
 
   if (loadingAuth) {
     return (
@@ -266,328 +290,252 @@ const NovoLeadPage = () => {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">
-            Você precisa estar logado para cadastrar leads.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Acesse a tela de login e entre com sua conta.
-          </p>
+          <p className="text-lg font-semibold">Você precisa estar logado para cadastrar leads.</p>
         </div>
       </Layout>
     );
   }
 
+  const progressPct = ((currentStep - 1) / (STEPS.length - 1)) * 100;
+  const currentStepInfo = STEPS[currentStep - 1];
+  const isLastStep = currentStep === STEPS.length;
+
   const loteSelecionado = lotes.find((l) => l.id === loteId);
   const hoje = new Date().toISOString().split("T")[0];
-  const textoLoteInfo =
-    loteSelecionado && loteSelecionado.data_acao.startsWith(hoje)
-      ? "Lote de hoje pré-selecionado"
-      : "Selecione um lote de produção";
+  const textoLote = loteSelecionado?.data_acao.startsWith(hoje)
+    ? `Lote de hoje — ${loteSelecionado.estado_regiao} (${loteSelecionado.volume_total_chamado} chamados)`
+    : loteSelecionado
+    ? `${new Date(loteSelecionado.data_acao).toLocaleDateString("pt-BR")} — ${loteSelecionado.estado_regiao}`
+    : "Nenhum lote selecionado";
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Seção Top: Criar Lote de Produção */}
-        <Card className="shadow-lg">
-          <CardHeader>
+      <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* Cabeçalho */}
+        <div>
+          <h1 className="text-2xl font-bold">Novo Lead</h1>
+          <p className="text-muted-foreground text-sm">
+            Etapa {currentStep} de {STEPS.length} — {currentStepInfo.title}
+            {currentStepInfo.optional && (
+              <span className="ml-2 text-xs bg-muted px-1.5 py-0.5 rounded">opcional</span>
+            )}
+          </p>
+        </div>
+
+        {/* Barra de progresso */}
+        <div className="space-y-1">
+          <Progress value={progressPct} className="h-2" />
+          <div className="flex justify-between">
+            {STEPS.map((step) => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => {
+                  // Só permite voltar para etapas já concluídas
+                  if (step.id < currentStep) setCurrentStep(step.id);
+                }}
+                className={`text-xs transition-colors ${
+                  step.id === currentStep
+                    ? "text-primary font-semibold"
+                    : step.id < currentStep
+                    ? "text-primary/60 cursor-pointer hover:text-primary"
+                    : "text-muted-foreground cursor-default"
+                }`}
+              >
+                {step.id}. {step.title}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Card da etapa */}
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center text-white font-bold text-sm">
+                {currentStep}
               </div>
               <div>
-                <CardTitle>Lote de Produção</CardTitle>
-                <CardDescription>
-                  Registre o esforço realizado (ligações, visitas, etc.)
-                </CardDescription>
+                <CardTitle className="text-lg">{currentStepInfo.title}</CardTitle>
+                <CardDescription>{currentStepInfo.description}</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateLote} className="space-y-6">
-              <div className="space-y-4">
-                <div className="bg-muted/50 p-4 rounded-lg border">
-                  <p className="text-sm font-medium mb-3">
-                    Quantidade de Chamadas por Tipo
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="qtd-ligacao">Ligações</Label>
-                      <Input
-                        id="qtd-ligacao"
-                        type="number"
-                        min="0"
-                        value={qtdLigacao}
-                        onChange={(e) => setQtdLigacao(e.target.value)}
-                        className="text-base"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="qtd-leads-novos">Leads Novos</Label>
-                      <Input
-                        id="qtd-leads-novos"
-                        type="number"
-                        min="0"
-                        value={qtdLeadsNovos}
-                        onChange={(e) => setQtdLeadsNovos(e.target.value)}
-                        className="text-base"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="qtd-retrabalhos">Retrabalhos</Label>
-                      <Input
-                        id="qtd-retrabalhos"
-                        type="number"
-                        min="0"
-                        value={qtdRetrabalhos}
-                        onChange={(e) => setQtdRetrabalhos(e.target.value)}
-                        className="text-base"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="qtd-indicacao">Indicações</Label>
-                      <Input
-                        id="qtd-indicacao"
-                        type="number"
-                        min="0"
-                        value={qtdIndicacao}
-                        onChange={(e) => setQtdIndicacao(e.target.value)}
-                        className="text-base"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="qtd-presencial">Presenciais</Label>
-                      <Input
-                        id="qtd-presencial"
-                        type="number"
-                        min="0"
-                        value={qtdPresencial}
-                        onChange={(e) => setQtdPresencial(e.target.value)}
-                        className="text-base"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-primary font-bold">
-                        Total do Dia
+
+          <CardContent className="space-y-5">
+
+            {/* ── STEP 1: LOTE ── */}
+            {currentStep === 1 && (
+              <div className="space-y-5">
+                <RadioGroup
+                  value={tipoLead}
+                  onValueChange={(v) => setTipoLead(v as "atual" | "antigo")}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                >
+                  <div
+                    className={`rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all ${
+                      tipoLead === "atual"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    <RadioGroupItem id="lead-atual" value="atual" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="lead-atual" className="font-medium cursor-pointer">
+                        Atual
                       </Label>
-                      <div className="text-2xl font-bold text-primary pt-2">
-                        {volumeTotal}
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Vinculado a um lote de produção
+                      </p>
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="estado-regiao">Estado/Região *</Label>
-                  <Select
-                    value={estadoRegiao}
-                    onValueChange={setEstadoRegiao}
-                    required
+                  <div
+                    className={`rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all ${
+                      tipoLead === "antigo"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted/50"
+                    }`}
                   >
-                    <SelectTrigger className="text-base">
-                      <SelectValue placeholder="Selecione o estado" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover max-h-[300px]">
-                      <SelectItem value="AC">Acre</SelectItem>
-                      <SelectItem value="AL">Alagoas</SelectItem>
-                      <SelectItem value="AP">Amapá</SelectItem>
-                      <SelectItem value="AM">Amazonas</SelectItem>
-                      <SelectItem value="BA">Bahia</SelectItem>
-                      <SelectItem value="CE">Ceará</SelectItem>
-                      <SelectItem value="DF">Distrito Federal</SelectItem>
-                      <SelectItem value="ES">Espírito Santo</SelectItem>
-                      <SelectItem value="GO">Goiás</SelectItem>
-                      <SelectItem value="MA">Maranhão</SelectItem>
-                      <SelectItem value="MT">Mato Grosso</SelectItem>
-                      <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
-                      <SelectItem value="MG">Minas Gerais</SelectItem>
-                      <SelectItem value="PA">Pará</SelectItem>
-                      <SelectItem value="PB">Paraíba</SelectItem>
-                      <SelectItem value="PR">Paraná</SelectItem>
-                      <SelectItem value="PE">Pernambuco</SelectItem>
-                      <SelectItem value="PI">Piauí</SelectItem>
-                      <SelectItem value="RJ">Rio de Janeiro</SelectItem>
-                      <SelectItem value="RN">Rio Grande do Norte</SelectItem>
-                      <SelectItem value="RS">Rio Grande do Sul</SelectItem>
-                      <SelectItem value="RO">Rondônia</SelectItem>
-                      <SelectItem value="RR">Roraima</SelectItem>
-                      <SelectItem value="SC">Santa Catarina</SelectItem>
-                      <SelectItem value="SP">São Paulo</SelectItem>
-                      <SelectItem value="SE">Sergipe</SelectItem>
-                      <SelectItem value="TO">Tocantins</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="observacoes">Observações (Opcional)</Label>
-                  <Textarea
-                    id="observacoes"
-                    placeholder="Anotações sobre esta ação..."
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                    className="text-base"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loadingLote || !estadoRegiao || volumeTotal === 0}
-                className="w-full"
-              >
-                {loadingLote ? "Criando Lote..." : "Criar Lote de Produção"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Seção Bottom: Cadastrar Lead */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center">
-                <UserPlus className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <CardTitle>Cadastrar Novo Lead</CardTitle>
-                <CardDescription>
-                  Adicione um novo lead vinculado ao lote de produção
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Informações Básicas */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Informações Básicas
-                </h3>
-
-                <Card className="p-6 bg-gray-100">
-                  <Label>O lead que será cadastrado é:</Label>
-
-                  <RadioGroup
-                    value={tipoLead}
-                    onValueChange={(value) =>
-                      setTipoLead(value as "atual" | "antigo")
-                    }
-                    className="grid grid-cols-1 md:grid-cols-2 gap-3"
-                  >
-                    <div
-                      className={`
-                        rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all
-                        ${
-                          tipoLead === "atual"
-                            ? "border-primary bg-primary/10 hover:bg-primary/20"
-                            : "border-gray-300 hover:bg-muted/50"
-                        }
-                      `}
-                    >
-                      <RadioGroupItem id="lead-atual" value="atual" />
-                      <div>
-                        <Label
-                          htmlFor="lead-atual"
-                          className="font-medium cursor-pointer"
-                        >
-                          Atual
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Vinculado a um lote de produção (funciona como hoje).
-                        </p>
-                      </div>
+                    <RadioGroupItem id="lead-antigo" value="antigo" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="lead-antigo" className="font-medium cursor-pointer">
+                        Legado
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Antes de adquirir o sistema
+                      </p>
                     </div>
-
-                    <div
-                      className={`
-                        rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all
-                        ${
-                          tipoLead === "antigo"
-                            ? "border-primary bg-primary/10 hover:bg-primary/20"
-                            : "border-gray-300 hover:bg-muted/50"
-                        }
-                      `}
-                    >
-                      <RadioGroupItem id="lead-antigo" value="antigo" />
-                      <div>
-                        <Label
-                          htmlFor="lead-antigo"
-                          className="font-medium cursor-pointer"
-                        >
-                          Antigo (Legado)
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Antes de adquirir o sistema. Não precisa vincular a um
-                          lote.
-                        </p>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </Card>
+                  </div>
+                </RadioGroup>
 
                 {tipoLead === "atual" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="lote">Vincular ao Lote de Produção *</Label>
-                    <Select
-                      value={loteId}
-                      onValueChange={setLoteId}
-                      required={tipoLead === "atual"}
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Lote de Produção *</Label>
+                      <Select value={loteId} onValueChange={setLoteId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um lote" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover max-h-60">
+                          {lotes.map((lote) => (
+                            <SelectItem key={lote.id} value={lote.id}>
+                              {new Date(lote.data_acao).toLocaleDateString("pt-BR")} —{" "}
+                              {lote.estado_regiao} ({lote.volume_total_chamado} chamados)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {loteId && (
+                        <p className="text-xs text-muted-foreground">{textoLote}</p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowCriarLote(!showCriarLote)}
                     >
-                      <SelectTrigger className="text-base">
-                        <SelectValue placeholder="Selecione um lote" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover max-h-[300px]">
-                        {lotes.map((lote) => (
-                          <SelectItem key={lote.id} value={lote.id}>
-                            {new Date(lote.data_acao).toLocaleDateString(
-                              "pt-BR"
-                            )}{" "}
-                            - {lote.estado_regiao} ({lote.volume_total_chamado}{" "}
-                            chamados)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {textoLoteInfo}
-                    </p>
+                      <Package className="h-4 w-4 mr-2" />
+                      {showCriarLote ? "Cancelar" : "Criar novo lote de produção"}
+                    </Button>
+
+                    {showCriarLote && (
+                      <form onSubmit={handleCreateLote} className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                        <p className="text-sm font-semibold">Novo Lote de Produção</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {[
+                            { label: "Ligações", val: qtdLigacao, set: setQtdLigacao },
+                            { label: "Leads Novos", val: qtdLeadsNovos, set: setQtdLeadsNovos },
+                            { label: "Retrabalhos", val: qtdRetrabalhos, set: setQtdRetrabalhos },
+                            { label: "Indicações", val: qtdIndicacao, set: setQtdIndicacao },
+                            { label: "Presenciais", val: qtdPresencial, set: setQtdPresencial },
+                          ].map(({ label, val, set }) => (
+                            <div key={label} className="space-y-1">
+                              <Label className="text-xs">{label}</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={val}
+                                onChange={(e) => set(e.target.value)}
+                                className="h-8"
+                              />
+                            </div>
+                          ))}
+                          <div className="space-y-1">
+                            <Label className="text-xs text-primary font-bold">Total</Label>
+                            <div className="text-xl font-bold text-primary pt-1">{volumeTotal}</div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Estado/Região *</Label>
+                          <Select value={estadoRegiao} onValueChange={setEstadoRegiao} required>
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Estado" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover max-h-60">
+                              {ESTADOS.map((uf) => (
+                                <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Observações</Label>
+                          <Textarea
+                            placeholder="Anotações sobre esta ação..."
+                            value={observacoes}
+                            onChange={(e) => setObservacoes(e.target.value)}
+                            className="min-h-[60px] text-sm"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          disabled={loadingLote || !estadoRegiao || volumeTotal === 0}
+                          className="w-full"
+                          size="sm"
+                        >
+                          {loadingLote ? "Criando..." : "Criar Lote"}
+                        </Button>
+                      </form>
+                    )}
                   </div>
                 )}
+              </div>
+            )}
 
+            {/* ── STEP 2: DADOS BÁSICOS ── */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome do Lead *</Label>
+                  <Label>Nome do Lead *</Label>
                   <Input
-                    id="nome"
-                    name="nome"
-                    type="text"
                     placeholder="Ex: João Silva"
-                    required
-                    className="text-base"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    autoFocus
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone/WhatsApp</Label>
+                  <Label>Telefone/WhatsApp</Label>
                   <Input
-                    id="telefone"
-                    name="telefone"
                     type="tel"
                     placeholder="(11) 98765-4321"
                     value={telefone}
-                    onChange={(e) =>
-                      setTelefone(formatPhoneNumber(e.target.value))
-                    }
+                    onChange={(e) => setTelefone(formatPhoneNumber(e.target.value))}
                     maxLength={15}
-                    className="text-base"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="origem">Origem do Lead *</Label>
-                    <Select value={origem} onValueChange={setOrigem} required>
-                      <SelectTrigger className="text-base">
-                        <SelectValue placeholder="Selecione a origem" />
+                    <Label>Origem do Lead *</Label>
+                    <Select value={origem} onValueChange={setOrigem}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
                         <SelectItem value="Lead Novo">Lead Novo</SelectItem>
@@ -600,93 +548,54 @@ const NovoLeadPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="estado">Estado *</Label>
-                    <Select value={estado} onValueChange={setEstado} required>
-                      <SelectTrigger className="text-base">
+                    <Label>Estado *</Label>
+                    <Select value={estado} onValueChange={setEstado}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
-                      <SelectContent className="bg-popover max-h-[300px]">
-                        <SelectItem value="AC">Acre</SelectItem>
-                        <SelectItem value="AL">Alagoas</SelectItem>
-                        <SelectItem value="AP">Amapá</SelectItem>
-                        <SelectItem value="AM">Amazonas</SelectItem>
-                        <SelectItem value="BA">Bahia</SelectItem>
-                        <SelectItem value="CE">Ceará</SelectItem>
-                        <SelectItem value="DF">Distrito Federal</SelectItem>
-                        <SelectItem value="ES">Espírito Santo</SelectItem>
-                        <SelectItem value="GO">Goiás</SelectItem>
-                        <SelectItem value="MA">Maranhão</SelectItem>
-                        <SelectItem value="MT">Mato Grosso</SelectItem>
-                        <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
-                        <SelectItem value="MG">Minas Gerais</SelectItem>
-                        <SelectItem value="PA">Pará</SelectItem>
-                        <SelectItem value="PB">Paraíba</SelectItem>
-                        <SelectItem value="PR">Paraná</SelectItem>
-                        <SelectItem value="PE">Pernambuco</SelectItem>
-                        <SelectItem value="PI">Piauí</SelectItem>
-                        <SelectItem value="RJ">Rio de Janeiro</SelectItem>
-                        <SelectItem value="RN">Rio Grande do Norte</SelectItem>
-                        <SelectItem value="RS">Rio Grande do Sul</SelectItem>
-                        <SelectItem value="RO">Rondônia</SelectItem>
-                        <SelectItem value="RR">Roraima</SelectItem>
-                        <SelectItem value="SC">Santa Catarina</SelectItem>
-                        <SelectItem value="SP">São Paulo</SelectItem>
-                        <SelectItem value="SE">Sergipe</SelectItem>
-                        <SelectItem value="TO">Tocantins</SelectItem>
+                      <SelectContent className="bg-popover max-h-60">
+                        {ESTADOS.map((uf) => (
+                          <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cidade">Cidade *</Label>
+                  <Label>Cidade *</Label>
                   <Input
-                    id="cidade"
-                    type="text"
                     placeholder="Ex: São Paulo"
                     value={cidade}
                     onChange={(e) => setCidade(e.target.value)}
-                    required
-                    className="text-base"
                   />
                 </div>
               </div>
+            )}
 
-              {/* Dados do Seguro */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Dados do Seguro Saúde
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* ── STEP 3: PERFIL ── */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="qtd-vidas">Quantidade de Vidas *</Label>
+                    <Label>Quantidade de Vidas *</Label>
                     <Input
-                      id="qtd-vidas"
                       type="number"
                       min="1"
                       placeholder="Ex: 3"
                       value={qtdVidas}
                       onChange={(e) => setQtdVidas(e.target.value)}
-                      required
-                      className="text-base"
+                      autoFocus
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="idades">Idades *</Label>
+                    <Label>Idades *</Label>
                     <Input
-                      id="idades"
-                      type="text"
                       placeholder="Ex: 34, 30, 5"
                       value={idades}
                       onChange={(e) => setIdades(e.target.value)}
-                      required
-                      className="text-base"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Separe as idades por vírgula
-                    </p>
+                    <p className="text-xs text-muted-foreground">Separe por vírgula</p>
                   </div>
                 </div>
 
@@ -707,58 +616,42 @@ const NovoLeadPage = () => {
                     checked={temPlanoAnterior}
                     onCheckedChange={setTemPlanoAnterior}
                   />
-                  <Label
-                    htmlFor="tem-plano-anterior"
-                    className="cursor-pointer"
-                  >
+                  <Label htmlFor="tem-plano-anterior" className="cursor-pointer">
                     Tem Plano de Saúde Anterior
                   </Label>
                 </div>
 
                 {temPlanoAnterior && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-primary/20">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-primary/20">
                     <div className="space-y-2">
-                      <Label htmlFor="operadora-anterior">
-                        Operadora Anterior
-                      </Label>
+                      <Label>Operadora Anterior</Label>
                       <Input
-                        id="operadora-anterior"
-                        type="text"
                         placeholder="Ex: Unimed"
                         value={operadoraAnterior}
                         onChange={(e) => setOperadoraAnterior(e.target.value)}
-                        className="text-base"
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="tempo-plano-anterior">
-                        Tempo de Plano Anterior
-                      </Label>
+                      <Label>Tempo de Plano</Label>
                       <Input
-                        id="tempo-plano-anterior"
-                        type="text"
                         placeholder="Ex: 2 anos"
                         value={tempoPlanoAnterior}
                         onChange={(e) => setTempoPlanoAnterior(e.target.value)}
-                        className="text-base"
                       />
                     </div>
                   </div>
                 )}
               </div>
+            )}
 
-              {/* Proposta (Opcional) */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Proposta Ofertada (Opcional)
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* ── STEP 4: PROPOSTA (opcional) ── */}
+            {currentStep === 4 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="modalidade">Modalidade</Label>
+                    <Label>Modalidade</Label>
                     <Select value={modalidade} onValueChange={setModalidade}>
-                      <SelectTrigger className="text-base">
+                      <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
@@ -771,58 +664,86 @@ const NovoLeadPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="operadora-ofertada">
-                      Operadora Ofertada
-                    </Label>
-                    <Input
-                      id="operadora-ofertada"
-                      type="text"
-                      placeholder="Ex: Bradesco Saúde"
-                      value={operadoraOfertada}
-                      onChange={(e) => setOperadoraOfertada(e.target.value)}
-                      className="text-base"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="acomodacao">Acomodação</Label>
+                    <Label>Acomodação</Label>
                     <Select value={acomodacao} onValueChange={setAcomodacao}>
-                      <SelectTrigger className="text-base">
+                      <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
                         <SelectItem value="Enfermaria">Enfermaria</SelectItem>
                         <SelectItem value="Apartamento">Apartamento</SelectItem>
-                        <SelectItem value="Ambulatorial">
-                          Ambulatorial
-                        </SelectItem>
+                        <SelectItem value="Ambulatorial">Ambulatorial</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="valor-mensalidade">
-                      Valor da Mensalidade (R$)
-                    </Label>
+                {/* Operadora visual */}
+                <div className="space-y-2">
+                  <Label>Operadora Ofertada</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {OPERADORAS.map((op) => (
+                      <button
+                        key={op.nome}
+                        type="button"
+                        onClick={() => {
+                          setOperadoraOfertada(op.nome);
+                          setOperadoraCustom(false);
+                        }}
+                        className="px-2 py-2 rounded text-xs font-medium border-2 transition-all text-left"
+                        style={{
+                          backgroundColor: op.cor + "22",
+                          borderColor:
+                            operadoraOfertada === op.nome && !operadoraCustom
+                              ? op.cor
+                              : "transparent",
+                          color: op.cor,
+                        }}
+                      >
+                        {op.nome}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOperadoraCustom(true);
+                        setOperadoraOfertada("");
+                      }}
+                      className="px-2 py-2 rounded text-xs font-medium border-2 transition-all"
+                      style={{
+                        borderColor: operadoraCustom ? "#6b7280" : "transparent",
+                        backgroundColor: "#6b728022",
+                        color: "#6b7280",
+                      }}
+                    >
+                      Outra...
+                    </button>
+                  </div>
+                  {operadoraCustom && (
                     <Input
-                      id="valor-mensalidade"
+                      placeholder="Nome da operadora"
+                      value={operadoraOfertada}
+                      onChange={(e) => setOperadoraOfertada(e.target.value)}
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Valor da Mensalidade (R$)</Label>
+                    <Input
                       type="number"
                       step="0.01"
                       min="0"
                       placeholder="Ex: 450.00"
                       value={valorMensalidade}
                       onChange={(e) => setValorMensalidade(e.target.value)}
-                      className="text-base"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="coparticipacao">Coparticipação</Label>
-                    <Select
-                      value={coparticipacao}
-                      onValueChange={setCoparticipacao}
-                    >
-                      <SelectTrigger className="text-base">
+                    <Label>Coparticipação</Label>
+                    <Select value={coparticipacao} onValueChange={setCoparticipacao}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover">
@@ -834,36 +755,52 @@ const NovoLeadPage = () => {
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push("/dashboard/funil")}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    loading ||
-                    !origem ||
-                    !estado ||
-                    !cidade ||
-                    !qtdVidas ||
-                    !idades ||
-                    (tipoLead === "atual" && !loteId)
-                  }
-                  className="flex-1"
-                >
-                  {loading ? "Criando..." : "Criar Lead"}
-                </Button>
-              </div>
-            </form>
           </CardContent>
         </Card>
+
+        {/* Navegação */}
+        <div className="flex gap-3">
+          {currentStep > 1 && (
+            <Button type="button" variant="outline" onClick={handleBack} className="gap-2">
+              <ChevronLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+          )}
+
+          <div className="flex-1" />
+
+          {currentStepInfo.optional && (
+            <Button type="button" variant="ghost" onClick={handleSkip} className="gap-2 text-muted-foreground">
+              <SkipForward className="h-4 w-4" />
+              Pular
+            </Button>
+          )}
+
+          {isLastStep ? (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              {loading ? "Criando..." : "Criar Lead"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleNext}
+              disabled={!canAdvance()}
+              className="gap-2"
+            >
+              Próximo
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
       </div>
     </Layout>
   );

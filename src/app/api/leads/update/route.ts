@@ -47,6 +47,10 @@ export async function PUT(req: NextRequest) {
     valor_comissao,
     data_venda,
     last_chamado_at,
+    card_color,
+    notas,
+    etiquetas,
+    retornar_em,
   } = body;
 
   try {
@@ -57,8 +61,6 @@ export async function PUT(req: NextRequest) {
     });
 
     const data: any = {};
-
-    console.log("Dados recebidos para atualização:", body);
 
     if (nome !== undefined) data.nome = nome;
     if (origem !== undefined) data.origem = origem;
@@ -91,6 +93,11 @@ export async function PUT(req: NextRequest) {
     if (data_venda !== undefined) data.dataVenda = data_venda;
     if (last_chamado_at !== undefined)
       data.lastChamadoAt = last_chamado_at;
+    if (card_color !== undefined) data.cardColor = card_color;
+    if (notas !== undefined) data.notas = notas;
+    if (etiquetas !== undefined) data.etiquetas = etiquetas;
+    if (retornar_em !== undefined)
+      data.retornarEm = retornar_em ? new Date(retornar_em) : null;
 
     await prisma.lead.update({
       where: {
