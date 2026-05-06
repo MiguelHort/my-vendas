@@ -24,6 +24,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import {
@@ -32,7 +33,18 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
-import { Settings, Plus, Trash2, GripVertical } from "lucide-react";
+import {
+  Settings,
+  Plus,
+  Trash2,
+  GripVertical,
+  Filter,
+  XCircle,
+  CheckCircle2,
+  Clock,
+  Workflow,
+  AlertCircle,
+} from "lucide-react";
 
 import LeadCard, { Lead } from "@/components/LeadCard";
 
@@ -331,7 +343,7 @@ const COLUMN_COLOR_OPTIONS = [
 
 const STORAGE_KEY = "winleads_funnel_columns";
 
-function loadColumns(): FunnelColumn[] {
+function loadColumnsFromStorage(): FunnelColumn[] {
   if (typeof window === "undefined") return DEFAULT_COLUMNS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -340,8 +352,24 @@ function loadColumns(): FunnelColumn[] {
   return DEFAULT_COLUMNS;
 }
 
-function saveColumns(cols: FunnelColumn[]) {
+function saveColumnsToStorage(cols: FunnelColumn[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+async function saveFunnelColumns(
+  user: { uid: string; email: string | null; displayName: string | null },
+  columns: FunnelColumn[]
+) {
+  const params = new URLSearchParams({
+    firebaseUid: user.uid,
+    email: user.email || "",
+    name: user.displayName || "",
+  });
+  await fetch(`/api/funnel-columns?${params.toString()}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ columns }),
+  });
 }
 
 // ========================
@@ -372,9 +400,33 @@ const FunilPage = () => {
     editingColumnsRef.current = editingColumns;
   }, [editingColumns]);
 
+  // Carrega do localStorage imediatamente (sem flash) e depois sincroniza com o banco
   React.useEffect(() => {
-    setColumns(loadColumns());
+    setColumns(loadColumnsFromStorage());
   }, []);
+
+  React.useEffect(() => {
+    if (!firebaseUser) return;
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+    fetch(`/api/funnel-columns?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        // Se o banco ainda não tem colunas para este usuário, sobe as do localStorage
+        if (data.columns.length === 0) {
+          const local = loadColumnsFromStorage();
+          saveFunnelColumns(firebaseUser, local);
+          return;
+        }
+        setColumns(data.columns);
+        saveColumnsToStorage(data.columns);
+      })
+      .catch(() => {/* mantém localStorage */});
+  }, [firebaseUser]);
 
   // Modal de dispensa
   const [showDispensaModal, setShowDispensaModal] = React.useState(false);
@@ -806,12 +858,18 @@ const FunilPage = () => {
     setShowConfigModal(true);
   };
 
-  const handleSaveColumns = () => {
+  const handleSaveColumns = async () => {
     const saved = editingColumnsRef.current.filter((c) => c.title.trim() !== "");
     setColumns(saved);
-    saveColumns(saved);
+    saveColumnsToStorage(saved);
     setShowConfigModal(false);
     toast.success("Funil atualizado!");
+
+    if (firebaseUser) {
+      saveFunnelColumns(firebaseUser, saved).catch(() => {
+        // silencioso — colunas já salvas no localStorage
+      });
+    }
   };
 
   const handleAddColumn = () => {
@@ -848,31 +906,41 @@ const FunilPage = () => {
   // RENDER
   // ========================
 
-  if (loadingAuth) {
-    return (
-      <Layout fullWidth>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
-      </Layout>
-    );
-  }
+  const KanbanSkeleton = () => (
+    <Layout fullWidth>
+      <div className="space-y-2 mb-6">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex flex-col min-w-60 w-60 shrink-0 gap-2">
+            <Skeleton className="h-14 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl opacity-60" />
+          </div>
+        ))}
+      </div>
+    </Layout>
+  );
+
+  if (loadingAuth || loading) return <KanbanSkeleton />;
 
   if (!firebaseUser) {
     return (
       <Layout fullWidth>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">Você precisa estar logado para ver o funil.</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Layout fullWidth>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">
+            Você precisa estar logado para ver o funil.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Acesse a tela de login e entre com sua conta.
+          </p>
         </div>
       </Layout>
     );
@@ -883,19 +951,24 @@ const FunilPage = () => {
   return (
     <Layout fullWidth>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Funil de Vendas</h1>
-          <p className="text-muted-foreground text-sm">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Workflow className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-wider">Kanban</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Funil de Vendas</h1>
+          <p className="text-sm text-muted-foreground">
             Arraste os cards para atualizar o status dos leads
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium whitespace-nowrap">Finalizados:</Label>
+          <div className="inline-flex items-center gap-2 rounded-xl border bg-background/60 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Finalizados:</span>
             <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="border-0 h-auto p-0 text-xs font-medium bg-transparent shadow-none w-auto gap-1 focus:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover">
@@ -908,12 +981,12 @@ const FunilPage = () => {
             </Select>
           </div>
 
-          <Button variant="outline" size="sm" onClick={openConfigModal}>
-            <Settings className="h-4 w-4 mr-1.5" />
+          <Button variant="outline" size="sm" onClick={openConfigModal} className="gap-2 py-6 rounded-xl">
+            <Settings className="h-4 w-4" />
             Configurar Funil
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -934,25 +1007,37 @@ const FunilPage = () => {
               >
                 {/* Cabeçalho da coluna */}
                 <div
-                  className="p-2.5 rounded-lg mb-2"
-                  style={{ backgroundColor: column.color + "25" }}
+                  className="p-3 rounded-xl mb-2 border"
+                  style={{
+                    backgroundColor: column.color + "15",
+                    borderColor: column.color + "30",
+                  }}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: column.color }}
+                      />
+                      <h3 className="font-semibold text-sm truncate">{column.title}</h3>
+                    </div>
                     <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: column.color }}
-                    />
-                    <h3 className="font-semibold text-sm truncate">{column.title}</h3>
+                      className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums shrink-0"
+                      style={{
+                        color: column.color,
+                        backgroundColor: column.color + "18",
+                        boxShadow: `0 0 0 1px ${column.color}40`,
+                      }}
+                    >
+                      {colLeads.length}
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 pl-4">
-                    {colLeads.length} leads
-                    {hiddenCount > 0 && (
-                      <span className="ml-1 opacity-60">(+{hiddenCount} ocultos)</span>
-                    )}
-                    {isRetornar && (
-                      <span className="ml-1 opacity-70">• agenda</span>
-                    )}
-                  </p>
+                  {(hiddenCount > 0 || isRetornar) && (
+                    <p className="text-[10px] text-muted-foreground mt-1 pl-4">
+                      {hiddenCount > 0 && `+${hiddenCount} ocultos`}
+                      {isRetornar && "agenda"}
+                    </p>
+                  )}
                 </div>
 
                 {/* Cards */}
@@ -961,7 +1046,7 @@ const FunilPage = () => {
                     <div
                       {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className="flex-1 space-y-2 rounded-lg p-1 transition-colors"
+                      className="flex-1 space-y-2 rounded-xl p-1 transition-colors"
                       style={{
                         minHeight: 120,
                         backgroundColor: snapshot.isDraggingOver
@@ -1009,10 +1094,17 @@ const FunilPage = () => {
       <Dialog open={showDispensaModal} onOpenChange={setShowDispensaModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Motivo da Dispensa</DialogTitle>
-            <DialogDescription>
-              Por favor, informe o motivo pelo qual este lead está sendo dispensado.
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-red-500/10 ring-1 ring-red-500/20 flex items-center justify-center shrink-0">
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Motivo da Dispensa</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Informe o motivo pelo qual este lead está sendo dispensado.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Textarea
@@ -1022,11 +1114,14 @@ const FunilPage = () => {
               className="min-h-[100px]"
             />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDispensaModal(false)}>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowDispensaModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmDispensa}>Confirmar Dispensa</Button>
+            <Button onClick={handleConfirmDispensa} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+              <XCircle className="h-4 w-4" />
+              Confirmar Dispensa
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1035,10 +1130,17 @@ const FunilPage = () => {
       <Dialog open={showConclusaoModal} onOpenChange={setShowConclusaoModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Concluir Venda</DialogTitle>
-            <DialogDescription>
-              Informe o valor da comissão recebida e a data da venda.
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Concluir Venda</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Informe o valor da comissão recebida e a data da venda.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1060,11 +1162,14 @@ const FunilPage = () => {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConclusaoModal(false)}>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowConclusaoModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmConclusao}>Confirmar Conclusão</Button>
+            <Button onClick={handleConfirmConclusao} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Confirmar Conclusão
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1073,10 +1178,17 @@ const FunilPage = () => {
       <Dialog open={showRetornarModal} onOpenChange={setShowRetornarModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Retornar Futuramente</DialogTitle>
-            <DialogDescription>
-              Escolha a data em que este lead deve reaparecer em destaque no funil.
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Retornar Futuramente</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Escolha a data em que este lead deve reaparecer em destaque no funil.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1093,11 +1205,14 @@ const FunilPage = () => {
               âmbar na data selecionada.
             </p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRetornarModal(false)}>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowRetornarModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmRetornar}>Confirmar Agendamento</Button>
+            <Button onClick={handleConfirmRetornar} className="gap-2">
+              <Clock className="h-4 w-4" />
+              Confirmar Agendamento
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1106,10 +1221,17 @@ const FunilPage = () => {
       <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configurar Funil</DialogTitle>
-            <DialogDescription>
-              Renomeie, reordene, mude as cores ou adicione/remova etapas do seu funil.
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Configurar Funil</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Renomeie, reordene, mude as cores ou adicione/remova etapas do seu funil.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
@@ -1201,8 +1323,8 @@ const FunilPage = () => {
             ))}
 
             {/* Adicionar nova coluna */}
-            <div className="pt-2 border-t space-y-2">
-              <p className="text-sm font-medium">Adicionar etapa</p>
+            <div className="pt-3 border-t space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nova etapa</p>
               <div className="flex gap-2">
                 <Select value={newColColor} onValueChange={setNewColColor}>
                   <SelectTrigger className="w-10 h-8 p-0 border-0">
@@ -1245,11 +1367,14 @@ const FunilPage = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfigModal(false)}>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveColumns}>Salvar Configurações</Button>
+            <Button onClick={handleSaveColumns} className="gap-2">
+              <Settings className="h-4 w-4" />
+              Salvar Configurações
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

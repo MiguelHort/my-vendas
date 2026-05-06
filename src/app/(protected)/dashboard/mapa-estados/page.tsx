@@ -6,12 +6,18 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { MapPin, Trophy } from "lucide-react"; // ⬅️ adicionamos Trophy
+import { MapPin, Trophy, AlertCircle, Filter } from "lucide-react";
 
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -202,11 +208,21 @@ export default function MapaVendasPage() {
   }, [vendasPorEstado]);
 
   // ----------------- estados de loading / auth -----------------
-  if (loadingAuth) {
+  if (loadingAuth || loading) {
     return (
       <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-64 rounded-xl" />
+              <Skeleton className="h-4 w-80 rounded-lg" />
+            </div>
+            <Skeleton className="h-10 w-48 rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
+            <Skeleton className="h-[480px] rounded-2xl" />
+            <Skeleton className="h-[480px] rounded-2xl" />
+          </div>
         </div>
       </Layout>
     );
@@ -215,23 +231,18 @@ export default function MapaVendasPage() {
   if (!firebaseUser) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">
-            Você precisa estar logado para ver o mapa de vendas.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Acesse a tela de login e entre com sua conta.
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold">Sessão não encontrada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Acesse a tela de login e entre com sua conta para ver o mapa de vendas.
+              </p>
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -240,13 +251,15 @@ export default function MapaVendasPage() {
   // ----------------- UI -----------------
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Cabeçalho + filtro (igual ao Funil) */}
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 pb-8">
+        {/* Cabeçalho + filtro */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <MapPin className="w-7 h-7 text-primary" />
-              Mapa de Vendas por Estado
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center">
+                <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              Mapa de Vendas
             </h1>
             <p className="text-muted-foreground mt-1">
               Visualize em qual estado você mais conclui vendas, de acordo com o
@@ -254,15 +267,13 @@ export default function MapaVendasPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium whitespace-nowrap">
-              Exibir Finalizados:
-            </Label>
+          <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm border border-muted-foreground/10 rounded-2xl px-4 py-2 shadow-sm">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
             <Select
               value={filtroFinalizados}
               onValueChange={setFiltroFinalizados}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] border-0 shadow-none focus:ring-0 bg-transparent">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover">
@@ -278,9 +289,17 @@ export default function MapaVendasPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
           {/* Mapa */}
-          <Card className="overflow-hidden bg-gray-100">
+          <Card className="overflow-hidden border-muted-foreground/10 shadow-sm">
             <CardHeader>
-              <CardTitle>Distribuição de vendas concluídas</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle>Distribuição de vendas concluídas</CardTitle>
+                  <CardDescription>Mapa interativo dos estados com vendas no período</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="w-full h-[420px]">
@@ -391,7 +410,7 @@ export default function MapaVendasPage() {
                 </ComposableMap>
                 {tooltip.visible && (
                   <div
-                    className="pointer-events-none fixed z-50 rounded-md border bg-popover px-3 py-2 text-xs shadow-md"
+                    className="pointer-events-none fixed z-50 rounded-xl border border-muted-foreground/10 bg-popover px-3 py-2 text-xs shadow-md"
                     style={{
                       top: tooltip.y + 12,
                       left: tooltip.x + 12,
@@ -412,27 +431,26 @@ export default function MapaVendasPage() {
           </Card>
 
           {/* Painel lateral com resumo */}
-          <Card>
-            <CardHeader className="pb-3 space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base font-semibold">
-                  Resumo por estado
-                </CardTitle>
-
+          <Card className="border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                  <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base font-semibold">Resumo por estado</CardTitle>
+                  {totalEstados > 0 && (
+                    <CardDescription>
+                      {totalEstados} estado{totalEstados === 1 ? "" : "s"} com vendas registradas
+                    </CardDescription>
+                  )}
+                </div>
                 {totalVendas > 0 && (
-                  <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    {totalVendas} venda
-                    {totalVendas === 1 ? "" : "s"} no período
+                  <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums shrink-0">
+                    {totalVendas} venda{totalVendas === 1 ? "" : "s"}
                   </span>
                 )}
               </div>
-
-              {totalEstados > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {totalEstados} estado
-                  {totalEstados === 1 ? "" : "s"} com vendas registradas.
-                </p>
-              )}
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -473,16 +491,23 @@ export default function MapaVendasPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Ainda não há vendas concluídas para exibir no mapa neste
-                  período.
-                </p>
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Nenhuma venda no período</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Ajuste o filtro de período para ver resultados.
+                    </p>
+                  </div>
+                </div>
               )}
 
-              <div className="max-h-[260px] overflow-auto rounded-lg border">
+              <div className="max-h-[260px] overflow-auto rounded-xl border border-muted-foreground/10">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-muted/40">
-                    <tr className="border-b">
+                  <thead className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-muted-foreground/10">
+                    <tr>
                       <th className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Estado
                       </th>
@@ -500,29 +525,26 @@ export default function MapaVendasPage() {
                         return (
                           <tr
                             key={uf}
-                            className="border-b last:border-0 hover:bg-muted/40 transition-colors"
+                            className="border-b border-muted-foreground/5 last:border-0 hover:bg-muted/40 transition-colors"
                           >
                             <td className="py-2 px-3 font-medium">
                               <div className="flex items-center gap-2">
-                                {/* Bandeira */}
                                 <img
                                   src={getFlagUrl(uf)}
                                   alt={`Bandeira de ${uf}`}
                                   className="h-4 w-6 rounded-sm border object-cover"
                                 />
-
-                                {/* Troféu , se for o top */}
                                 {isTop && (
                                   <Trophy className="h-3.5 w-3.5 text-amber-500" />
                                 )}
-
-                                {/* Sigla */}
                                 <span>{uf}</span>
                               </div>
                             </td>
 
-                            <td className="py-2 px-3 text-right font-semibold text-success">
-                              {qtd}
+                            <td className="py-2 px-3 text-right">
+                              <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                {qtd}
+                              </span>
                             </td>
                           </tr>
                         );

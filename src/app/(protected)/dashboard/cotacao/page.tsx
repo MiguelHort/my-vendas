@@ -6,7 +6,13 @@ import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -18,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   Popover,
@@ -34,7 +40,17 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  AlertCircle,
+  CircleDollarSign,
+  MapPin,
+  Users,
+  SlidersHorizontal,
+  BarChart3,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Segment = "PF" | "PME" | "ADESAO";
@@ -158,8 +174,14 @@ export default function CotacaoPage() {
   if (loadingAuth) {
     return (
       <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="mx-auto max-w-5xl space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="h-9 w-40" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-48 rounded-2xl" />
         </div>
       </Layout>
     );
@@ -168,8 +190,11 @@ export default function CotacaoPage() {
   if (!firebaseUser) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">
             Você precisa estar logado para acessar a cotação.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -183,38 +208,60 @@ export default function CotacaoPage() {
   // ----------------- UI -----------------
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl p-4 md:p-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Cotação</h1>
-          <Badge variant="secondary">Fluxo curto</Badge>
-        </div>
+      <div className="mx-auto max-w-5xl space-y-6">
+        <header className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <CircleDollarSign className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-wider">Cotação de Planos</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Cotação</h1>
+          <p className="text-sm text-muted-foreground">
+            Compare planos de saúde por cidade, perfil e acomodação.
+          </p>
+        </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 md:grid-cols-3">
-            <div className="text-sm">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium">{segment}</div>
-            </div>
-            <div className="text-sm">
-              <div className="text-muted-foreground">Local</div>
-              <div className="font-medium">
-                {selectedCity ? `${selectedCity.name}/${selectedCity.uf}` : "—"}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                <SlidersHorizontal className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold tracking-tight">Resumo da Cotação</CardTitle>
+                <CardDescription className="text-xs">Configurações selecionadas</CardDescription>
               </div>
             </div>
-            <div className="text-sm">
-              <div className="text-muted-foreground">Vidas</div>
-              <div className="font-medium">{lives}</div>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Tipo</p>
+              <p className="text-sm font-semibold">{segment}</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Local</p>
+              <p className="text-sm font-semibold truncate">
+                {selectedCity ? `${selectedCity.name}/${selectedCity.uf}` : "—"}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">Vidas</p>
+              <p className="text-sm font-semibold tabular-nums">{lives}</p>
             </div>
           </CardContent>
         </Card>
 
         {step === 1 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>1) Tipo de cotação</CardTitle>
+          <Card className="border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                  <CircleDollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold tracking-tight">Tipo de Cotação</CardTitle>
+                  <CardDescription className="text-xs">Selecione o segmento do plano</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid gap-2 md:grid-cols-3">
@@ -245,9 +292,17 @@ export default function CotacaoPage() {
         )}
 
         {step === 2 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>2) Local</CardTitle>
+          <Card className="border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-sky-500/10 ring-1 ring-sky-500/20 flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold tracking-tight">Local</CardTitle>
+                  <CardDescription className="text-xs">Selecione a cidade para a cotação</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -325,9 +380,17 @@ export default function CotacaoPage() {
         )}
 
         {step === 3 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>3) Pessoas</CardTitle>
+          <Card className="border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                  <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold tracking-tight">Pessoas</CardTitle>
+                  <CardDescription className="text-xs">Informe as idades dos beneficiários</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {segment === "PF" || "PME" ? (
@@ -422,7 +485,12 @@ export default function CotacaoPage() {
                 )}
               </div>
 
-              {error && <div className="text-sm text-red-600">{error}</div>}
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </div>
+              )}
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(2)}>
@@ -440,63 +508,70 @@ export default function CotacaoPage() {
         )}
 
         {step === 4 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>4) Resultados</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                Mostrando até 30 opções ordenadas por menor preço.
+          <Card className="border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                  <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold tracking-tight">Resultados</CardTitle>
+                  <CardDescription className="text-xs">
+                    {options.length} opções ordenadas por menor preço
+                  </CardDescription>
+                </div>
               </div>
-
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
                 {options.map((op) => (
                   <Card
                     key={op.rateCardId}
-                    className="border-t-4"
-                    style={{ borderTopColor: op.operator.colorHex }}
+                    className="border-muted-foreground/10 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 overflow-hidden relative"
                   >
-                    <CardHeader className="space-y-1">
-                      <div className="flex items-center justify-between">
+                    {op.operator.colorHex && (
+                      <div
+                        className="absolute top-0 left-0 right-0 h-[3px]"
+                        style={{ backgroundColor: op.operator.colorHex }}
+                      />
+                    )}
+                    <CardHeader className="space-y-1 pt-5">
+                      <div className="flex items-center justify-between gap-2">
                         <div
-                          className="font-semibold"
+                          className="font-semibold text-sm"
                           style={{ color: op.operator.colorHex }}
                         >
                           {op.operator.name}
                         </div>
-                        <Badge variant="secondary">{op.accommodation}</Badge>
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-muted-foreground/20 bg-muted text-muted-foreground shrink-0">
+                          {op.accommodation}
+                        </span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {op.product.commercialName}
                       </div>
-                      <div className="font-medium">
+                      <div className="text-sm font-medium">
                         {op.planVariant.planName}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="text-2xl font-semibold">
+                    <CardContent className="space-y-3">
+                      <p className="text-2xl font-bold tabular-nums">
                         {money(op.total)}
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        Detalhe por pessoa
-                      </div>
+                      </p>
                       <div className="space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detalhe por pessoa</p>
                         {op.breakdown.map((b, idx) => (
                           <div
                             key={idx}
-                            className="flex justify-between text-sm"
+                            className="flex justify-between text-xs text-muted-foreground"
                           >
-                            <span>
-                              {b.age} anos × {b.qty}
-                            </span>
-                            <span>{money(b.subtotal)}</span>
+                            <span>{b.age} anos × {b.qty}</span>
+                            <span className="tabular-nums">{money(b.subtotal)}</span>
                           </div>
                         ))}
                       </div>
-
-                      <Button className="w-full" variant="outline">
-                        Selecionar
+                      <Button className="w-full" variant="outline" size="sm">
+                        Selecionar plano
                       </Button>
                     </CardContent>
                   </Card>
@@ -505,18 +580,20 @@ export default function CotacaoPage() {
 
               <Separator />
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(3)}>
+              <div className="flex justify-between gap-2">
+                <Button variant="ghost" onClick={() => setStep(3)}>
                   Voltar
                 </Button>
                 <Button
                   variant="outline"
+                  className="gap-2"
                   onClick={() => {
                     setStep(1);
                     setOptions([]);
                     setError(null);
                   }}
                 >
+                  <RefreshCw className="h-4 w-4" />
                   Nova cotação
                 </Button>
               </div>

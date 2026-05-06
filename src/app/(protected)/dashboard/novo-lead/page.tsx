@@ -28,7 +28,18 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
-import { UserPlus, Package, ChevronRight, ChevronLeft, SkipForward } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  UserPlus,
+  Package,
+  ChevronRight,
+  ChevronLeft,
+  SkipForward,
+  AlertCircle,
+  User,
+  Users,
+  FileText,
+} from "lucide-react";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { OPERADORAS } from "@/components/LeadCard";
@@ -279,8 +290,14 @@ const NovoLeadPage = () => {
   if (loadingAuth) {
     return (
       <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-1.5 w-full rounded-full" />
+          <Skeleton className="h-80 rounded-2xl" />
         </div>
       </Layout>
     );
@@ -289,8 +306,16 @@ const NovoLeadPage = () => {
   if (!firebaseUser) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">Você precisa estar logado para cadastrar leads.</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">
+            Você precisa estar logado para cadastrar leads.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Acesse a tela de login e entre com sua conta.
+          </p>
         </div>
       </Layout>
     );
@@ -308,31 +333,44 @@ const NovoLeadPage = () => {
     ? `${new Date(loteSelecionado.data_acao).toLocaleDateString("pt-BR")} — ${loteSelecionado.estado_regiao}`
     : "Nenhum lote selecionado";
 
+  const stepIcons = [Package, User, Users, FileText];
+  const StepIcon = stepIcons[currentStep - 1] || Package;
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Cabeçalho */}
-        <div>
-          <h1 className="text-2xl font-bold">Novo Lead</h1>
-          <p className="text-muted-foreground text-sm">
+        <header className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <UserPlus className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-wider">CRM · Novo Lead</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Novo Lead</h1>
+          <p className="text-sm text-muted-foreground">
             Etapa {currentStep} de {STEPS.length} — {currentStepInfo.title}
             {currentStepInfo.optional && (
-              <span className="ml-2 text-xs bg-muted px-1.5 py-0.5 rounded">opcional</span>
+              <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border">
+                opcional
+              </span>
             )}
           </p>
-        </div>
+        </header>
 
         {/* Barra de progresso */}
-        <div className="space-y-1">
-          <Progress value={progressPct} className="h-2" />
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <Progress value={progressPct} className="h-1.5 flex-1" />
+            <span className="text-xs font-medium tabular-nums text-muted-foreground shrink-0">
+              {currentStep}/{STEPS.length}
+            </span>
+          </div>
           <div className="flex justify-between">
             {STEPS.map((step) => (
               <button
                 key={step.id}
                 type="button"
                 onClick={() => {
-                  // Só permite voltar para etapas já concluídas
                   if (step.id < currentStep) setCurrentStep(step.id);
                 }}
                 className={`text-xs transition-colors ${
@@ -350,15 +388,15 @@ const NovoLeadPage = () => {
         </div>
 
         {/* Card da etapa */}
-        <Card className="shadow-md">
+        <Card className="border-muted-foreground/10 shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-linear-to-br from-primary to-blue-400 flex items-center justify-center text-white font-bold text-sm">
-                {currentStep}
+              <div className="h-10 w-10 rounded-xl bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                <StepIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-lg">{currentStepInfo.title}</CardTitle>
-                <CardDescription>{currentStepInfo.description}</CardDescription>
+                <CardTitle className="text-base font-semibold tracking-tight">{currentStepInfo.title}</CardTitle>
+                <CardDescription className="text-xs">{currentStepInfo.description}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -374,7 +412,7 @@ const NovoLeadPage = () => {
                   className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                 >
                   <div
-                    className={`rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all ${
+                    className={`rounded-xl p-4 flex items-start gap-3 cursor-pointer border transition-all duration-200 ${
                       tipoLead === "atual"
                         ? "border-primary bg-primary/10"
                         : "border-border hover:bg-muted/50"
@@ -391,7 +429,7 @@ const NovoLeadPage = () => {
                     </div>
                   </div>
                   <div
-                    className={`rounded-lg p-4 flex items-start gap-3 cursor-pointer border transition-all ${
+                    className={`rounded-xl p-4 flex items-start gap-3 cursor-pointer border transition-all duration-200 ${
                       tipoLead === "antigo"
                         ? "border-primary bg-primary/10"
                         : "border-border hover:bg-muted/50"
@@ -443,8 +481,13 @@ const NovoLeadPage = () => {
                     </Button>
 
                     {showCriarLote && (
-                      <form onSubmit={handleCreateLote} className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                        <p className="text-sm font-semibold">Novo Lote de Produção</p>
+                      <form onSubmit={handleCreateLote} className="space-y-4 p-4 rounded-xl border bg-muted/20">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-7 w-7 rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
+                            <Package className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <p className="text-sm font-semibold tracking-tight">Novo Lote de Produção</p>
+                        </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           {[
                             { label: "Ligações", val: qtdLigacao, set: setQtdLigacao },
@@ -466,7 +509,7 @@ const NovoLeadPage = () => {
                           ))}
                           <div className="space-y-1">
                             <Label className="text-xs text-primary font-bold">Total</Label>
-                            <div className="text-xl font-bold text-primary pt-1">{volumeTotal}</div>
+                            <div className="text-xl font-bold text-primary tabular-nums pt-1">{volumeTotal}</div>
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -622,7 +665,7 @@ const NovoLeadPage = () => {
                 </div>
 
                 {temPlanoAnterior && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-primary/20">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border bg-muted/20">
                     <div className="space-y-2">
                       <Label>Operadora Anterior</Label>
                       <Input

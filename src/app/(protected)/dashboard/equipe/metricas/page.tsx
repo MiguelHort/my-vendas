@@ -5,14 +5,31 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { MapPin, Trophy, Users } from "lucide-react";
-
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertCircle,
+  BarChart2,
+  Filter,
+  MapPin,
+  Trophy,
+  Users,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Lead = {
   id: string;
@@ -67,8 +84,22 @@ const NOME_PARA_SIGLA: Record<string, string> = {
   Tocantins: "TO",
 };
 
-const STATUS_ORDER = ["Dispensado", "Abordagem", "Avaliando", "Fechamento", "Concluído"] as const;
+const STATUS_ORDER = [
+  "Dispensado",
+  "Abordagem",
+  "Avaliando",
+  "Fechamento",
+  "Concluído",
+] as const;
 type LeadStatus = (typeof STATUS_ORDER)[number];
+
+const STATUS_ACCENT: Record<LeadStatus, { pill: string }> = {
+  Dispensado: { pill: "ring-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" },
+  Abordagem:  { pill: "ring-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300" },
+  Avaliando:  { pill: "ring-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  Fechamento: { pill: "ring-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  Concluído:  { pill: "ring-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+};
 
 function normalizeStatus(s: string) {
   return (s || "").trim();
@@ -116,10 +147,7 @@ export default function DesempenhoTimePage() {
         toast.error("Erro ao carregar corretores: " + (body.error || res.statusText));
         return;
       }
-
-      const list: Broker[] = body.brokers || [];
-      setBrokers(list);
-
+      setBrokers(body.brokers || []);
       setSelectedBrokerId("ME");
     } catch (e) {
       console.error(e);
@@ -129,7 +157,6 @@ export default function DesempenhoTimePage() {
 
   const fetchLeads = async (brokerId: string) => {
     if (!firebaseUser) return;
-
     setLoadingLeads(true);
     try {
       const meRes = await authedFetch("/api/supervisor/me");
@@ -142,14 +169,15 @@ export default function DesempenhoTimePage() {
       const meDbId: string = meBody.id;
       const finalBrokerId = brokerId === "ME" ? meDbId : brokerId;
 
-      const res = await authedFetch(`/api/supervisor/leads?brokerId=${encodeURIComponent(finalBrokerId)}`);
+      const res = await authedFetch(
+        `/api/supervisor/leads?brokerId=${encodeURIComponent(finalBrokerId)}`
+      );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error("Erro ao carregar leads: " + (body.error || res.statusText));
         setLeads([]);
         return;
       }
-
       setLeads(body || []);
     } catch (e) {
       console.error(e);
@@ -173,7 +201,6 @@ export default function DesempenhoTimePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBrokerId, firebaseUser, loadingAuth]);
 
-  // ✅ NOVO: contagem por status
   const statusCounts = useMemo(() => {
     const base: Record<LeadStatus, number> = {
       Dispensado: 0,
@@ -190,14 +217,11 @@ export default function DesempenhoTimePage() {
 
     const total = leads.length;
     const totalNoFunil = Object.values(base).reduce((a, b) => a + b, 0);
-
     return { ...base, total, totalNoFunil };
   }, [leads]);
 
-  // Mapa (mesma lógica)
   const vendasPorEstado = useMemo(() => {
     const mapa: Record<string, number> = {};
-
     const now = new Date();
     const cutoffIso = (() => {
       switch (filtroFinalizados) {
@@ -249,25 +273,31 @@ export default function DesempenhoTimePage() {
     Object.entries(vendasPorEstado).forEach(([uf, qtd]) => {
       total += qtd;
       if (qtd > 0) estadosComVenda += 1;
-      if (qtd > max) {
-        max = qtd;
-        ufTop = uf;
-      }
+      if (qtd > max) { max = qtd; ufTop = uf; }
     });
 
-    return {
-      estadoTop: ufTop,
-      maxVendas: max,
-      totalEstados: estadosComVenda,
-      totalVendas: total,
-    };
+    return { estadoTop: ufTop, maxVendas: max, totalEstados: estadosComVenda, totalVendas: total };
   }, [vendasPorEstado]);
 
-  if (loadingAuth) {
+  // ---- loading / auth states ----
+  if (loadingAuth || loading) {
     return (
       <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-72 rounded-xl" />
+              <Skeleton className="h-4 w-96 rounded-lg" />
+            </div>
+            <Skeleton className="h-12 w-[480px] rounded-2xl" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
+            <Skeleton className="h-[480px] rounded-2xl" />
+            <div className="space-y-6">
+              <Skeleton className="h-56 rounded-2xl" />
+              <Skeleton className="h-56 rounded-2xl" />
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -276,19 +306,18 @@ export default function DesempenhoTimePage() {
   if (!firebaseUser) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">Você precisa estar logado.</p>
-          <p className="text-sm text-muted-foreground">Acesse a tela de login e entre com sua conta.</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold">Sessão não encontrada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Acesse a tela de login e entre com sua conta.
+              </p>
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -303,72 +332,79 @@ export default function DesempenhoTimePage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+        {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Users className="w-7 h-7 text-primary" />
-              Desempenho do meu time
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              Desempenho do Time
             </h1>
             <p className="text-muted-foreground mt-1">
-              Selecione um corretor do seu time para ver o mapa e os indicadores do funil.
+              Selecione um corretor para ver o mapa e os indicadores do funil.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium whitespace-nowrap">Corretor:</Label>
-              <Select value={selectedBrokerId} onValueChange={setSelectedBrokerId}>
-                <SelectTrigger className="w-[260px]">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  <SelectItem value="ME">Eu (Supervisor)</SelectItem>
-                  {brokers.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name ? `${b.name} (${b.email})` : b.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Filter bar */}
+          <div className="flex flex-wrap items-center gap-1 bg-background/70 backdrop-blur-sm border border-muted-foreground/10 rounded-2xl px-4 py-2 shadow-sm">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0 mr-1" />
 
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium whitespace-nowrap">Exibir Finalizados:</Label>
-              <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
-                  <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
-                  <SelectItem value="este-mes">Este Mês</SelectItem>
-                  <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
-                  <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={selectedBrokerId} onValueChange={setSelectedBrokerId}>
+              <SelectTrigger className="w-[220px] border-0 shadow-none focus:ring-0 bg-transparent">
+                <SelectValue placeholder="Selecione..." />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="ME">Eu (Supervisor)</SelectItem>
+                {brokers.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name ? `${b.name} (${b.email})` : b.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="w-px h-5 bg-muted-foreground/20 mx-1" />
+
+            <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
+              <SelectTrigger className="w-[170px] border-0 shadow-none focus:ring-0 bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
+                <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
+                <SelectItem value="este-mes">Este Mês</SelectItem>
+                <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
+                <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
+        {/* Content */}
         {loadingLeads ? (
-          <Card>
-            <CardContent className="py-10">
-              <div className="flex items-center justify-center gap-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                <span className="text-sm text-muted-foreground">Carregando leads de: {selectedLabel}</span>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
+            <Skeleton className="h-[480px] rounded-2xl" />
+            <div className="space-y-6">
+              <Skeleton className="h-56 rounded-2xl" />
+              <Skeleton className="h-56 rounded-2xl" />
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
             {/* Mapa */}
-            <Card className="overflow-hidden bg-gray-100">
+            <Card className="overflow-hidden border-muted-foreground/10 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Mapa do corretor: {selectedLabel}
-                </CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle>Mapa de vendas</CardTitle>
+                    <CardDescription>{selectedLabel}</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="w-full h-[420px]">
@@ -383,8 +419,8 @@ export default function DesempenhoTimePage() {
                       {({ geographies }: { geographies: any[] }) =>
                         geographies.map((geo) => {
                           const props = geo.properties || {};
-
-                          let uf: string = props.sigla || props.UF || props.uf || props.SIGLA || props.code || "";
+                          let uf: string =
+                            props.sigla || props.UF || props.uf || props.SIGLA || props.code || "";
 
                           if (!uf && props.name && typeof props.name === "string") {
                             uf = NOME_PARA_SIGLA[props.name] || "";
@@ -407,7 +443,7 @@ export default function DesempenhoTimePage() {
                                   stroke: "#9ca3af",
                                   strokeWidth: 0.7,
                                   outline: "none",
-                                  transition: "transform 150ms ease, fill 150ms ease, box-shadow 150ms ease",
+                                  transition: "transform 150ms ease, fill 150ms ease",
                                   cursor: temVendas ? "pointer" : "default",
                                 },
                                 hover: {
@@ -415,18 +451,19 @@ export default function DesempenhoTimePage() {
                                   stroke: "#4b5563",
                                   strokeWidth: 1,
                                   outline: "none",
-                                  boxShadow: "0 10px 15px rgba(0,0,0,0.12)",
                                   cursor: "pointer",
                                 },
                                 pressed: { fill: hoverFill, outline: "none" },
                               }}
-                              onMouseEnter={(e: any) => {
-                                setTooltip({ visible: true, uf, vendas, x: e.clientX, y: e.clientY });
-                              }}
-                              onMouseMove={(e: any) => {
-                                setTooltip((prev) => ({ ...prev, x: e.clientX, y: e.clientY }));
-                              }}
-                              onMouseLeave={() => setTooltip((prev) => ({ ...prev, visible: false }))}
+                              onMouseEnter={(e: any) =>
+                                setTooltip({ visible: true, uf, vendas, x: e.clientX, y: e.clientY })
+                              }
+                              onMouseMove={(e: any) =>
+                                setTooltip((prev) => ({ ...prev, x: e.clientX, y: e.clientY }))
+                              }
+                              onMouseLeave={() =>
+                                setTooltip((prev) => ({ ...prev, visible: false }))
+                              }
                             />
                           );
                         })
@@ -436,12 +473,13 @@ export default function DesempenhoTimePage() {
 
                   {tooltip.visible && (
                     <div
-                      className="pointer-events-none fixed z-50 rounded-md border bg-popover px-3 py-2 text-xs shadow-md"
+                      className="pointer-events-none fixed z-50 rounded-xl border border-muted-foreground/10 bg-popover px-3 py-2 text-xs shadow-md"
                       style={{ top: tooltip.y + 12, left: tooltip.x + 12 }}
                     >
                       <div className="font-semibold">{tooltip.uf || "Sem UF"}</div>
                       <div className="text-muted-foreground">
-                        {tooltip.vendas} venda{tooltip.vendas === 1 ? "" : "s"} concluída{tooltip.vendas === 1 ? "" : "s"}
+                        {tooltip.vendas} venda{tooltip.vendas === 1 ? "" : "s"} concluída
+                        {tooltip.vendas === 1 ? "" : "s"}
                       </div>
                     </div>
                   )}
@@ -449,104 +487,130 @@ export default function DesempenhoTimePage() {
               </CardContent>
             </Card>
 
-            {/* Painel lateral: Status + Resumo por estado */}
+            {/* Painel lateral */}
             <div className="space-y-6">
-              {/* ✅ NOVO: Funil por status */}
-              <Card>
+              {/* Leads por status */}
+              <Card className="border-muted-foreground/10 shadow-sm">
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base font-semibold">Leads por status</CardTitle>
-                    <Badge variant="secondary">{statusCounts.total} total</Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                      <BarChart2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base font-semibold">Leads por status</CardTitle>
+                      <CardDescription>Distribuição no funil do CRM</CardDescription>
+                    </div>
+                    <span className="inline-flex items-center rounded-full ring-1 ring-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300 tabular-nums shrink-0">
+                      {statusCounts.total}
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Contagem de leads do corretor no funil (pelos status do seu CRM).
-                  </p>
                 </CardHeader>
 
                 <CardContent className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     {STATUS_ORDER.map((st) => (
-                      <div key={st} className="rounded-lg border p-3">
-                        <div className="text-xs text-muted-foreground">{st}</div>
-                        <div className="text-2xl font-semibold tracking-tight">{statusCounts[st]}</div>
+                      <div
+                        key={st}
+                        className="rounded-xl border border-muted-foreground/10 p-3 hover:-translate-y-0.5 transition-transform duration-200"
+                      >
+                        <div className="text-xs text-muted-foreground mb-1">{st}</div>
+                        <div className="flex items-end justify-between gap-2">
+                          <span className="text-2xl font-bold tracking-tight tabular-nums">
+                            {statusCounts[st]}
+                          </span>
+                          <span
+                            className={`inline-flex items-center rounded-full ring-1 px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_ACCENT[st].pill}`}
+                          >
+                            {statusCounts.total > 0
+                              ? Math.round((statusCounts[st] / statusCounts.total) * 100)
+                              : 0}%
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  {statusCounts.totalNoFunil !== statusCounts.total ? (
-                    <p className="text-xs text-muted-foreground">
-                      Observação: {statusCounts.total - statusCounts.totalNoFunil} lead(s) estão com status diferente desses 5.
+                  {statusCounts.totalNoFunil !== statusCounts.total && (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      {statusCounts.total - statusCounts.totalNoFunil} lead(s) com status fora desses 5.
                     </p>
-                  ) : null}
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Resumo por estado (o seu) */}
-              <Card>
-                <CardHeader className="pb-3 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base font-semibold">Resumo por estado</CardTitle>
+              {/* Resumo por estado */}
+              <Card className="border-muted-foreground/10 shadow-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base font-semibold">Resumo por estado</CardTitle>
+                      {totalEstados > 0 && (
+                        <CardDescription>
+                          {totalEstados} estado{totalEstados === 1 ? "" : "s"} com vendas
+                        </CardDescription>
+                      )}
+                    </div>
                     {totalVendas > 0 && (
-                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {totalVendas} venda{totalVendas === 1 ? "" : "s"} no período
+                      <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums shrink-0">
+                        {totalVendas} venda{totalVendas === 1 ? "" : "s"}
                       </span>
                     )}
                   </div>
-
-                  {totalEstados > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {totalEstados} estado{totalEstados === 1 ? "" : "s"} com vendas registradas.
-                    </p>
-                  )}
                 </CardHeader>
 
                 <CardContent className="space-y-4">
                   {estadoTop ? (
-                    <div className="flex items-start gap-3 rounded-xl border bg-linear-to-br from-emerald-50 via-background to-slate-50 p-4 dark:from-emerald-900/20 dark:via-background dark:to-slate-900/40">
-                      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                    <div className="flex items-start gap-3 rounded-xl border border-muted-foreground/10 bg-emerald-500/5 p-4">
+                      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 shrink-0">
                         <Trophy className="h-5 w-5" />
                       </div>
-
                       <div className="space-y-1">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                           Estado campeão no período
                         </p>
-
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="flex justify-center items-center gap-2 text-2xl font-semibold tracking-tight">
+                          <span className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <img
                               src={getFlagUrl(estadoTop)}
                               alt={`Bandeira de ${estadoTop}`}
-                              className="inline-block h-9 w-12 rounded-sm border object-cover"
+                              className="h-7 w-10 rounded-sm border object-cover"
                             />
-                            {Object.entries(NOME_PARA_SIGLA).find(([_, sigla]) => sigla === estadoTop)?.[0] || estadoTop}
+                            {Object.entries(NOME_PARA_SIGLA).find(
+                              ([_, sigla]) => sigla === estadoTop
+                            )?.[0] || estadoTop}
                           </span>
-
-                          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                          <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
                             {maxVendas} venda{maxVendas === 1 ? "" : "s"}
                           </span>
                         </div>
-
-                        <p className="text-xs text-muted-foreground">
-                          Destaque entre {totalEstados} estado{totalEstados === 1 ? "" : "s"} com vendas neste período.
-                        </p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Ainda não há vendas concluídas para exibir no mapa neste período.
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-6 gap-3">
+                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                        <MapPin className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Nenhuma venda no período</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Ajuste o filtro para ver resultados.
+                        </p>
+                      </div>
+                    </div>
                   )}
 
-                  <div className="max-h-[260px] overflow-auto rounded-lg border">
+                  <div className="max-h-[220px] overflow-auto rounded-xl border border-muted-foreground/10">
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-muted/40">
-                        <tr className="border-b">
+                      <thead className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-muted-foreground/10">
+                        <tr>
                           <th className="text-left py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Estado
                           </th>
                           <th className="text-right py-2.5 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Vendas concl.
+                            Vendas
                           </th>
                         </tr>
                       </thead>
@@ -555,9 +619,11 @@ export default function DesempenhoTimePage() {
                           .sort((a, b) => b[1] - a[1])
                           .map(([uf, qtd]) => {
                             const isTop = estadoTop === uf && maxVendas > 0;
-
                             return (
-                              <tr key={uf} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                              <tr
+                                key={uf}
+                                className="border-b border-muted-foreground/5 last:border-0 hover:bg-muted/40 transition-colors"
+                              >
                                 <td className="py-2 px-3 font-medium">
                                   <div className="flex items-center gap-2">
                                     <img
@@ -569,8 +635,11 @@ export default function DesempenhoTimePage() {
                                     <span>{uf}</span>
                                   </div>
                                 </td>
-
-                                <td className="py-2 px-3 text-right font-semibold text-success">{qtd}</td>
+                                <td className="py-2 px-3 text-right">
+                                  <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                    {qtd}
+                                  </span>
+                                </td>
                               </tr>
                             );
                           })}
