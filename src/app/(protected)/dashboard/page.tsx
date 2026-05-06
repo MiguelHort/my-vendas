@@ -18,16 +18,17 @@ import {
   CheckCircle2,
   MapPin,
   Package,
-  Sparkles,
   Clock,
   ArrowUpRight,
   Info,
+  Activity,
+  Filter,
+  AlertCircle,
 } from "lucide-react";
 
 // shadcn ui
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -67,8 +68,9 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  Area,
+  AreaChart,
 } from "recharts";
-import { info } from "console";
 
 type Lead = FunilLead;
 
@@ -149,7 +151,6 @@ const DashboardPage = () => {
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
   const monthShort = (mIdx: number) => {
-    // 0..11
     const names = [
       "Jan",
       "Fev",
@@ -166,6 +167,19 @@ const DashboardPage = () => {
     ];
     return names[mIdx] || "";
   };
+
+  const periodoLabel = useMemo(() => {
+    switch (filtroPeriodo) {
+      case "este-mes":
+        return "Este mês";
+      case "mes-passado":
+        return "Mês passado";
+      case "ultimos-90":
+        return "Últimos 90 dias";
+      default:
+        return "Período";
+    }
+  }, [filtroPeriodo]);
 
   // ----------------- fetch Leads -----------------
   const fetchLeads = async () => {
@@ -300,7 +314,7 @@ const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem]);
 
-  // ----------------- métricas (filtradas pelo filtroPeriodo/origem) -----------------
+  // ----------------- métricas (filtradas) -----------------
   const filteredLeads = useMemo(() => {
     const { startDate, endDate } = getDateRange();
     const startStr = startDate.toISOString().slice(0, 10);
@@ -334,7 +348,6 @@ const DashboardPage = () => {
   const taxaQualificacao =
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
-  // mantive a sua fórmula atual
   const taxaFechamento =
     leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
 
@@ -360,7 +373,14 @@ const DashboardPage = () => {
     currency: "BRL",
   });
 
-  // ----------------- Série de vendas (sempre baseado no "ano/mês/semana atual", independente do filtroPeriodo) -----------------
+  const ticketMedio =
+    vendasFechadas > 0 ? totalComissoes / vendasFechadas : 0;
+  const ticketMedioFmt = ticketMedio.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  // ----------------- Série de vendas -----------------
   const vendasConcluidas = useMemo(() => {
     return leads.filter((l) => l.status === "Concluído");
   }, [leads]);
@@ -369,7 +389,6 @@ const DashboardPage = () => {
     const now = new Date();
 
     if (serieVendasMode === "semana") {
-      // últimos 7 dias (inclui hoje)
       const days: Date[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
@@ -417,7 +436,6 @@ const DashboardPage = () => {
       });
     }
 
-    // ano
     {
       const year = now.getFullYear();
       const map = new Map<number, number>();
@@ -437,17 +455,14 @@ const DashboardPage = () => {
     }
   }, [serieVendasMode, vendasConcluidas]);
 
-  // ----------------- cards métricas com "toque" de cor -----------------
+  // ----------------- métricas (cards) -----------------
   const metrics = [
     {
       title: "Volume de Produção",
       value: volumeProducao,
       icon: Package,
       hint: "Total chamado no período",
-      // toque roxo (igual você tinha)
-      border: "border-l-purple-600/60",
-      iconBg: "bg-purple-100 dark:bg-purple-900/20",
-      iconColor: "text-purple-600",
+      accent: "violet",
       info: "Número total de leads que foram chamados no período filtrado.",
     },
     {
@@ -455,10 +470,7 @@ const DashboardPage = () => {
       value: totalLeads,
       icon: Users,
       hint: "Entradas no período",
-      // toque azul
-      border: "border-l-blue-500/60",
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-500",
+      accent: "blue",
       info: "Número total de leads que entraram no funil durante o período filtrado.",
     },
     {
@@ -466,10 +478,7 @@ const DashboardPage = () => {
       value: vendasFechadas,
       icon: CheckCircle2,
       hint: "Status Concluído",
-      // toque primary (igual você tinha)
-      border: "border-l-primary/60",
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
+      accent: "emerald",
       info: "Número total de vendas concluídas no período filtrado.",
     },
     {
@@ -477,9 +486,7 @@ const DashboardPage = () => {
       value: `${taxaResposta.toFixed(1)}%`,
       icon: ThumbsUp,
       hint: "Leads / Produção",
-      border: "border-l-blue-500/60",
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-500",
+      accent: "sky",
       info: "Indica a eficiência na abordagem dos leads em relação ao volume produzido.",
     },
     {
@@ -487,9 +494,7 @@ const DashboardPage = () => {
       value: `${taxaQualificacao.toFixed(1)}%`,
       icon: Target,
       hint: "Qualificados / Leads",
-      border: "border-l-blue-500/60",
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-500",
+      accent: "amber",
       info: "Mostra a proporção de leads que avançaram para estágios mais sérios no funil de vendas.",
     },
     {
@@ -497,14 +502,53 @@ const DashboardPage = () => {
       value: `${taxaFechamento.toFixed(1)}%`,
       icon: TrendingUp,
       hint: "Vendas / Produção",
-      border: "border-l-primary/60",
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
+      accent: "emerald",
       info: "Reflete a eficácia do processo de vendas em converter leads qualificados em vendas reais.",
     },
-  ];
+  ] as const;
 
-  // ----------------- dados charts/tabela (filtrados) -----------------
+  const accentMap: Record<
+    string,
+    { dot: string; ring: string; iconBg: string; iconColor: string; glow: string }
+  > = {
+    violet: {
+      dot: "bg-violet-500",
+      ring: "ring-violet-500/20",
+      iconBg: "bg-violet-500/10",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      glow: "from-violet-500/10",
+    },
+    blue: {
+      dot: "bg-blue-500",
+      ring: "ring-blue-500/20",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      glow: "from-blue-500/10",
+    },
+    emerald: {
+      dot: "bg-emerald-500",
+      ring: "ring-emerald-500/20",
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      glow: "from-emerald-500/10",
+    },
+    sky: {
+      dot: "bg-sky-500",
+      ring: "ring-sky-500/20",
+      iconBg: "bg-sky-500/10",
+      iconColor: "text-sky-600 dark:text-sky-400",
+      glow: "from-sky-500/10",
+    },
+    amber: {
+      dot: "bg-amber-500",
+      ring: "ring-amber-500/20",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      glow: "from-amber-500/10",
+    },
+  };
+
+  // ----------------- dados charts/tabela -----------------
   const topEstadosData = useMemo(() => {
     const vendasPorEstado = filteredLeads
       .filter((l) => l.status === "Concluído")
@@ -553,18 +597,17 @@ const DashboardPage = () => {
   if (loadingAuth) {
     return (
       <Layout>
-        <div className="p-4 md:p-6">
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-80" />
-            <div className="grid gap-4 md:grid-cols-2">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Skeleton className="h-9 w-72" />
+              <Skeleton className="h-4 w-96" />
             </div>
+            <Skeleton className="h-40 w-full rounded-2xl" />
             <div className="grid gap-4 md:grid-cols-3">
-              <Skeleton className="h-28 w-full" />
-              <Skeleton className="h-28 w-full" />
-              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-32 w-full rounded-2xl" />
+              <Skeleton className="h-32 w-full rounded-2xl" />
+              <Skeleton className="h-32 w-full rounded-2xl" />
             </div>
           </div>
         </div>
@@ -575,8 +618,11 @@ const DashboardPage = () => {
   if (!firebaseUser) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">
             Você precisa estar logado para ver o dashboard.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -591,158 +637,313 @@ const DashboardPage = () => {
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              Dashboard de Performance
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Visão geral do período, com foco em conversão e retorno rápido.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="gap-1">
-              <Sparkles className="h-3.5 w-3.5" />
-              Atualizado por filtros
-            </Badge>
-            {qtdLeadsParaRetorno > 0 ? (
-              <Badge className="gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {qtdLeadsParaRetorno} pendente(s)
-              </Badge>
-            ) : (
-              <Badge variant="outline">Sem pendências 🎉</Badge>
-            )}
-          </div>
+      {/* ambient background — gradient mesh sutil */}
+      <div className="relative">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10 overflow-hidden"
+        >
+          <div className="absolute -top-24 left-1/4 h-[420px] w-[420px] rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -top-32 right-1/4 h-[420px] w-[420px] rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="absolute top-10 left-10 h-[280px] w-[280px] rounded-full bg-violet-500/[0.06] blur-3xl" />
         </div>
 
-        {/* Filtros */}
-        <Card className="overflow-hidden border-none shadow-none p-0 rounded-none">
-          <CardContent className="space-y-4 p-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                  Origem
-                </div>
-                <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione a origem" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="Todos">Todos</SelectItem>
-                    <SelectItem value="Lead Novo">
-                      Apenas Leads Novos
-                    </SelectItem>
-                    <SelectItem value="Retrabalho">
-                      Apenas Retrabalhos
-                    </SelectItem>
-                    <SelectItem value="Ligação">Apenas Ligações</SelectItem>
-                    <SelectItem value="Indicação">Apenas Indicações</SelectItem>
-                    <SelectItem value="Presencial">
-                      Apenas Presenciais
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+          {/* HEADER */}
+          <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="uppercase tracking-wider">Painel ao vivo</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span>{periodoLabel}</span>
               </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                  Período
-                </div>
-                <Tabs value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
-                  <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="este-mes">Este mês</TabsTrigger>
-                    <TabsTrigger value="mes-passado">Mês passado</TabsTrigger>
-                    <TabsTrigger value="ultimos-90">90 dias</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                Dashboard de Performance
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground max-w-xl">
+                Visão geral do período, com foco em conversão e retorno rápido.
+              </p>
             </div>
 
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-2 flex-wrap">
+              {qtdLeadsParaRetorno > 0 ? (
+                <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 backdrop-blur px-3 py-1.5 text-xs font-medium shadow-sm">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                  </span>
+                  <span>
+                    {qtdLeadsParaRetorno} retorno
+                    {qtdLeadsParaRetorno > 1 ? "s" : ""} pendente
+                    {qtdLeadsParaRetorno > 1 ? "s" : ""}
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 backdrop-blur px-3 py-1.5 text-xs font-medium shadow-sm">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Tudo em dia</span>
+                </div>
+              )}
+            </div>
+          </header>
 
-        {/* HERO - Comissão + gráfico abaixo */}
-        <Card className="relative overflow-hidden border-primary/20">
-          <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-emerald-500/10" />
-          <CardContent className="relative p-5 md:p-6 space-y-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-primary" />
+          {/* FILTROS - barra compacta */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border bg-background/60 backdrop-blur-sm p-3 shadow-sm">
+            <div className="flex items-center gap-2 px-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Filtros
+              </span>
+            </div>
+
+            <div className="h-px sm:h-6 sm:w-px bg-border sm:mx-1" />
+
+            <div className="flex flex-1 flex-col sm:flex-row gap-3">
+              <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+                <SelectTrigger className="bg-background border-muted-foreground/20 sm:max-w-[220px]">
+                  <SelectValue placeholder="Selecione a origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todas as origens</SelectItem>
+                  <SelectItem value="Lead Novo">Apenas Leads Novos</SelectItem>
+                  <SelectItem value="Retrabalho">Apenas Retrabalhos</SelectItem>
+                  <SelectItem value="Ligação">Apenas Ligações</SelectItem>
+                  <SelectItem value="Indicação">Apenas Indicações</SelectItem>
+                  <SelectItem value="Presencial">Apenas Presenciais</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Tabs
+                value={filtroPeriodo}
+                onValueChange={setFiltroPeriodo}
+                className="flex-1"
+              >
+                <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-flex">
+                  <TabsTrigger value="este-mes">Este mês</TabsTrigger>
+                  <TabsTrigger value="mes-passado">Mês passado</TabsTrigger>
+                  <TabsTrigger value="ultimos-90">90 dias</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {/* HERO + STATS LATERAIS */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Card de comissão - hero (2 cols) */}
+            <Card className="lg:col-span-2 relative overflow-hidden border-0 shadow-xl shadow-primary/5 bg-gradient-to-br from-foreground via-foreground to-foreground/95 text-background dark:from-card dark:via-card dark:to-card/95 dark:text-foreground">
+              {/* Efeito mesh */}
+              <div
+                aria-hidden
+                className="absolute inset-0 opacity-30"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 20% 0%, hsl(var(--primary) / 0.4), transparent 50%), radial-gradient(circle at 80% 100%, rgb(16 185 129 / 0.3), transparent 50%)",
+                }}
+              />
+              {/* Grid pattern */}
+              <div
+                aria-hidden
+                className="absolute inset-0 opacity-[0.04]"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+                  backgroundSize: "40px 40px",
+                }}
+              />
+
+              <CardContent className="relative p-6 md:p-8 space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-background/10 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
+                      <DollarSign className="h-3 w-3" />
+                      Comissão acumulada
+                    </div>
+                    <p className="text-xs opacity-60">
+                      No período selecionado
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Comissão no período (filtros)
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wider opacity-60">
+                      Ticket médio
                     </p>
                     {showSkeleton ? (
-                      <Skeleton className="h-8 w-44 mt-1" />
+                      <Skeleton className="h-5 w-20 mt-1 bg-background/10" />
                     ) : (
-                      <p className="text-2xl md:text-3xl font-bold tracking-tight">
-                        {comissoesFmt}
+                      <p className="text-sm font-semibold tabular-nums">
+                        {ticketMedioFmt}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="gap-1">
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                    Meta visual
-                  </Badge>
-                  <Badge variant="secondary">Foco: conversão</Badge>
+                <div>
+                  {showSkeleton ? (
+                    <Skeleton className="h-14 w-64 bg-background/10" />
+                  ) : (
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <p className="text-4xl md:text-5xl font-bold tracking-tight tabular-nums">
+                        {comissoesFmt}
+                      </p>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-300">
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                        {vendasFechadas} venda{vendasFechadas !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div className="w-full md:w-[320px] space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Fechamento</span>
-                  <span className="font-medium text-foreground">
-                    {showSkeleton ? "..." : `${taxaFechamento.toFixed(1)}%`}
-                  </span>
+                {/* mini chart de tendência */}
+                {!showSkeleton && vendasSerieData.length > 0 && (
+                  <div className="h-16 -mx-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={vendasSerieData}
+                        margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="heroGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="rgb(16 185 129)"
+                              stopOpacity={0.5}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="rgb(16 185 129)"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <Area
+                          type="monotone"
+                          dataKey="vendas"
+                          stroke="rgb(16 185 129)"
+                          strokeWidth={2}
+                          fill="url(#heroGradient)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="opacity-70">Taxa de fechamento</span>
+                    <span className="font-semibold tabular-nums">
+                      {showSkeleton ? "..." : `${taxaFechamento.toFixed(1)}%`}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-background/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700 ease-out"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(0, taxaFechamento)
+                        )}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-                <Progress value={Math.min(100, Math.max(0, taxaFechamento))} />
+              </CardContent>
+            </Card>
+
+            {/* Stats laterais */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+              <Card className="overflow-hidden group hover:shadow-md transition-all duration-300 border-muted-foreground/10">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                      Convertido
+                    </span>
+                  </div>
+                  {showSkeleton ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <p className="text-2xl md:text-3xl font-bold tabular-nums tracking-tight">
+                      {vendasFechadas}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Vendas fechadas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="overflow-hidden group hover:shadow-md transition-all duration-300 border-muted-foreground/10">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                      <Activity className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                      Pipeline
+                    </span>
+                  </div>
+                  {showSkeleton ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <p className="text-2xl md:text-3xl font-bold tabular-nums tracking-tight">
+                      {leadsQualificados}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Leads qualificados
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* GRÁFICO DE VENDAS COMPLETO */}
+          <Card className="overflow-hidden border-muted-foreground/10 shadow-sm">
+            <CardHeader className="pb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="text-base font-semibold tracking-tight">
+                  Histórico de Vendas
+                </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Acelere fechamentos atacando “Retornos pendentes”.
+                  Evolução das vendas concluídas — independente do filtro de
+                  período acima.
                 </p>
               </div>
-            </div>
 
-            <Separator className="bg-primary/10" />
-
-            {/* gráfico de vendas (concluídos) - abaixo do card comissão */}
-            <div className="space-y-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Vendas (Concluídas)</p>
-                  <p className="text-xs text-muted-foreground">
-                    Série do tempo atual (não depende do filtro de período).
-                  </p>
-                </div>
-
-                <Tabs
-                  value={serieVendasMode}
-                  onValueChange={(v) =>
-                    setSerieVendasMode(v as SerieVendasMode)
-                  }
-                >
-                  <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-                    <TabsTrigger value="semana">Semana</TabsTrigger>
-                    <TabsTrigger value="mes">Mês</TabsTrigger>
-                    <TabsTrigger value="ano">Ano</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
+              <Tabs
+                value={serieVendasMode}
+                onValueChange={(v) => setSerieVendasMode(v as SerieVendasMode)}
+              >
+                <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-flex">
+                  <TabsTrigger value="semana">7d</TabsTrigger>
+                  <TabsTrigger value="mes">Mês</TabsTrigger>
+                  <TabsTrigger value="ano">Ano</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardHeader>
+            <CardContent className="pt-4">
               {showSkeleton ? (
                 <Skeleton className="h-[260px] w-full" />
-              ) : vendasSerieData.length === 0 ? (
-                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Sem vendas concluídas suficientes para gerar a série.
+              ) : vendasSerieData.length === 0 ||
+                vendasSerieData.every((d) => d.vendas === 0) ? (
+                <div className="rounded-xl border border-dashed bg-muted/30 p-8 text-center">
+                  <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <Activity className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Sem vendas concluídas suficientes para gerar a série.
+                  </p>
                 </div>
               ) : (
                 <ChartContainer
@@ -756,265 +957,409 @@ const DashboardPage = () => {
                       data={vendasSerieData}
                       margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <defs>
+                        <linearGradient
+                          id="lineGradient"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="0"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="var(--primary)"
+                            stopOpacity={1}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="rgb(16 185 129)"
+                            stopOpacity={1}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                        vertical={false}
+                      />
                       <XAxis
                         dataKey="label"
                         tickLine={false}
                         axisLine={false}
-                        fontSize={12}
+                        fontSize={11}
+                        stroke="hsl(var(--muted-foreground))"
                       />
                       <YAxis
                         allowDecimals={false}
                         tickLine={false}
                         axisLine={false}
-                        fontSize={12}
+                        fontSize={11}
+                        stroke="hsl(var(--muted-foreground))"
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line
                         type="monotone"
                         dataKey="vendas"
-                        stroke="var(--primary)"
-                        strokeWidth={2}
-                        dot={false}
+                        stroke="url(#lineGradient)"
+                        strokeWidth={2.5}
+                        dot={{ r: 0 }}
+                        activeDot={{
+                          r: 5,
+                          strokeWidth: 2,
+                          stroke: "hsl(var(--background))",
+                        }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Métricas - grid */}
+          <div>
+            <div className="flex items-baseline justify-between mb-4 px-1">
+              <h2 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground">
+                Métricas-chave
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                {metrics.length} indicadores
+              </span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Cards de métricas com toque de cor */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {metrics.map((m) => {
-            const Icon = m.icon;
-            return (
-              <Card
-                key={m.title}
-                className={`hover:shadow-sm transition-shadow border-l-4 ${m.border}`}
-              >
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1.5">
-                      <p className="flex gap-2 items-center text-sm font-medium">
-                        {m.title}{" "}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{m.info}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </p>
-                      {showSkeleton ? (
-                        <Skeleton className="h-8 w-24" />
-                      ) : (
-                        <p className="text-2xl font-bold">{m.value}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground">{m.hint}</p>
-                    </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {metrics.map((m) => {
+                const Icon = m.icon;
+                const accent = accentMap[m.accent];
+                return (
+                  <Card
+                    key={m.title}
+                    className="group relative overflow-hidden border-muted-foreground/10 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                  >
+                    {/* glow no hover */}
                     <div
-                      className={`h-10 w-10 rounded-xl ${m.iconBg} flex items-center justify-center`}
-                    >
-                      <Icon className={`h-5 w-5 ${m.iconColor}`} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      className={`absolute inset-0 -z-10 bg-gradient-to-br ${accent.glow} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                    />
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${accent.dot}`}
+                            />
+                            <p className="text-xs font-medium text-muted-foreground truncate">
+                              {m.title}
+                            </p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                className="max-w-[240px]"
+                              >
+                                <p className="text-xs">{m.info}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          {showSkeleton ? (
+                            <Skeleton className="h-9 w-24" />
+                          ) : (
+                            <p className="text-3xl font-bold tracking-tight tabular-nums">
+                              {m.value}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground/80">
+                            {m.hint}
+                          </p>
+                        </div>
 
-        {/* Leads para retorno */}
-        <Card className="border-primary/15">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-base">Retornos pendentes</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {qtdLeadsParaRetorno > 0
-                    ? `${qtdLeadsParaRetorno} lead(s) aguardando contato há mais de 24h`
-                    : "Nenhum lead pendente de retorno há mais de 24h 🎉"}
-                </p>
-              </div>
-              <Badge variant={qtdLeadsParaRetorno > 0 ? "default" : "outline"}>
-                {qtdLeadsParaRetorno > 0 ? "Prioridade" : "Ok"}
-              </Badge>
+                        <div
+                          className={`h-10 w-10 rounded-xl ${accent.iconBg} ring-1 ${accent.ring} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300`}
+                        >
+                          <Icon className={`h-5 w-5 ${accent.iconColor}`} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="space-y-4">
-            {qtdLeadsParaRetorno > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {leadsParaRetorno.slice(0, 8).map((lead) => (
-                  <LeadCard
-                    key={lead.id}
-                    lead={lead}
-                    firebaseUser={{
-                      uid: firebaseUser.uid,
-                      email: firebaseUser.email,
-                      displayName: firebaseUser.displayName,
-                    }}
-                    onRefreshLeads={fetchLeads}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                Dica: mantenha esse card zerado retornando primeiro os leads em{" "}
-                <span className="font-medium text-foreground">Abordagem</span> e{" "}
-                <span className="font-medium text-foreground">Avaliando</span>.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Charts + Tabela */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top 10 estados */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">
-                    Top 10 Estados (Vendas)
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Onde você mais fecha no período selecionado.
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {showSkeleton ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-320px w-full" />
-                </div>
-              ) : topEstadosData.length === 0 ? (
-                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Sem vendas concluídas no período para montar o gráfico.
-                </div>
-              ) : (
-                <ChartContainer
-                  config={{
-                    vendas: { label: "Vendas", color: "hsl(var(--primary))" },
-                  }}
-                  className="h-[380px] w-full"
+          {/* RETORNOS PENDENTES */}
+          <Card className="border-muted-foreground/10 shadow-sm overflow-hidden">
+            <CardHeader className="pb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0 border-b">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    qtdLeadsParaRetorno > 0
+                      ? "bg-amber-500/10 ring-1 ring-amber-500/20"
+                      : "bg-emerald-500/10 ring-1 ring-emerald-500/20"
+                  }`}
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={topEstadosData}
-                      margin={{ top: 12, right: 16, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="estado"
-                        tickLine={false}
-                        axisLine={false}
-                        fontSize={12}
-                      />
-                      <YAxis tickLine={false} axisLine={false} fontSize={12} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="vendas"
-                        radius={[8, 8, 0, 0]}
-                        fill="var(--primary)"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Tabela - taxa por estado */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-primary" />
+                  <Clock
+                    className={`h-5 w-5 ${
+                      qtdLeadsParaRetorno > 0
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  />
                 </div>
                 <div>
-                  <CardTitle className="text-base">
-                    Taxa de Fechamento por Estado
+                  <CardTitle className="text-base font-semibold tracking-tight">
+                    Retornos Pendentes
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Conversão (vendas / qualificados) por UF.
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {qtdLeadsParaRetorno > 0
+                      ? `${qtdLeadsParaRetorno} lead${
+                          qtdLeadsParaRetorno > 1 ? "s" : ""
+                        } aguardando contato há mais de 24h`
+                      : "Nenhum lead pendente de retorno há mais de 24h"}
                   </p>
                 </div>
               </div>
+              {qtdLeadsParaRetorno > 0 && (
+                <Badge
+                  variant="default"
+                  className="bg-amber-500 hover:bg-amber-500 text-white border-0 shrink-0"
+                >
+                  Prioridade alta
+                </Badge>
+              )}
             </CardHeader>
 
-            <CardContent>
-              {showSkeleton ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : estadosTabela.length === 0 ? (
-                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Sem dados suficientes no período para calcular taxas por
-                  estado.
+            <CardContent className="p-5">
+              {qtdLeadsParaRetorno > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {leadsParaRetorno.slice(0, 8).map((lead) => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      firebaseUser={{
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: firebaseUser.displayName,
+                      }}
+                      onRefreshLeads={fetchLeads}
+                    />
+                  ))}
                 </div>
               ) : (
-                <div className="max-h-[380px] overflow-auto rounded-lg border">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-center">
-                          Qualificados
-                        </TableHead>
-                        <TableHead className="text-center">Vendas</TableHead>
-                        <TableHead className="text-center">Taxa</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {estadosTabela.map((row) => {
-                        const badgeVariant =
-                          row.taxa >= 20
-                            ? "default"
-                            : row.taxa >= 10
-                            ? "secondary"
-                            : "outline";
-
-                        return (
-                          <TableRow key={row.estado}>
-                            <TableCell className="font-medium">
-                              {row.estado}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {row.qualificados}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {row.vendas}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant={badgeVariant}>
-                                {row.taxa.toFixed(1)}%
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <p className="text-sm font-medium mb-1">
+                    Sua agenda está em dia
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    Dica: mantenha esse painel zerado retornando primeiro os
+                    leads em{" "}
+                    <span className="font-medium text-foreground">
+                      Abordagem
+                    </span>{" "}
+                    e{" "}
+                    <span className="font-medium text-foreground">
+                      Avaliando
+                    </span>
+                    .
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* CHARTS + TABELA */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top 10 estados */}
+            <Card className="border-muted-foreground/10 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold tracking-tight">
+                      Top 10 Estados
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Onde você mais fecha no período selecionado.
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showSkeleton ? (
+                  <Skeleton className="h-[340px] w-full" />
+                ) : topEstadosData.length === 0 ? (
+                  <div className="rounded-xl border border-dashed bg-muted/30 p-8 text-center">
+                    <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Sem vendas concluídas no período para montar o gráfico.
+                    </p>
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      vendas: { label: "Vendas", color: "hsl(var(--primary))" },
+                    }}
+                    className="h-[340px] w-full"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={topEstadosData}
+                        margin={{ top: 12, right: 16, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="barGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="var(--primary)"
+                              stopOpacity={1}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="var(--primary)"
+                              stopOpacity={0.6}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="hsl(var(--border))"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="estado"
+                          tickLine={false}
+                          axisLine={false}
+                          fontSize={11}
+                          stroke="hsl(var(--muted-foreground))"
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          fontSize={11}
+                          stroke="hsl(var(--muted-foreground))"
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar
+                          dataKey="vendas"
+                          radius={[6, 6, 0, 0]}
+                          fill="url(#barGradient)"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tabela - taxa por estado */}
+            <Card className="border-muted-foreground/10 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold tracking-tight">
+                      Taxa de Fechamento por Estado
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Conversão (vendas / qualificados) por UF.
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                {showSkeleton ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : estadosTabela.length === 0 ? (
+                  <div className="rounded-xl border border-dashed bg-muted/30 p-8 text-center">
+                    <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <Target className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Sem dados suficientes no período.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-h-[340px] overflow-auto rounded-xl border bg-background/50">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-muted/40 backdrop-blur z-10">
+                        <TableRow className="hover:bg-transparent border-b">
+                          <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Estado
+                          </TableHead>
+                          <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Qualif.
+                          </TableHead>
+                          <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Vendas
+                          </TableHead>
+                          <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Taxa
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {estadosTabela.map((row) => {
+                          const taxaColor =
+                            row.taxa >= 20
+                              ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20"
+                              : row.taxa >= 10
+                              ? "text-amber-600 dark:text-amber-400 bg-amber-500/10 ring-amber-500/20"
+                              : "text-muted-foreground bg-muted ring-border";
+
+                          return (
+                            <TableRow
+                              key={row.estado}
+                              className="hover:bg-muted/30 transition-colors"
+                            >
+                              <TableCell className="font-semibold tracking-tight">
+                                {row.estado}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums text-muted-foreground">
+                                {row.qualificados}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums font-medium">
+                                {row.vendas}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ring-1 ${taxaColor}`}
+                                >
+                                  {row.taxa.toFixed(1)}%
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* footer espaçamento */}
+          <div className="h-4" />
         </div>
       </div>
     </Layout>

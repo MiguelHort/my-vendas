@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
       valor_comissao: l.valorComissao ? Number(l.valorComissao) : null,
       data_venda: l.dataVenda ? l.dataVenda.toISOString() : null,
       last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
+      card_color: l.cardColor ?? null,
+      notas: l.notas ?? null,
+      etiquetas: l.etiquetas ?? null,
+      retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
     }));
 
     return NextResponse.json(payload);
@@ -100,6 +104,10 @@ export async function POST(req: NextRequest) {
     valor_comissao,
     data_venda,
     last_chamado_at,
+    card_color,
+    notas,
+    etiquetas,
+    retornar_em,
   } = body;
 
   if (!nome || !origem || !estado || !cidade || !qtd_vidas || !idades) {
@@ -152,6 +160,10 @@ export async function POST(req: NextRequest) {
             : null,
         dataVenda: data_venda ? new Date(data_venda) : null,
         lastChamadoAt: last_chamado_at ? new Date(last_chamado_at) : null,
+        cardColor: card_color || null,
+        notas: notas || null,
+        etiquetas: etiquetas || null,
+        retornarEm: retornar_em ? new Date(retornar_em) : null,
       },
     });
 

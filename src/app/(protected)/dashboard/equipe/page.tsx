@@ -5,10 +5,26 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Sparkles,
+  UserCheck,
+  UserMinus,
+  Users,
+  XCircle,
+} from "lucide-react";
 
 type LinkStatus = "PENDING" | "ACTIVE" | "REJECTED";
 
@@ -29,6 +45,7 @@ export default function SupervisorTeamPage() {
   const [code, setCode] = useState<string | null>(null);
   const [links, setLinks] = useState<TeamLink[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function authedFetch(input: RequestInfo, init?: RequestInit) {
     if (!user) throw new Error("Não autenticado");
@@ -73,13 +90,13 @@ export default function SupervisorTeamPage() {
     }
   }
 
-  async function action(linkId: string, action: "APPROVE" | "REJECT" | "REMOVE") {
+  async function action(linkId: string, act: "APPROVE" | "REJECT" | "REMOVE") {
     setBusy(true);
     setError(null);
     try {
       const res = await authedFetch("/api/supervisor/team/action", {
         method: "POST",
-        body: JSON.stringify({ linkId, action }),
+        body: JSON.stringify({ linkId, action: act }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erro");
@@ -91,75 +108,170 @@ export default function SupervisorTeamPage() {
     }
   }
 
+  function copyCode() {
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   useEffect(() => {
     if (!loading && user) loadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user]);
 
   const pending = useMemo(() => links.filter((l) => l.status === "PENDING"), [links]);
   const active = useMemo(() => links.filter((l) => l.status === "ACTIVE"), [links]);
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-52 rounded-xl" />
+            <Skeleton className="h-4 w-72 rounded-lg" />
+          </div>
+          <Skeleton className="h-36 rounded-2xl" />
+          <Skeleton className="h-48 rounded-2xl" />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Minha equipe</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center">
+              <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            </div>
+            Minha Equipe
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie corretores vinculados à sua supervisão.
+          </p>
+        </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Código de supervisor */}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
+                <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <CardTitle>Código de supervisor</CardTitle>
+                <CardDescription>
+                  Compartilhe com corretores para que possam solicitar entrada na sua equipe
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
             {!isSupervisor ? (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Você ainda não está como supervisor. Gere seu código para começar.
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <p className="text-sm text-muted-foreground flex-1">
+                  Você ainda não está cadastrado como supervisor. Gere seu código para começar.
                 </p>
                 <Button disabled={busy} onClick={ensureCode}>
-                  Gerar código de supervisor
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Gerar código
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge>Supervisor</Badge>
-                  {code ? (
-                    <span className="text-sm">
-                      Código: <strong className="tracking-widest">{code}</strong>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="inline-flex items-center rounded-full ring-1 ring-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:text-violet-300">
+                    Supervisor
+                  </span>
+                  {code && (
+                    <span className="font-mono text-lg font-bold tracking-widest tabular-nums">
+                      {code}
                     </span>
-                  ) : null}
+                  )}
                 </div>
-
-                <p className="text-sm text-muted-foreground">
-                  O corretor usa esse código para solicitar entrada na sua equipe. Você aprova ou nega.
-                </p>
+                {code && (
+                  <Button variant="outline" size="sm" onClick={copyCode} className="shrink-0">
+                    <Copy className="h-4 w-4 mr-2" />
+                    {copied ? "Copiado!" : "Copiar código"}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {isSupervisor ? (
-          <Card>
+        {/* Solicitações pendentes */}
+        {isSupervisor && (
+          <Card className="border-muted-foreground/10 shadow-sm">
             <CardHeader>
-              <CardTitle>Solicitações pendentes</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                  <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle>Solicitações pendentes</CardTitle>
+                  <CardDescription>Corretores aguardando sua aprovação</CardDescription>
+                </div>
+                {pending.length > 0 && (
+                  <span className="inline-flex items-center rounded-full ring-1 ring-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+                    {pending.length}
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {pending.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
+                </div>
               ) : (
                 pending.map((l) => (
-                  <div key={l.id} className="rounded-lg border p-3 space-y-2">
+                  <div
+                    key={l.id}
+                    className="rounded-xl border border-muted-foreground/10 p-4 space-y-3 hover:shadow-sm transition-shadow"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="font-medium">{l.broker.name || "Sem nome"}</div>
                         <div className="text-sm text-muted-foreground">{l.broker.email}</div>
                       </div>
-                      <Badge variant="secondary">Pendente</Badge>
+                      <span className="inline-flex items-center rounded-full ring-1 ring-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300 shrink-0">
+                        Pendente
+                      </span>
                     </div>
 
                     <div className="flex gap-2">
-                      <Button disabled={busy} onClick={() => action(l.id, "APPROVE")}>
+                      <Button
+                        disabled={busy}
+                        size="sm"
+                        onClick={() => action(l.id, "APPROVE")}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
                         Aprovar
                       </Button>
-                      <Button disabled={busy} variant="outline" onClick={() => action(l.id, "REJECT")}>
+                      <Button
+                        disabled={busy}
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => action(l.id, "REJECT")}
+                      >
+                        <XCircle className="h-4 w-4 mr-1.5" />
                         Negar
                       </Button>
                     </div>
@@ -168,40 +280,67 @@ export default function SupervisorTeamPage() {
               )}
             </CardContent>
           </Card>
-        ) : null}
+        )}
 
-        {isSupervisor ? (
-          <Card>
+        {/* Corretores ativos */}
+        {isSupervisor && (
+          <Card className="border-muted-foreground/10 shadow-sm">
             <CardHeader>
-              <CardTitle>Corretores ativos</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                  <UserCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle>Corretores ativos</CardTitle>
+                  <CardDescription>Membros da sua equipe atualmente vinculados</CardDescription>
+                </div>
+                {active.length > 0 && (
+                  <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                    {active.length}
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {active.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum corretor ativo.</p>
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <Users className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Nenhum corretor ativo.</p>
+                </div>
               ) : (
                 active.map((l) => (
-                  <div key={l.id} className="rounded-lg border p-3 space-y-2">
+                  <div
+                    key={l.id}
+                    className="rounded-xl border border-muted-foreground/10 p-4 space-y-3 hover:shadow-sm transition-shadow"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="font-medium">{l.broker.name || "Sem nome"}</div>
                         <div className="text-sm text-muted-foreground">{l.broker.email}</div>
                       </div>
-                      <Badge>Ativo</Badge>
+                      <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shrink-0">
+                        Ativo
+                      </span>
                     </div>
 
-                    <Separator />
-
-                    <div className="flex gap-2">
-                      <Button disabled={busy} variant="destructive" onClick={() => action(l.id, "REMOVE")}>
-                        Remover da equipe
-                      </Button>
-                    </div>
+                    <Button
+                      disabled={busy}
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => action(l.id, "REMOVE")}
+                    >
+                      <UserMinus className="h-4 w-4 mr-1.5" />
+                      Remover da equipe
+                    </Button>
                   </div>
                 ))
               )}
             </CardContent>
           </Card>
-        ) : null}
+        )}
       </div>
     </Layout>
   );

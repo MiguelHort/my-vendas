@@ -24,6 +24,7 @@ import {
   Plus,
 } from "lucide-react";
 import Image from "next/image";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 export default function LandingPage() {
   const mockRef = useRef<HTMLDivElement | null>(null);
@@ -117,6 +118,7 @@ export default function LandingPage() {
 
       {/* CONTEÚDO PRINCIPAL */}
       <main className="flex-1">
+        <WhatsAppFloat />
         {/* HERO */}
         <section className="relative border-b overflow-hidden">
           {/* Glow verde */}
@@ -151,15 +153,20 @@ export default function LandingPage() {
                 </Button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Aceitamos cartão de crédito</span>
+                  <span>Teste por nossa conta</span>
                 </div>
                 <div className="w-px h-4 bg-border" />
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4" />
-                  <span>Dados seguros (PostgreSQL + Firebase Auth)</span>
+                  <span>Dados seguros</span>
+                </div>
+                <div className="w-px h-4 bg-border" />
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>Fluido e intuitivo</span>
                 </div>
               </div>
             </div>
@@ -193,7 +200,7 @@ export default function LandingPage() {
           id="como-funciona"
           className="border-b bg-muted/40 scroll-mt-20"
         >
-          <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
+          <div className="max-w-6xl mx-auto px-4 py-12 md:py-16">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold">
@@ -263,7 +270,7 @@ export default function LandingPage() {
 
         {/* BENEFÍCIOS / PARA QUEM É */}
         <section id="beneficios" className="border-b scroll-mt-20">
-          <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-[1.2fr,1fr] gap-10">
+          <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 grid md:grid-cols-[1.2fr,1fr] gap-10">
             <div className="space-y-4">
               <h2 className="text-2xl md:text-3xl font-semibold">
                 Um sistema de Corretor para Corretor, feito por quem entende o{" "}
@@ -356,10 +363,10 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="flex justify-center flex-col md:flex-row gap-6">
 
-              {/* Plano 2 - destaque */}
-              <Card className="border-primary shadow-sm relative">
+              {/* Plano 1 - destaque */}
+              <Card className="border-primary shadow-sm relative max-w-2xs min-w-sm">
                 <div className="absolute -top-2 right-4">
                   <Badge className="text-[10px]">Mais usado</Badge>
                 </div>
@@ -377,6 +384,7 @@ export default function LandingPage() {
                     </span>
                   </div>
                   <ul className="space-y-2 text-muted-foreground">
+                    <li className="text-primary font-bold">• 7 dias grátis</li>
                     <li>• Tudo do plano Iniciante</li>
                     <li>• Funis personalizados por operadora</li>
                     <li>• Indicadores avançados de conversão</li>
@@ -389,7 +397,7 @@ export default function LandingPage() {
               </Card>
 
               {/* Plano 3 */}
-              <Card>
+              <Card className="max-w-xs min-w-xs">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center justify-between">
                     <span>Equipe</span>

@@ -39,6 +39,10 @@ model Lead {
   coparticipacao     String?   @db.Text
   motivoDispensa     String?   @map("motivo_dispensa") @db.Text
   telefone           String?   @db.Text
+  cardColor          String?   @map("card_color") @db.Text
+  notas              String?   @db.Text
+  etiquetas          String?   @db.Text
+  retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
 
   user         User?         @relation(fields: [userId], references: [id])
   loteProducao LoteProducao? @relation(fields: [loteProducaoId], references: [id])
@@ -93,6 +97,7 @@ model User {
 
   leads         Lead[]
   lotesProducao LoteProducao[]
+  funnelColumns FunnelColumn[]
 
   // ✅ Relações para equipe (um supervisor tem vários corretores)
   supervisingLinks SupervisorBrokerLink[] @relation("SupervisorLinks")
@@ -101,6 +106,24 @@ model User {
   @@map("users")
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
+  @@schema("public")
+}
+
+model FunnelColumn {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  colId     String   @map("col_id") @db.Text
+  title     String   @db.Text
+  color     String   @db.Text
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, colId])
+  @@index([userId, position])
+  @@map("funnel_columns")
   @@schema("public")
 }
 

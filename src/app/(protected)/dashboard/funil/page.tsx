@@ -24,6 +24,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import {
@@ -32,41 +33,348 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import {
+  Settings,
+  Plus,
+  Trash2,
+  GripVertical,
+  Filter,
+  XCircle,
+  CheckCircle2,
+  Clock,
+  Workflow,
+  AlertCircle,
+} from "lucide-react";
 
 import LeadCard, { Lead } from "@/components/LeadCard";
 
-const statusColumns = [
-  {
-    id: "Dispensado",
-    title: "Dispensado",
-    color: "bg-muted",
-    tooltip: "Leads sem potencial de conversão",
-  },
-  {
-    id: "Abordagem",
-    title: "Abordagem",
-    color: "bg-blue-500/20",
-    tooltip: "Primeiro contato realizado",
-  },
-  {
-    id: "Avaliando",
-    title: "Avaliando",
-    color: "bg-yellow-500/20",
-    tooltip: "Lead interessado, em análise",
-  },
-  {
-    id: "Fechamento",
-    title: "Fechamento",
-    color: "bg-purple-500/20",
-    tooltip: "Negociação final em andamento",
-  },
-  {
-    id: "Concluído",
-    title: "Concluído",
-    color: "bg-green-500/20",
-    tooltip: "Venda realizada com sucesso",
-  },
+// ========================
+// TIPOS
+// ========================
+
+type FunnelColumn = {
+  id: string;
+  title: string;
+  color: string;
+};
+
+// ========================
+// MINIMAPA
+// ========================
+
+const MINIMAP_W = 260;
+const MINIMAP_H = 72;   // altura do canvas
+const COL_W = 240;
+const COL_GAP = 12;
+const MM_PAD = 10;
+
+function KanbanMinimap({
+  scrollContainer,
+  columns,
+  getLeadCount,
+}: {
+  scrollContainer: HTMLDivElement | null;
+  columns: FunnelColumn[];
+  getLeadCount: (id: string) => number;
+}) {
+  const [scroll, setScroll] = React.useState({ left: 0, clientW: 0, totalW: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [isHovering, setIsHovering] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!scrollContainer) return;
+    const update = () =>
+      setScroll({
+        left: scrollContainer.scrollLeft,
+        clientW: scrollContainer.clientWidth,
+        totalW: scrollContainer.scrollWidth,
+      });
+    update();
+    scrollContainer.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(scrollContainer);
+    return () => {
+      scrollContainer.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [scrollContainer]);
+
+  const { left, clientW, totalW } = scroll;
+  if (!totalW || !clientW || totalW <= clientW) return null;
+
+  const canvasW = MINIMAP_W - MM_PAD * 2;
+  const scale = canvasW / totalW;
+  const vpW = Math.max(clientW * scale, 24);
+  const vpX = Math.min(left * scale, canvasW - vpW);
+  const maxLeads = Math.max(...columns.map((c) => getLeadCount(c.id)), 1);
+
+  // Barra de progresso no rodapé
+  const progressLeft = (left / totalW) * 100;
+  const progressWidth = (clientW / totalW) * 100;
+
+  const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    const startMouseX = e.clientX;
+    const startScrollLeft = scrollContainer!.scrollLeft;
+    const onMove = (ev: PointerEvent) => {
+      if (!el.hasPointerCapture(ev.pointerId)) return;
+      const delta = ev.clientX - startMouseX;
+      scrollContainer!.scrollLeft = Math.max(0, startScrollLeft + delta / scale);
+    };
+    const onUp = (ev: PointerEvent) => {
+      setIsDragging(false);
+      el.releasePointerCapture(ev.pointerId);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+  };
+
+  const colH = MINIMAP_H - MM_PAD * 2;
+
+  return (
+    <div className="fixed bottom-5 right-5 z-50 select-none" style={{ width: MINIMAP_W }}>
+      <div
+        className="rounded-2xl overflow-hidden backdrop-blur-xl"
+        style={{
+          background: "rgba(var(--background), 0.96)",
+          border: `1px solid ${isDragging ? "rgba(59,130,246,0.45)" : "rgba(var(--border), 0.5)"}`,
+          boxShadow: isDragging
+            ? "0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(59,130,246,0.1)"
+            : "0 8px 32px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06)",
+          transition: "border-color 0.2s, box-shadow 0.2s",
+        }}
+      >
+        {/* ── Header ── */}
+        <div className="flex items-center gap-2.5 px-3.5 pt-2.5 pb-2">
+          {/* Três bolinhas decorativas */}
+          <div className="flex gap-1">
+            <div className="w-2 h-2 rounded-full bg-rose-400/50" />
+            <div className="w-2 h-2 rounded-full bg-amber-400/50" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400/50" />
+          </div>
+          <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/70 leading-none">
+            Navegação
+          </span>
+          <div className="ml-auto flex items-center gap-1 text-[9px] text-muted-foreground/40 font-medium">
+            <span>{columns.length}</span>
+            <span>colunas</span>
+          </div>
+        </div>
+
+        {/* ── Separador ── */}
+        <div style={{ height: 1, background: "rgba(var(--border), 0.25)", margin: "0 14px" }} />
+
+        {/* ── Canvas ── */}
+        <div
+          className="relative"
+          style={{
+            height: MINIMAP_H,
+            padding: `${MM_PAD}px ${MM_PAD}px`,
+            background: "rgba(var(--muted), 0.15)",
+          }}
+        >
+          {/* Colunas em escala */}
+          {columns.map((col, i) => {
+            const x = i * (COL_W + COL_GAP) * scale;
+            const w = Math.max(COL_W * scale - 1, 3);
+            const count = getLeadCount(col.id);
+            const fillH = count > 0 ? Math.max((count / maxLeads) * (colH - 5), 5) : 0;
+
+            return (
+              <div
+                key={col.id}
+                style={{
+                  position: "absolute",
+                  left: x,
+                  top: 0,
+                  width: w,
+                  height: colH,
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  backgroundColor: col.color + "16",
+                }}
+              >
+                {/* Acento colorido no topo */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 3,
+                    background: col.color,
+                    borderRadius: "4px 4px 0 0",
+                    opacity: 0.85,
+                  }}
+                />
+                {/* Barra de preenchimento proporcional ao número de leads */}
+                {count > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: fillH,
+                      background: `linear-gradient(to top, ${col.color}55, ${col.color}18)`,
+                      borderRadius: "0 0 4px 4px",
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          {/* ── Viewport indicator ── */}
+          <div
+            onPointerDown={handleViewportPointerDown}
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: vpX,
+              width: vpW,
+              borderRadius: 5,
+              backgroundColor: isDragging
+                ? "rgba(59,130,246,0.14)"
+                : isHovering
+                ? "rgba(59,130,246,0.10)"
+                : "rgba(59,130,246,0.06)",
+              border: `2px solid rgba(59,130,246,${isDragging ? 0.9 : isHovering ? 0.7 : 0.45})`,
+              boxShadow: isDragging
+                ? "0 0 10px rgba(59,130,246,0.25), inset 0 0 6px rgba(59,130,246,0.05)"
+                : isHovering
+                ? "0 0 6px rgba(59,130,246,0.15)"
+                : "none",
+              cursor: isDragging ? "grabbing" : "grab",
+              transition: isDragging ? "none" : "background-color 0.15s, border-color 0.15s, box-shadow 0.15s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* Grip: 2×3 pontos */}
+            {vpW > 22 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gridTemplateRows: "repeat(3, 1fr)",
+                  gap: 3,
+                  opacity: isDragging ? 0.9 : isHovering ? 0.65 : 0.3,
+                  transition: "opacity 0.15s",
+                }}
+              >
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <div
+                    key={j}
+                    style={{
+                      width: 2.5,
+                      height: 2.5,
+                      borderRadius: "50%",
+                      backgroundColor: "rgb(59,130,246)",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Barra de progresso no rodapé ── */}
+        <div style={{ height: 3, background: "rgba(var(--muted), 0.3)", position: "relative" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: `${progressLeft}%`,
+              width: `${progressWidth}%`,
+              background: "rgba(59,130,246,0.55)",
+              borderRadius: 99,
+              transition: isDragging ? "none" : "left 0.1s",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ========================
+// COLUNAS PADRÃO
+// ========================
+
+const DEFAULT_COLUMNS: FunnelColumn[] = [
+  { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
+  { id: "Abordagem", title: "Abordagem", color: "#3b82f6" },
+  { id: "Avaliando", title: "Avaliando", color: "#eab308" },
+  { id: "Fechamento", title: "Fechamento", color: "#8b5cf6" },
+  { id: "Concluído", title: "Concluído", color: "#22c55e" },
 ];
+
+const RETORNAR_COLUMN: FunnelColumn = {
+  id: "Retornar",
+  title: "Retornar Futuramente",
+  color: "#f59e0b",
+};
+
+const COLUMN_COLOR_OPTIONS = [
+  { label: "Cinza", value: "#6b7280" },
+  { label: "Azul", value: "#3b82f6" },
+  { label: "Amarelo", value: "#eab308" },
+  { label: "Roxo", value: "#8b5cf6" },
+  { label: "Verde", value: "#22c55e" },
+  { label: "Vermelho", value: "#ef4444" },
+  { label: "Laranja", value: "#f97316" },
+  { label: "Rosa", value: "#ec4899" },
+  { label: "Ciano", value: "#06b6d4" },
+];
+
+const STORAGE_KEY = "winleads_funnel_columns";
+
+function loadColumnsFromStorage(): FunnelColumn[] {
+  if (typeof window === "undefined") return DEFAULT_COLUMNS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return DEFAULT_COLUMNS;
+}
+
+function saveColumnsToStorage(cols: FunnelColumn[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+}
+
+async function saveFunnelColumns(
+  user: { uid: string; email: string | null; displayName: string | null },
+  columns: FunnelColumn[]
+) {
+  const params = new URLSearchParams({
+    firebaseUid: user.uid,
+    email: user.email || "",
+    name: user.displayName || "",
+  });
+  await fetch(`/api/funnel-columns?${params.toString()}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ columns }),
+  });
+}
+
+// ========================
+// PAGE
+// ========================
 
 const FunilPage = () => {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
@@ -77,17 +385,68 @@ const FunilPage = () => {
   const [filtroFinalizados, setFiltroFinalizados] =
     React.useState<string>("este-mes");
 
+  // Scroll container para o minimapa
+  const [scrollContainer, setScrollContainer] = React.useState<HTMLDivElement | null>(null);
+
+  // Colunas configuráveis (Feature 7)
+  const [columns, setColumns] = React.useState<FunnelColumn[]>(DEFAULT_COLUMNS);
+  const [showConfigModal, setShowConfigModal] = React.useState(false);
+  const [editingColumns, setEditingColumns] = React.useState<FunnelColumn[]>([]);
+  const editingColumnsRef = React.useRef<FunnelColumn[]>([]);
+  const [newColTitle, setNewColTitle] = React.useState("");
+  const [newColColor, setNewColColor] = React.useState("#3b82f6");
+
+  React.useEffect(() => {
+    editingColumnsRef.current = editingColumns;
+  }, [editingColumns]);
+
+  // Carrega do localStorage imediatamente (sem flash) e depois sincroniza com o banco
+  React.useEffect(() => {
+    setColumns(loadColumnsFromStorage());
+  }, []);
+
+  React.useEffect(() => {
+    if (!firebaseUser) return;
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+    fetch(`/api/funnel-columns?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        // Se o banco ainda não tem colunas para este usuário, sobe as do localStorage
+        if (data.columns.length === 0) {
+          const local = loadColumnsFromStorage();
+          saveFunnelColumns(firebaseUser, local);
+          return;
+        }
+        setColumns(data.columns);
+        saveColumnsToStorage(data.columns);
+      })
+      .catch(() => {/* mantém localStorage */});
+  }, [firebaseUser]);
+
   // Modal de dispensa
   const [showDispensaModal, setShowDispensaModal] = React.useState(false);
   const [dispensaLeadId, setDispensaLeadId] = React.useState<string>("");
   const [motivoDispensa, setMotivoDispensa] = React.useState<string>("");
 
-  // Modal de conclusão (comissão + data)
+  // Modal de conclusão
   const [showConclusaoModal, setShowConclusaoModal] = React.useState(false);
   const [conclusaoLeadId, setConclusaoLeadId] = React.useState<string>("");
-  const [valorComissaoInput, setValorComissaoInput] =
-    React.useState<string>("");
+  const [valorComissaoInput, setValorComissaoInput] = React.useState<string>("");
   const [dataVendaInput, setDataVendaInput] = React.useState<string>("");
+
+  // Modal de "Retornar Futuramente" (Feature 5)
+  const [showRetornarModal, setShowRetornarModal] = React.useState(false);
+  const [retornarLeadId, setRetornarLeadId] = React.useState<string>("");
+  const [retornarData, setRetornarData] = React.useState<string>("");
+
+  // ========================
+  // FILTRO DE DATAS
+  // ========================
 
   const getFilterDate = () => {
     const now = new Date();
@@ -116,6 +475,10 @@ const FunilPage = () => {
     }
   };
 
+  // ========================
+  // FETCH
+  // ========================
+
   const fetchLeads = async () => {
     if (!firebaseUser) return;
 
@@ -127,12 +490,9 @@ const FunilPage = () => {
       });
 
       const res = await fetch(`/api/leads?${params.toString()}`);
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao carregar leads: " + (body.error || res.statusText)
-        );
+        toast.error("Erro ao carregar leads: " + (body.error || res.statusText));
         setLoading(false);
         return;
       }
@@ -152,24 +512,15 @@ const FunilPage = () => {
     const filterDate = getFilterDate();
 
     if (!filterDate) {
-      // Todo o histórico
       setLeads(leadsData);
       return;
     }
 
     const filtered = leadsData.filter((lead) => {
-      const statusAtivos = ["Abordagem", "Avaliando", "Fechamento"];
-      const statusFinalizados = ["Dispensado", "Concluído"];
-
-      if (statusAtivos.includes(lead.status)) {
-        return true; // Sempre mostrar leads ativos
-      }
-
-      if (statusFinalizados.includes(lead.status)) {
-        return new Date(lead.updated_at) >= new Date(filterDate);
-      }
-
-      return true;
+      // Sempre mostra leads ativos (qualquer status que não seja finalizado)
+      if (!["Dispensado", "Concluído"].includes(lead.status)) return true;
+      // Finalizados só dentro do período selecionado
+      return new Date(lead.updated_at) >= new Date(filterDate);
     });
 
     setLeads(filtered);
@@ -186,22 +537,23 @@ const FunilPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroFinalizados]);
 
+  // ========================
+  // DRAG & DROP
+  // ========================
+
   const handleDragEnd = async (result: DropResult) => {
     const { destination, draggableId } = result;
-
     if (!destination) return;
 
     const newStatus = destination.droppableId;
     const leadId = draggableId;
 
-    // Se arrastar para "Dispensado", abrir modal de dispensa
     if (newStatus === "Dispensado") {
       setDispensaLeadId(leadId);
       setShowDispensaModal(true);
       return;
     }
 
-    // Se arrastar para "Concluído", abrir modal de comissão + data
     if (newStatus === "Concluído") {
       setConclusaoLeadId(leadId);
       setValorComissaoInput("");
@@ -210,16 +562,20 @@ const FunilPage = () => {
       return;
     }
 
+    if (newStatus === "Retornar") {
+      setRetornarLeadId(leadId);
+      setRetornarData("");
+      setShowRetornarModal(true);
+      return;
+    }
+
     if (!firebaseUser) return;
 
-    // Atualização otimista para outros status
     const previousLeads = [...leads];
     const previousAllLeads = [...allLeads];
 
-    setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === leadId ? { ...lead, status: newStatus } : lead
-      )
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l))
     );
 
     try {
@@ -239,15 +595,11 @@ const FunilPage = () => {
         setLeads(previousLeads);
         setAllLeads(previousAllLeads);
         const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao atualizar status: " + (body.error || res.statusText)
-        );
+        toast.error("Erro ao atualizar status: " + (body.error || res.statusText));
       } else {
         toast.success("Status atualizado com sucesso!");
         setAllLeads((prev) =>
-          prev.map((lead) =>
-            lead.id === leadId ? { ...lead, status: newStatus } : lead
-          )
+          prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l))
         );
       }
     } catch (error) {
@@ -257,6 +609,10 @@ const FunilPage = () => {
       toast.error("Erro ao atualizar status do lead");
     }
   };
+
+  // ========================
+  // DISPENSA
+  // ========================
 
   const handleConfirmDispensa = async () => {
     if (!motivoDispensa.trim()) {
@@ -268,33 +624,24 @@ const FunilPage = () => {
     const previousLeads = [...leads];
     const previousAllLeads = [...allLeads];
 
-    // Atualização otimista
-    setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === dispensaLeadId
-          ? {
-              ...lead,
-              status: "Dispensado",
-              motivo_dispensa: motivoDispensa,
-            }
-          : lead
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === dispensaLeadId
+          ? { ...l, status: "Dispensado", motivo_dispensa: motivoDispensa }
+          : l
       )
     );
     setAllLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === dispensaLeadId
-          ? {
-              ...lead,
-              status: "Dispensado",
-              motivo_dispensa: motivoDispensa,
-            }
-          : lead
+      prev.map((l) =>
+        l.id === dispensaLeadId
+          ? { ...l, status: "Dispensado", motivo_dispensa: motivoDispensa }
+          : l
       )
     );
 
     setShowDispensaModal(false);
-    const tempMotivoDispensa = motivoDispensa;
-    const tempLeadId = dispensaLeadId;
+    const tempMotivo = motivoDispensa;
+    const tempId = dispensaLeadId;
     setDispensaLeadId("");
     setMotivoDispensa("");
 
@@ -308,19 +655,14 @@ const FunilPage = () => {
       const res = await fetch(`/api/leads/dispensa?${params.toString()}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: tempLeadId,
-          motivo_dispensa: tempMotivoDispensa,
-        }),
+        body: JSON.stringify({ id: tempId, motivo_dispensa: tempMotivo }),
       });
 
       if (!res.ok) {
         setLeads(previousLeads);
         setAllLeads(previousAllLeads);
         const body = await res.json().catch(() => ({}));
-        toast.error(
-          "Erro ao dispensar lead: " + (body.error || res.statusText)
-        );
+        toast.error("Erro ao dispensar lead: " + (body.error || res.statusText));
       } else {
         toast.success("Lead dispensado com sucesso!");
       }
@@ -332,6 +674,10 @@ const FunilPage = () => {
     }
   };
 
+  // ========================
+  // CONCLUSÃO
+  // ========================
+
   const handleConfirmConclusao = async () => {
     if (!valorComissaoInput.trim() || !dataVendaInput.trim()) {
       toast.error("Informe o valor da comissão e a data da venda.");
@@ -342,12 +688,10 @@ const FunilPage = () => {
     const previousLeads = [...leads];
     const previousAllLeads = [...allLeads];
 
-    const tempLeadId = conclusaoLeadId;
+    const tempId = conclusaoLeadId;
     const valorNumber = parseFloat(
       valorComissaoInput.replace(".", "").replace(",", ".")
     );
-
-    // converte "YYYY-MM-DD" para ISO (DateTime)
     const dataVendaISO = dataVendaInput
       ? new Date(dataVendaInput + "T00:00:00").toISOString()
       : null;
@@ -357,30 +701,28 @@ const FunilPage = () => {
     setValorComissaoInput("");
     setDataVendaInput("");
 
-    // Atualização otimista
-    setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === tempLeadId
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === tempId
           ? {
-              ...lead,
+              ...l,
               status: "Concluído",
               valor_comissao: isNaN(valorNumber) ? null : valorNumber,
               data_venda: dataVendaISO,
             }
-          : lead
+          : l
       )
     );
-
     setAllLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === tempLeadId
+      prev.map((l) =>
+        l.id === tempId
           ? {
-              ...lead,
+              ...l,
               status: "Concluído",
               valor_comissao: isNaN(valorNumber) ? null : valorNumber,
               data_venda: dataVendaISO,
             }
-          : lead
+          : l
       )
     );
 
@@ -391,37 +733,27 @@ const FunilPage = () => {
         name: firebaseUser.displayName || "",
       });
 
-      // 1) Atualiza STATUS no /status
-      const resStatus = await fetch(`/api/leads/status?${params.toString()}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: tempLeadId,
-          status: "Concluído",
+      const [resStatus, resUpdate] = await Promise.all([
+        fetch(`/api/leads/status?${params.toString()}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: tempId, status: "Concluído" }),
         }),
-      });
-
-      // 2) Atualiza COMISSÃO + DATA no /update
-      const resUpdate = await fetch(`/api/leads/update?${params.toString()}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: tempLeadId,
-          valor_comissao: isNaN(valorNumber) ? null : valorNumber,
-          data_venda: dataVendaISO,
+        fetch(`/api/leads/update?${params.toString()}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: tempId,
+            valor_comissao: isNaN(valorNumber) ? null : valorNumber,
+            data_venda: dataVendaISO,
+          }),
         }),
-      });
+      ]);
 
       if (!resStatus.ok || !resUpdate.ok) {
         setLeads(previousLeads);
         setAllLeads(previousAllLeads);
-
-        const badRes = !resStatus.ok ? resStatus : resUpdate;
-        const body = await badRes.json().catch(() => ({}));
-
-        toast.error(
-          "Erro ao concluir lead: " + (body.error || badRes.statusText)
-        );
+        toast.error("Erro ao concluir lead");
       } else {
         toast.success("Lead concluído com sucesso!");
       }
@@ -433,33 +765,177 @@ const FunilPage = () => {
     }
   };
 
+  // ========================
+  // RETORNAR FUTURAMENTE (Feature 5)
+  // ========================
+
+  const handleConfirmRetornar = async () => {
+    if (!retornarData) {
+      toast.error("Selecione a data de retorno");
+      return;
+    }
+    if (!firebaseUser) return;
+
+    const retornarISO = new Date(retornarData + "T00:00:00").toISOString();
+    const tempId = retornarLeadId;
+
+    setShowRetornarModal(false);
+    setRetornarLeadId("");
+    setRetornarData("");
+
+    const previousLeads = [...leads];
+    const previousAllLeads = [...allLeads];
+
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === tempId ? { ...l, status: "Retornar", retornar_em: retornarISO } : l
+      )
+    );
+    setAllLeads((prev) =>
+      prev.map((l) =>
+        l.id === tempId ? { ...l, status: "Retornar", retornar_em: retornarISO } : l
+      )
+    );
+
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+      });
+
+      const [resStatus, resUpdate] = await Promise.all([
+        fetch(`/api/leads/status?${params.toString()}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: tempId, status: "Retornar" }),
+        }),
+        fetch(`/api/leads/update?${params.toString()}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: tempId, retornar_em: retornarISO }),
+        }),
+      ]);
+
+      if (!resStatus.ok || !resUpdate.ok) {
+        setLeads(previousLeads);
+        setAllLeads(previousAllLeads);
+        toast.error("Erro ao agendar retorno");
+      } else {
+        toast.success("Lead agendado para retornar!");
+      }
+    } catch (error) {
+      console.error(error);
+      setLeads(previousLeads);
+      setAllLeads(previousAllLeads);
+      toast.error("Erro ao agendar retorno");
+    }
+  };
+
+  // ========================
+  // HELPERS DE COLUNAS
+  // ========================
+
   const getLeadsByStatus = (status: string) =>
-    leads.filter((lead) => lead.status === status);
+    leads.filter((l) => l.status === status);
 
   const getHiddenCount = (status: string) => {
     if (!["Dispensado", "Concluído"].includes(status)) return 0;
-
-    const allStatusLeads = allLeads.filter((lead) => lead.status === status);
-    const visibleStatusLeads = leads.filter((lead) => lead.status === status);
-
-    return allStatusLeads.length - visibleStatusLeads.length;
+    return (
+      allLeads.filter((l) => l.status === status).length -
+      leads.filter((l) => l.status === status).length
+    );
   };
 
-  if (loadingAuth) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
-      </Layout>
-    );
-  }
+  // ========================
+  // CONFIG DE COLUNAS (Feature 7)
+  // ========================
+
+  const openConfigModal = () => {
+    setEditingColumns(columns.map((c) => ({ ...c })));
+    setNewColTitle("");
+    setNewColColor("#3b82f6");
+    setShowConfigModal(true);
+  };
+
+  const handleSaveColumns = async () => {
+    const saved = editingColumnsRef.current.filter((c) => c.title.trim() !== "");
+    setColumns(saved);
+    saveColumnsToStorage(saved);
+    setShowConfigModal(false);
+    toast.success("Funil atualizado!");
+
+    if (firebaseUser) {
+      saveFunnelColumns(firebaseUser, saved).catch(() => {
+        // silencioso — colunas já salvas no localStorage
+      });
+    }
+  };
+
+  const handleAddColumn = () => {
+    if (!newColTitle.trim()) return;
+    const id = newColTitle.trim().replace(/\s+/g, "_") + "_" + Date.now();
+    const newCol = { id, title: newColTitle.trim(), color: newColColor };
+    setEditingColumns((prev) => [...prev, newCol]);
+    setNewColTitle("");
+    setNewColColor("#3b82f6");
+  };
+
+  const handleDeleteColumn = (index: number) => {
+    const col = editingColumnsRef.current[index];
+    if (!col) return;
+    const hasLeads = allLeads.some((l) => l.status === col.id);
+    if (hasLeads) {
+      toast.error(`Mova os leads da coluna "${col.title}" antes de excluí-la`);
+      return;
+    }
+    setEditingColumns((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveColumn = (index: number, direction: -1 | 1) => {
+    setEditingColumns((prev) => {
+      const newArr = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= newArr.length) return prev;
+      [newArr[index], newArr[target]] = [newArr[target], newArr[index]];
+      return newArr;
+    });
+  };
+
+  // ========================
+  // RENDER
+  // ========================
+
+  const KanbanSkeleton = () => (
+    <Layout fullWidth>
+      <div className="space-y-2 mb-6">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex flex-col min-w-60 w-60 shrink-0 gap-2">
+            <Skeleton className="h-14 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl opacity-60" />
+          </div>
+        ))}
+      </div>
+    </Layout>
+  );
+
+  if (loadingAuth || loading) return <KanbanSkeleton />;
 
   if (!firebaseUser) {
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center py-12 gap-2">
-          <p className="text-lg font-semibold">
+      <Layout fullWidth>
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <AlertCircle className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight">
             Você precisa estar logado para ver o funil.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -470,36 +946,29 @@ const FunilPage = () => {
     );
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
-      </Layout>
-    );
-  }
+  const allColumns = [...columns, RETORNAR_COLUMN];
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Funil de Vendas</h1>
-            <p className="text-muted-foreground mt-1">
-              Arraste os cards para atualizar o status dos leads
-            </p>
+    <Layout fullWidth>
+      {/* Header */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Workflow className="h-3.5 w-3.5" />
+            <span className="uppercase tracking-wider">Kanban</span>
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Funil de Vendas</h1>
+          <p className="text-sm text-muted-foreground">
+            Arraste os cards para atualizar o status dos leads
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium whitespace-nowrap">
-              Exibir Finalizados:
-            </Label>
-            <Select
-              value={filtroFinalizados}
-              onValueChange={setFiltroFinalizados}
-            >
-              <SelectTrigger className="w-[180px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-2 rounded-xl border bg-background/60 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Finalizados:</span>
+            <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
+              <SelectTrigger className="border-0 h-auto p-0 text-xs font-medium bg-transparent shadow-none w-auto gap-1 focus:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover">
@@ -511,147 +980,411 @@ const FunilPage = () => {
               </SelectContent>
             </Select>
           </div>
+
+          <Button variant="outline" size="sm" onClick={openConfigModal} className="gap-2 py-6 rounded-xl">
+            <Settings className="h-4 w-4" />
+            Configurar Funil
+          </Button>
         </div>
+      </header>
 
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {statusColumns.map((column) => {
-              const hiddenCount = getHiddenCount(column.id);
-              return (
-                <div key={column.id} className="space-y-3">
-                  <div
-                    className={`${column.color} p-3 rounded-lg`}
-                    title={column.tooltip}
-                  >
-                    <h3 className="font-semibold text-sm">{column.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {getLeadsByStatus(column.id).length} leads
-                      {hiddenCount > 0 && (
-                        <span className="ml-1 text-xs text-muted-foreground/70">
-                          (+{hiddenCount} ocultos)
-                        </span>
-                      )}
-                    </p>
+      {/* Kanban Board */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div
+          ref={setScrollContainer}
+          className="flex gap-3 overflow-x-auto pb-4"
+          style={{ minHeight: "calc(100vh - 200px)" }}
+        >
+          {allColumns.map((column) => {
+            const hiddenCount = getHiddenCount(column.id);
+            const colLeads = getLeadsByStatus(column.id);
+            const isRetornar = column.id === "Retornar";
+
+            return (
+              <div
+                key={column.id}
+                className="flex flex-col min-w-60 w-60 shrink-0"
+              >
+                {/* Cabeçalho da coluna */}
+                <div
+                  className="p-3 rounded-xl mb-2 border"
+                  style={{
+                    backgroundColor: column.color + "15",
+                    borderColor: column.color + "30",
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: column.color }}
+                      />
+                      <h3 className="font-semibold text-sm truncate">{column.title}</h3>
+                    </div>
+                    <span
+                      className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums shrink-0"
+                      style={{
+                        color: column.color,
+                        backgroundColor: column.color + "18",
+                        boxShadow: `0 0 0 1px ${column.color}40`,
+                      }}
+                    >
+                      {colLeads.length}
+                    </span>
                   </div>
-
-                  <Droppable droppableId={column.id}>
-                    {(provided) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="space-y-2 min-h-[200px]"
-                      >
-                        {getLeadsByStatus(column.id).map((lead, index) => (
-                          <Draggable
-                            key={lead.id}
-                            draggableId={lead.id}
-                            index={index}
-                            isDragDisabled={lead.status === "Concluído"}
-                          >
-                            {(providedDraggable) => (
-                              <div
-                                ref={providedDraggable.innerRef}
-                                {...providedDraggable.draggableProps}
-                                {...providedDraggable.dragHandleProps}
-                              >
-                                <LeadCard
-                                  lead={lead}
-                                  firebaseUser={{
-                                    uid: firebaseUser.uid,
-                                    email: firebaseUser.email,
-                                    displayName: firebaseUser.displayName,
-                                  }}
-                                  onRefreshLeads={fetchLeads}
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+                  {(hiddenCount > 0 || isRetornar) && (
+                    <p className="text-[10px] text-muted-foreground mt-1 pl-4">
+                      {hiddenCount > 0 && `+${hiddenCount} ocultos`}
+                      {isRetornar && "agenda"}
+                    </p>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        </DragDropContext>
 
-        {/* Modal de Motivo da Dispensa */}
-        <Dialog open={showDispensaModal} onOpenChange={setShowDispensaModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Motivo da Dispensa</DialogTitle>
-              <DialogDescription>
-                Por favor, informe o motivo pelo qual este lead está sendo
-                dispensado.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <Textarea
-                placeholder="Ex: Cliente não tem interesse no momento, valores fora do orçamento..."
-                value={motivoDispensa}
-                onChange={(e) => setMotivoDispensa(e.target.value)}
-                className="min-h-[100px]"
+                {/* Cards */}
+                <Droppable droppableId={column.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className="flex-1 space-y-2 rounded-xl p-1 transition-colors"
+                      style={{
+                        minHeight: 120,
+                        backgroundColor: snapshot.isDraggingOver
+                          ? column.color + "15"
+                          : "transparent",
+                      }}
+                    >
+                      {colLeads.map((lead, index) => (
+                        <Draggable
+                          key={lead.id}
+                          draggableId={lead.id}
+                          index={index}
+                          isDragDisabled={lead.status === "Concluído"}
+                        >
+                          {(providedDraggable) => (
+                            <div
+                              ref={providedDraggable.innerRef}
+                              {...providedDraggable.draggableProps}
+                              {...providedDraggable.dragHandleProps}
+                            >
+                              <LeadCard
+                                lead={lead}
+                                firebaseUser={{
+                                  uid: firebaseUser.uid,
+                                  email: firebaseUser.email,
+                                  displayName: firebaseUser.displayName,
+                                }}
+                                onRefreshLeads={fetchLeads}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            );
+          })}
+        </div>
+      </DragDropContext>
+
+      {/* ── MODAL DISPENSA ── */}
+      <Dialog open={showDispensaModal} onOpenChange={setShowDispensaModal}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-red-500/10 ring-1 ring-red-500/20 flex items-center justify-center shrink-0">
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Motivo da Dispensa</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Informe o motivo pelo qual este lead está sendo dispensado.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder="Ex: Cliente não tem interesse no momento, valores fora do orçamento..."
+              value={motivoDispensa}
+              onChange={(e) => setMotivoDispensa(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowDispensaModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDispensa} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+              <XCircle className="h-4 w-4" />
+              Confirmar Dispensa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL CONCLUSÃO ── */}
+      <Dialog open={showConclusaoModal} onOpenChange={setShowConclusaoModal}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Concluir Venda</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Informe o valor da comissão recebida e a data da venda.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Valor da Comissão (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Ex: 350.00"
+                value={valorComissaoInput}
+                onChange={(e) => setValorComissaoInput(e.target.value)}
               />
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowDispensaModal(false)}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleConfirmDispensa}>
-                Confirmar Dispensa
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>Data da Venda</Label>
+              <Input
+                type="date"
+                value={dataVendaInput}
+                onChange={(e) => setDataVendaInput(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowConclusaoModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmConclusao} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Confirmar Conclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Modal de Conclusão (Comissão + Data de Venda) */}
-        <Dialog open={showConclusaoModal} onOpenChange={setShowConclusaoModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Concluir Venda</DialogTitle>
-              <DialogDescription>
-                Informe o valor da comissão recebida e a data da venda.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Valor da Comissão (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex: 350.00"
-                  value={valorComissaoInput}
-                  onChange={(e) => setValorComissaoInput(e.target.value)}
-                />
+      {/* ── MODAL RETORNAR FUTURAMENTE (Feature 5) ── */}
+      <Dialog open={showRetornarModal} onOpenChange={setShowRetornarModal}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
-              <div className="space-y-2">
-                <Label>Data da Venda</Label>
-                <Input
-                  type="date"
-                  value={dataVendaInput}
-                  onChange={(e) => setDataVendaInput(e.target.value)}
-                />
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Retornar Futuramente</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Escolha a data em que este lead deve reaparecer em destaque no funil.
+                </DialogDescription>
               </div>
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowConclusaoModal(false)}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleConfirmConclusao}>
-                Confirmar Conclusão
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Data de Retorno</Label>
+              <Input
+                type="date"
+                min={new Date().toISOString().split("T")[0]}
+                value={retornarData}
+                onChange={(e) => setRetornarData(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O lead ficará na coluna &quot;Retornar Futuramente&quot; e aparecerá destacado em
+              âmbar na data selecionada.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowRetornarModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmRetornar} className="gap-2">
+              <Clock className="h-4 w-4" />
+              Confirmar Agendamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL CONFIGURAR FUNIL (Feature 7) ── */}
+      <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold tracking-tight">Configurar Funil</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  Renomeie, reordene, mude as cores ou adicione/remova etapas do seu funil.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {editingColumns.map((col, i) => (
+              <div key={col.id} className="flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+
+                {/* Cor */}
+                <Select
+                  value={col.color}
+                  onValueChange={(v) => {
+                    setEditingColumns((prev) => {
+                      const updated = [...prev];
+                      updated[i] = { ...updated[i], color: v };
+                      return updated;
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-10 h-8 p-0 border-0">
+                    <div
+                      className="w-5 h-5 rounded-full mx-auto"
+                      style={{ backgroundColor: col.color }}
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {COLUMN_COLOR_OPTIONS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: c.value }}
+                          />
+                          {c.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Nome */}
+                <Input
+                  value={col.title}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditingColumns((prev) => {
+                      const updated = [...prev];
+                      updated[i] = { ...updated[i], title: value };
+                      return updated;
+                    });
+                  }}
+                  className="flex-1 h-8"
+                />
+
+                {/* Mover */}
+                <div className="flex gap-0.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleMoveColumn(i, -1)}
+                    disabled={i === 0}
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleMoveColumn(i, 1)}
+                    disabled={i === editingColumns.length - 1}
+                  >
+                    ↓
+                  </Button>
+                </div>
+
+                {/* Excluir */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => handleDeleteColumn(i)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+
+            {/* Adicionar nova coluna */}
+            <div className="pt-3 border-t space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nova etapa</p>
+              <div className="flex gap-2">
+                <Select value={newColColor} onValueChange={setNewColColor}>
+                  <SelectTrigger className="w-10 h-8 p-0 border-0">
+                    <div
+                      className="w-5 h-5 rounded-full mx-auto"
+                      style={{ backgroundColor: newColColor }}
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {COLUMN_COLOR_OPTIONS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: c.value }}
+                          />
+                          {c.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Nome da etapa..."
+                  value={newColTitle}
+                  onChange={(e) => setNewColTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddColumn(); } }}
+                  className="flex-1 h-8"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8 shrink-0"
+                  onClick={handleAddColumn}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveColumns} className="gap-2">
+              <Settings className="h-4 w-4" />
+              Salvar Configurações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Minimapa de navegação */}
+      <KanbanMinimap
+        scrollContainer={scrollContainer}
+        columns={allColumns}
+        getLeadCount={(id) => leads.filter((l) => l.status === id).length}
+      />
     </Layout>
   );
 };

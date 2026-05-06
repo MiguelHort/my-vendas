@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,11 +25,11 @@ import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -46,12 +46,13 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 
-/* =======================
+/* ========================
    TYPES
-======================= */
+======================== */
 
 type LayoutProps = {
   children: ReactNode;
+  fullWidth?: boolean;
 };
 
 type MeUser = {
@@ -68,9 +69,9 @@ type MeUser = {
   updatedAt: string;
 };
 
-/* =======================
+/* ========================
    NAV CONFIG
-======================= */
+======================== */
 
 const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -80,11 +81,7 @@ const crmItems = [
 
 const equipeItems = [
   { href: "/dashboard/equipe", label: "Equipe", icon: Users },
-  {
-    href: "/dashboard/equipe/metricas",
-    label: "Métricas",
-    icon: ChartNoAxesCombined,
-  },
+  { href: "/dashboard/equipe/metricas", label: "Métricas", icon: ChartNoAxesCombined },
   { href: "/dashboard/codigo", label: "Código", icon: CodeXml },
 ];
 
@@ -92,9 +89,9 @@ const cotacaoItems = [
   { href: "/dashboard/cotacao", label: "Cotação", icon: CircleDollarSign },
 ];
 
-/* =======================
+/* ========================
    HELPERS
-======================= */
+======================== */
 
 function isRouteActive(pathname: string | null, href: string) {
   if (!pathname) return false;
@@ -117,24 +114,29 @@ function DesktopDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant={active ? "secondary" : "ghost"}
+          variant="ghost"
           size="sm"
-          className="gap-1 rounded-full"
+          className={`gap-1 rounded-full relative transition-colors ${
+            active
+              ? "text-foreground font-semibold after:absolute after:bottom-0.5 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
         >
           {title}
-          <ChevronDown className="h-4 w-4 opacity-70" />
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          {title}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+      <DropdownMenuContent align="start" className="w-56 rounded-xl">
         {items.map((item) => {
           const Icon = item.icon;
+          const itemActive = isRouteActive(pathname, item.href);
           return (
-            <DropdownMenuItem key={item.href} asChild>
+            <DropdownMenuItem
+              key={item.href}
+              asChild
+              className={itemActive ? "bg-accent font-medium" : ""}
+            >
               <Link href={item.href} className="flex items-center gap-2">
                 <Icon className="h-4 w-4" />
                 {item.label}
@@ -147,11 +149,11 @@ function DesktopDropdown({
   );
 }
 
-/* =======================
+/* ========================
    LAYOUT
-======================= */
+======================== */
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, fullWidth = false }: LayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -191,10 +193,39 @@ export function Layout({ children }: LayoutProps) {
     router.push("/login");
   }
 
+  /* ---- skeleton state ---- */
   if (user === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Carregando...
+      <div className="min-h-screen flex flex-col">
+        <header className="sticky top-0 z-40 border-b border-muted-foreground/10 bg-background/80 backdrop-blur-md shadow-sm">
+          <div className="max-w-7xl mx-auto h-16 px-4 lg:px-6 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-11 w-11 rounded-xl" />
+              <div className="hidden sm:block space-y-1.5">
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+            </div>
+            <div className="hidden lg:flex items-center gap-2">
+              <Skeleton className="h-8 w-12 rounded-full" />
+              <Skeleton className="h-8 w-14 rounded-full" />
+              <Skeleton className="h-8 w-16 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-9 w-9 rounded-full" />
+          </div>
+        </header>
+        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-8">
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-72 rounded-xl" />
+            <Skeleton className="h-4 w-96 rounded-lg" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+          </div>
+        </main>
       </div>
     );
   }
@@ -213,74 +244,47 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ================= HEADER ================= */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+      {/* ===== HEADER ===== */}
+      <header className="sticky top-0 z-40 border-b border-muted-foreground/10 bg-background/80 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto h-16 px-4 lg:px-6 flex items-center justify-between gap-3">
+
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Image
-              src="/imgs/logo02.png"
-              alt="WinLeads"
-              width={44}
-              height={44}
-            />
+          <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
+            <Image src="/imgs/logo02.png" alt="WinLeads" width={44} height={44} />
             <div className="hidden sm:block leading-tight">
-              <p className="text-green-700 font-bold">WinLeads</p>
-              <p className="text-[11px] text-muted-foreground">
-                CRM Planos de Saúde
-              </p>
+              <p className="text-green-700 dark:text-green-400 font-bold tracking-tight">WinLeads</p>
+              <p className="text-[11px] text-muted-foreground">CRM Planos de Saúde</p>
             </div>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-2 flex-1 justify-center">
+          <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
             <NavigationMenu>
-              <NavigationMenuList className="gap-2">
+              <NavigationMenuList className="gap-1">
                 <NavigationMenuItem>
-                  <DesktopDropdown
-                    title="CRM"
-                    items={crmItems}
-                    pathname={pathname}
-                  />
+                  <DesktopDropdown title="CRM" items={crmItems} pathname={pathname} />
                 </NavigationMenuItem>
-
                 <NavigationMenuItem>
-                  <DesktopDropdown
-                    title="Equipe"
-                    items={equipeItems}
-                    pathname={pathname}
-                  />
+                  <DesktopDropdown title="Equipe" items={equipeItems} pathname={pathname} />
                 </NavigationMenuItem>
-
                 <NavigationMenuItem>
-                  <DesktopDropdown
-                    title="Cotação"
-                    items={cotacaoItems}
-                    pathname={pathname}
-                  />
+                  <DesktopDropdown title="Cotação" items={cotacaoItems} pathname={pathname} />
                 </NavigationMenuItem>
-
                 {isAdmin && (
                   <NavigationMenuItem>
                     <DesktopDropdown
                       title="Admin"
                       pathname={pathname}
-                      items={[
-                        {
-                          href: "/dashboard/admin",
-                          label: "Painel Admin",
-                          icon: UserStar,
-                        },
-                      ]}
+                      items={[{ href: "/dashboard/admin", label: "Painel Admin", icon: UserStar }]}
                     />
                   </NavigationMenuItem>
                 )}
               </NavigationMenuList>
             </NavigationMenu>
 
-            <Separator orientation="vertical" className="h-8 mx-2" />
+            <Separator orientation="vertical" className="h-6 mx-3" />
 
-            <Button asChild className="rounded-full gap-2">
+            <Button asChild size="sm" className="rounded-full gap-2 shadow-sm">
               <Link href="/dashboard/novo-lead">
                 <Plus className="h-4 w-4" />
                 Novo Lead
@@ -288,71 +292,130 @@ export function Layout({ children }: LayoutProps) {
             </Button>
           </div>
 
-          {/* Right */}
+          {/* Right side */}
           <div className="flex items-center gap-2">
             {/* Mobile menu */}
             <div className="lg:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="rounded-xl">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-[70%] p-4">
-                  <SheetHeader>
-                    <SheetTitle>WinLeads</SheetTitle>
+                <SheetContent side="left" className="w-[75%] max-w-xs p-0">
+                  <SheetHeader className="px-4 pt-5 pb-4 border-b border-muted-foreground/10">
+                    <SheetTitle className="text-base font-bold tracking-tight text-green-700 dark:text-green-400">
+                      WinLeads
+                    </SheetTitle>
+                    {/* User info in sheet */}
+                    <div className="flex items-center gap-3 pt-2">
+                      <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                        <AvatarImage src={photo} alt={displayName} className="rounded-full" />
+                        <AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{displayName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{email}</p>
+                      </div>
+                    </div>
                   </SheetHeader>
 
-                  <div className="mt-6 space-y-4">
-                    <Button asChild className="w-full gap-2">
+                  <div className="px-3 py-4 space-y-1 overflow-y-auto">
+                    <Button asChild className="w-full gap-2 rounded-xl mb-3">
                       <Link href="/dashboard/novo-lead">
                         <Plus className="h-4 w-4" />
                         Novo Lead
                       </Link>
                     </Button>
 
-                    <Separator />
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
+                      CRM
+                    </p>
+                    {crmItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isRouteActive(pathname, item.href);
+                      return (
+                        <Button
+                          key={item.href}
+                          asChild
+                          variant={active ? "secondary" : "ghost"}
+                          className="w-full justify-start gap-2 rounded-xl"
+                        >
+                          <Link href={item.href}>
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </Button>
+                      );
+                    })}
 
-                    {[...crmItems, ...equipeItems, ...cotacaoItems].map(
-                      (item) => {
-                        const Icon = item.icon;
-                        return (
-                          <Button
-                            key={item.href}
-                            asChild
-                            variant="ghost"
-                            className="w-full justify-start gap-2"
-                          >
-                            <Link href={item.href}>
-                              <Icon className="h-4 w-4" />
-                              {item.label}
-                            </Link>
-                          </Button>
-                        );
-                      }
-                    )}
+                    <div className="h-px bg-muted-foreground/10 my-2" />
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
+                      Equipe
+                    </p>
+                    {equipeItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isRouteActive(pathname, item.href);
+                      return (
+                        <Button
+                          key={item.href}
+                          asChild
+                          variant={active ? "secondary" : "ghost"}
+                          className="w-full justify-start gap-2 rounded-xl"
+                        >
+                          <Link href={item.href}>
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </Button>
+                      );
+                    })}
+
+                    <div className="h-px bg-muted-foreground/10 my-2" />
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
+                      Cotação
+                    </p>
+                    {cotacaoItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isRouteActive(pathname, item.href);
+                      return (
+                        <Button
+                          key={item.href}
+                          asChild
+                          variant={active ? "secondary" : "ghost"}
+                          className="w-full justify-start gap-2 rounded-xl"
+                        >
+                          <Link href={item.href}>
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </Button>
+                      );
+                    })}
 
                     {isAdmin && (
                       <>
-                        <Separator />
+                        <div className="h-px bg-muted-foreground/10 my-2" />
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
+                          Admin
+                        </p>
                         <Button
                           asChild
-                          variant="ghost"
-                          className="w-full justify-start gap-2"
+                          variant={isRouteActive(pathname, "/dashboard/admin") ? "secondary" : "ghost"}
+                          className="w-full justify-start gap-2 rounded-xl"
                         >
                           <Link href="/dashboard/admin">
                             <UserStar className="h-4 w-4" />
-                            Admin
+                            Painel Admin
                           </Link>
                         </Button>
                       </>
                     )}
 
-                    <Separator />
-
+                    <div className="h-px bg-muted-foreground/10 my-2" />
                     <Button
-                      variant="outline"
-                      className="w-full justify-start gap-2"
+                      variant="ghost"
+                      className="w-full justify-start gap-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={handleLogout}
                     >
                       <LogOut className="h-4 w-4" />
@@ -363,42 +426,47 @@ export function Layout({ children }: LayoutProps) {
               </Sheet>
             </div>
 
-            {/* Profile */}
+            {/* Profile dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="rounded-full h-10 px-2 gap-2"
-                >
-                  <div className="hidden sm:flex flex-col text-right leading-tight mr-2">
-                    <span className="text-sm font-medium truncate max-w-160px">
-                      {displayName}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate max-w-[180px]">
-                      {email}
-                    </span>
+                <Button variant="ghost" className="rounded-2xl h-10 px-4 gap-2 hover:bg-accent">
+                  <div className="hidden sm:flex flex-col text-right leading-tight">
+                    <span className="text-sm font-medium truncate max-w-[160px]">{displayName}</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[160px]">{email}</span>
+                  </div>
+                  <Avatar className="w-9 h-9 ring-2 ring-primary/20">
+                    <AvatarImage src={photo} alt={displayName} className="rounded-full" />
+                    <AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-64 rounded-xl p-2">
+                {/* User card */}
+                <div className="flex items-center gap-3 px-2 py-2 mb-1">
+                  <Avatar className="h-10 w-10 ring-2 ring-primary/20 shrink-0">
+                    <AvatarImage src={photo} alt={displayName} className="rounded-full" />
+                    <AvatarFallback className="text-sm font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{email}</p>
                     {isAdmin && (
-                      <span className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wide">
+                      <span className="inline-flex items-center rounded-full ring-1 ring-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-300 mt-0.5">
                         Admin
                       </span>
                     )}
                   </div>
-                  <Avatar className="w-9 h-9 border-2 border-primary p-0.5">
-                    <AvatarImage
-                      src={photo}
-                      alt={displayName}
-                      className="rounded-full"
-                    />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+                </div>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="gap-2">
+
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="gap-2 rounded-lg text-muted-foreground hover:text-destructive focus:text-destructive cursor-pointer mt-1"
+                >
                   <LogOut className="h-4 w-4" />
-                  Sair
+                  Sair da conta
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -406,16 +474,22 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* ================= CONTENT ================= */}
+      {/* ===== CONTENT ===== */}
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">{children}</div>
+        {fullWidth ? (
+          <div className="px-4 lg:px-6 py-4">{children}</div>
+        ) : (
+          children
+        )}
       </main>
 
-      {/* ================= FOOTER ================= */}
-      <footer className="border-t">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 text-xs text-muted-foreground flex justify-between">
-          <span>© {new Date().getFullYear()} WinLeads</span>
-          <span>CRM para planos de saúde</span>
+      {/* ===== FOOTER ===== */}
+      <footer className="border-t border-muted-foreground/10 bg-muted/20">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground font-medium">
+            © {new Date().getFullYear()} WinLeads
+          </span>
+          <span className="text-xs text-muted-foreground">CRM para planos de saúde</span>
         </div>
       </footer>
     </div>
