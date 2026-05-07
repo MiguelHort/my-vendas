@@ -44,6 +44,7 @@ import {
   Clock,
   Workflow,
   AlertCircle,
+  ArrowUpDown,
 } from "lucide-react";
 
 import LeadCard, { Lead } from "@/components/LeadCard";
@@ -384,6 +385,7 @@ const FunilPage = () => {
   const [loading, setLoading] = React.useState(true);
   const [filtroFinalizados, setFiltroFinalizados] =
     React.useState<string>("este-mes");
+  const [cardSort, setCardSort] = React.useState<"sem-atividade" | "data-criacao">("sem-atividade");
 
   // Scroll container para o minimapa
   const [scrollContainer, setScrollContainer] = React.useState<HTMLDivElement | null>(null);
@@ -836,8 +838,16 @@ const FunilPage = () => {
   // HELPERS DE COLUNAS
   // ========================
 
-  const getLeadsByStatus = (status: string) =>
-    leads.filter((l) => l.status === status);
+  const getLeadsByStatus = (status: string) => {
+    const filtered = leads.filter((l) => l.status === status);
+    return [...filtered].sort((a, b) => {
+      if (cardSort === "data-criacao") {
+        return new Date(a.data_entrada).getTime() - new Date(b.data_entrada).getTime();
+      }
+      // sem-atividade: mais tempo sem update sobe
+      return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+    });
+  };
 
   const getHiddenCount = (status: string) => {
     if (!["Dispensado", "Concluído"].includes(status)) return 0;
@@ -964,6 +974,20 @@ const FunilPage = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-2 rounded-xl border bg-background/60 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Ordenar:</span>
+            <Select value={cardSort} onValueChange={(v) => setCardSort(v as "sem-atividade" | "data-criacao")}>
+              <SelectTrigger className="border-0 h-auto p-0 text-xs font-medium bg-transparent shadow-none w-auto gap-1 focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="sem-atividade">Sem atividade</SelectItem>
+                <SelectItem value="data-criacao">Data de criação</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="inline-flex items-center gap-2 rounded-xl border bg-background/60 backdrop-blur-sm px-3 py-1.5 shadow-sm">
             <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground whitespace-nowrap">Finalizados:</span>
