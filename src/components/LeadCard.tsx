@@ -281,6 +281,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
       valor_mensalidade: lead.valor_mensalidade,
       coparticipacao: lead.coparticipacao,
       valor_comissao: lead.valor_comissao,
+      data_entrada: lead.data_entrada,
       data_venda: lead.data_venda,
       last_chamado_at: lead.last_chamado_at,
       status: lead.status,
@@ -677,6 +678,39 @@ const LeadCard: React.FC<LeadCardProps> = ({
               >
                 Marcar chamado
               </Button>
+            </div>
+
+            {/* Início de Contato */}
+            <div className="flex items-center justify-between rounded-2xl border bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                  <CalendarDays className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Início de Contato</p>
+                  <p className="text-xs text-muted-foreground">
+                    Data de entrada do lead
+                  </p>
+                </div>
+              </div>
+              <Input
+                type="date"
+                className="w-40 rounded-xl text-sm"
+                value={
+                  editFormData.data_entrada
+                    ? editFormData.data_entrada.substring(0, 10)
+                    : ""
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditFormData({
+                    ...editFormData,
+                    data_entrada: value
+                      ? new Date(value + "T12:00:00").toISOString()
+                      : editFormData.data_entrada ?? "",
+                  });
+                }}
+              />
             </div>
 
             {/* ── PERSONALIZAÇÃO DO CARD ── */}

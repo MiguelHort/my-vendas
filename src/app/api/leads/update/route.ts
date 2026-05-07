@@ -45,6 +45,7 @@ export async function PUT(req: NextRequest) {
     valor_mensalidade,
     coparticipacao,
     valor_comissao,
+    data_entrada,
     data_venda,
     last_chamado_at,
     card_color,
@@ -90,6 +91,7 @@ export async function PUT(req: NextRequest) {
     if (valor_comissao !== undefined)
       data.valorComissao =
         valor_comissao !== null ? Number(valor_comissao) : null;
+    if (data_entrada !== undefined) data.dataEntrada = new Date(data_entrada);
     if (data_venda !== undefined) data.dataVenda = data_venda;
     if (last_chamado_at !== undefined)
       data.lastChamadoAt = last_chamado_at;
