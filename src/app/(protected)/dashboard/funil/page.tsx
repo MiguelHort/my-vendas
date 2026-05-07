@@ -982,8 +982,8 @@ const FunilPage = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover">
-                <SelectItem value="sem-atividade">Sem atividade</SelectItem>
-                <SelectItem value="data-criacao">Data de criação</SelectItem>
+                <SelectItem value="sem-atividade">Menor Tempo - Alteração</SelectItem>
+                <SelectItem value="data-criacao">Menor Tempo - Criação</SelectItem>
               </SelectContent>
             </Select>
           </div>

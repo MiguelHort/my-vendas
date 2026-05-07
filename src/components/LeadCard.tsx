@@ -100,20 +100,13 @@ type LeadCardProps = {
 // ========================
 
 export const OPERADORAS = [
-  { nome: "Bradesco Saúde", cor: "#cc0000", textoCor: "#ffffff" },
   { nome: "Amil", cor: "#0066cc", textoCor: "#ffffff" },
-  { nome: "Unimed", cor: "#009b3a", textoCor: "#ffffff" },
-  { nome: "SulAmérica", cor: "#e30613", textoCor: "#ffffff" },
+  { nome: "Bradesco Saúde", cor: "#cc0000", textoCor: "#ffffff" },
   { nome: "Hapvida", cor: "#f7941d", textoCor: "#ffffff" },
-  { nome: "NotreDame Intermédica", cor: "#003087", textoCor: "#ffffff" },
-  { nome: "Porto Seguro Saúde", cor: "#0055a5", textoCor: "#ffffff" },
-  { nome: "Prevent Senior", cor: "#e85d04", textoCor: "#ffffff" },
-  { nome: "Assim Saúde", cor: "#00b451", textoCor: "#ffffff" },
-  { nome: "Golden Cross", cor: "#c8a300", textoCor: "#ffffff" },
-  { nome: "Omint", cor: "#e4002b", textoCor: "#ffffff" },
-  { nome: "Geap", cor: "#1a3f73", textoCor: "#ffffff" },
-  { nome: "Fusex", cor: "#0a3d6b", textoCor: "#ffffff" },
-  { nome: "Medial", cor: "#6d28d9", textoCor: "#ffffff" },
+  { nome: "LevMed", cor: "#00a86b", textoCor: "#ffffff" },
+  { nome: "Nossa Saúde", cor: "#0091cf", textoCor: "#ffffff" },
+  { nome: "SulAmérica", cor: "#e30613", textoCor: "#ffffff" },
+  { nome: "Unimed", cor: "#009b3a", textoCor: "#ffffff" },
 ];
 
 // Cores para personalização do card
