@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,13 +103,16 @@ type LeadCardProps = {
 // ========================
 
 export const OPERADORAS = [
-  { nome: "Amil", cor: "#0066cc", textoCor: "#ffffff" },
-  { nome: "Bradesco Saúde", cor: "#cc0000", textoCor: "#ffffff" },
-  { nome: "Hapvida", cor: "#f7941d", textoCor: "#ffffff" },
-  { nome: "LevMed", cor: "#00a86b", textoCor: "#ffffff" },
-  { nome: "Nossa Saúde", cor: "#0091cf", textoCor: "#ffffff" },
-  { nome: "SulAmérica", cor: "#e30613", textoCor: "#ffffff" },
-  { nome: "Unimed", cor: "#009b3a", textoCor: "#ffffff" },
+  { nome: "Amil", cor: "#0066cc", textoCor: "#ffffff", logo: "/imgs/planos/amil.png" },
+  { nome: "Bradesco Saúde", cor: "#cc0000", textoCor: "#ffffff", logo: "/imgs/planos/bradesco.png" },
+  { nome: "Hapvida", cor: "#f7941d", textoCor: "#ffffff", logo: "/imgs/planos/hapvida.png" },
+  { nome: "LevMed", cor: "#00a86b", textoCor: "#ffffff", logo: "/imgs/planos/levmed.png" },
+  { nome: "Nossa Saúde", cor: "#0091cf", textoCor: "#ffffff", logo: "/imgs/planos/nossasaude.png" },
+  { nome: "SulAmérica", cor: "#e30613", textoCor: "#ffffff", logo: "/imgs/planos/sulamerica.png" },
+  { nome: "Unimed", cor: "#009b3a", textoCor: "#ffffff", logo: "/imgs/planos/unimed.png" },
+  { nome: "Select", cor: "#8b5cf6", textoCor: "#ffffff", logo: "/imgs/planos/select.png" },
+  { nome: "Notre Dame", cor: "#f7941d", textoCor: "#ffffff", logo: "/imgs/planos/notredame.png" },
+  { nome: "Clinipam", cor: "#0066cc", textoCor: "#ffffff", logo: "/imgs/planos/clinipam.png" },
 ];
 
 // Cores para personalização do card
@@ -510,17 +514,26 @@ const LeadCard: React.FC<LeadCardProps> = ({
             </Badge>
             {lead.operadora_ofertada && (
               <Badge
-                className="h-5 rounded-md border-0 px-1.5 py-0 text-[10px] font-medium"
-                style={
-                  operadoraInfo
-                    ? {
-                      backgroundColor: `${operadoraInfo.cor}20`,
-                      color: operadoraInfo.cor,
-                    }
-                    : { backgroundColor: "#6b728020", color: "#6b7280" }
-                }
+                className="h-5 rounded-md border-0 px-1.5 py-0 flex items-center"
+                style={{
+                  backgroundColor: operadoraInfo
+                    ? `${operadoraInfo.cor}20`
+                    : "#6b728020",
+                }}
               >
-                {lead.operadora_ofertada}
+                {operadoraInfo?.logo ? (
+                  <Image
+                    src={operadoraInfo.logo}
+                    alt={lead.operadora_ofertada}
+                    width={48}
+                    height={14}
+                    className="h-3.5 w-auto object-contain"
+                  />
+                ) : (
+                  <span className="text-[10px] font-medium" style={{ color: "#6b7280" }}>
+                    {lead.operadora_ofertada}
+                  </span>
+                )}
               </Badge>
             )}
           </div>
@@ -546,7 +559,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
 
           {/* Informações rápidas — linhas limpas em vez de pills */}
           <div className="flex flex-col gap-2 text-[11px] border p-2 rounded-md">
-            <div className="flex gap-3">
+            <div className="flex gap-1.5">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Users className="h-3 w-3 shrink-0" />
                 <span className="truncate text-foreground/80">
@@ -1128,7 +1141,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
                         });
                         setOperadoraCustom(false);
                       }}
-                      className="px-2 py-1.5 rounded text-xs font-medium border-2 transition-all text-left"
+                      className="flex items-center justify-center p-2 rounded border-2 transition-all"
                       style={{
                         backgroundColor: op.cor + "22",
                         borderColor:
@@ -1136,10 +1149,16 @@ const LeadCard: React.FC<LeadCardProps> = ({
                             !operadoraCustom
                             ? op.cor
                             : "transparent",
-                        color: op.cor,
                       }}
+                      title={op.nome}
                     >
-                      {op.nome}
+                      <Image
+                        src={op.logo}
+                        alt={op.nome}
+                        width={80}
+                        height={20}
+                        className="h-5 w-auto object-contain"
+                      />
                     </button>
                   ))}
                   <button
@@ -1255,36 +1274,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
 
               {/* Comissão e data - SEMPRE editável (Feature 1) */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Valor Comissão (R$)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editFormData.valor_comissao ?? ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        valor_comissao: e.target.value
-                          ? parseFloat(e.target.value)
-                          : null,
-                      })
-                    }
-                  />
-                  {(() => {
-                    const opNome = editFormData.operadora_ofertada;
-                    const comInfo = opNome ? commissionMap[opNome] : undefined;
-                    if (!comInfo || !editFormData.valor_mensalidade) return null;
-                    const tipo = editFormData.tipo_comissao ?? "interno";
-                    const pct = tipo === "externo" ? comInfo.externa : comInfo.interna;
-                    const calc = editFormData.valor_mensalidade * (pct / 100);
-                    return (
-                      <p className="text-xs text-muted-foreground">
-                        {opNome} · {editFormData.valor_mensalidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} × {pct}% ={" "}
-                        <span className="font-medium">{calc.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                      </p>
-                    );
-                  })()}
-                </div>
                 <div className="space-y-2">
                   <Label>Data da Venda</Label>
                   <Input

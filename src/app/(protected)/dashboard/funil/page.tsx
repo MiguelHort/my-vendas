@@ -47,7 +47,8 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 
-import LeadCard, { Lead } from "@/components/LeadCard";
+import Image from "next/image";
+import LeadCard, { Lead, OPERADORAS } from "@/components/LeadCard";
 
 // ========================
 // TIPOS
@@ -1237,9 +1238,21 @@ const FunilPage = () => {
                 const pct = comInfo
                   ? (lead.tipo_comissao === "externo" ? comInfo.externa : comInfo.interna)
                   : 100;
+                const opInfo = OPERADORAS.find((o) => o.nome === lead.operadora_ofertada);
                 return (
-                  <p className="text-xs text-muted-foreground">
-                    {lead.operadora_ofertada} · {lead.tipo_comissao} · mensalidade{" "}
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {opInfo?.logo ? (
+                      <Image
+                        src={opInfo.logo}
+                        alt={lead.operadora_ofertada}
+                        width={48}
+                        height={14}
+                        className="h-3.5 w-auto object-contain"
+                      />
+                    ) : (
+                      lead.operadora_ofertada
+                    )}
+                    · {lead.tipo_comissao} · mensalidade{" "}
                     {lead.valor_mensalidade.toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",

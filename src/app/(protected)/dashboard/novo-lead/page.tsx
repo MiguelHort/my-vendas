@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import Image from "next/image";
 import { OPERADORAS } from "@/components/LeadCard";
 
 // ========================
@@ -758,17 +759,23 @@ const NovoLeadPage = () => {
                           setOperadoraOfertada(op.nome);
                           setOperadoraCustom(false);
                         }}
-                        className="px-2 py-2 rounded text-xs font-medium border-2 transition-all text-left"
+                        className="flex items-center justify-center p-2 rounded border-2 transition-all"
                         style={{
                           backgroundColor: op.cor + "22",
                           borderColor:
                             operadoraOfertada === op.nome && !operadoraCustom
                               ? op.cor
                               : "transparent",
-                          color: op.cor,
                         }}
+                        title={op.nome}
                       >
-                        {op.nome}
+                        <Image
+                          src={op.logo}
+                          alt={op.nome}
+                          width={80}
+                          height={20}
+                          className="h-5 w-auto object-contain"
+                        />
                       </button>
                     ))}
                     <button

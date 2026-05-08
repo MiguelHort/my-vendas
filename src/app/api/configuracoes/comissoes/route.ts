@@ -12,6 +12,9 @@ const OPERADORAS_DEFAULT = [
   "Nossa Saúde",
   "SulAmérica",
   "Unimed",
+  "Select",
+  "Notre Dame",
+  "Clinipam"
 ];
 
 function getAuthParams(req: NextRequest) {

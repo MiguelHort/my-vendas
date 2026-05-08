@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Settings, Percent, AlertCircle } from "lucide-react";
+import Image from "next/image";
 import { OPERADORAS } from "@/components/LeadCard";
 
 type CommissionRow = {
@@ -151,7 +152,7 @@ export default function ConfiguracoesPage() {
     const found = rows.find((r) => r.operadora === op.nome);
     return {
       operadora: op.nome,
-      cor: op.cor,
+      logo: op.logo,
       comissao_interna: found?.comissao_interna ?? 100,
       comissao_externa: found?.comissao_externa ?? 100,
     };
@@ -197,11 +198,13 @@ export default function ConfiguracoesPage() {
               >
                 {/* Operadora */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10"
-                    style={{ backgroundColor: row.cor }}
+                  <Image
+                    src={row.logo}
+                    alt={row.operadora}
+                    width={80}
+                    height={24}
+                    className="h-6 w-auto object-contain shrink-0"
                   />
-                  <span className="text-sm font-medium truncate">{row.operadora}</span>
                 </div>
 
                 {/* Interna */}

@@ -35,6 +35,10 @@ export default function SectionHome() {
     { name: "Bradesco Saúde", path: "bradescosaude" },
     { name: "SulAmérica", path: "sulamerica" },
     { name: "Amil", path: "amil" },
+    { name: "Unimed", path: "unimed" },
+    { name: "LevMed", path: "levmed" },
+    { name: "Select", path: "select" },
+    { name: "Nossa Saúde", path: "nossasaude" },
   ];
 
   React.useEffect(() => {
