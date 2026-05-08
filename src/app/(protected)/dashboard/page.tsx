@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
@@ -84,6 +84,40 @@ type LoteProducaoResumo = {
 };
 
 type SerieVendasMode = "semana" | "mes" | "ano";
+
+function useCountUp(target: number, duration = 800) {
+  const [displayed, setDisplayed] = useState(target);
+  const rafRef = useRef<number | null>(null);
+  const prevRef = useRef(target);
+
+  useEffect(() => {
+    const from = prevRef.current;
+    const to = target;
+    if (from === to) return;
+
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayed(from + (to - from) * eased);
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        prevRef.current = to;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, duration]);
+
+  return displayed;
+}
 
 const DashboardPage = () => {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
@@ -368,7 +402,8 @@ const DashboardPage = () => {
 
   const qtdLeadsParaRetorno = leadsParaRetorno.length;
 
-  const comissoesFmt = (totalComissoes ?? 0).toLocaleString("pt-BR", {
+  const animatedComissoes = useCountUp(totalComissoes ?? 0);
+  const comissoesFmt = animatedComissoes.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
