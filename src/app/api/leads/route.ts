@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
       notas: l.notas ?? null,
       etiquetas: l.etiquetas ?? null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
+      tipo_comissao: l.tipoComissao,
     }));
 
     return NextResponse.json(payload);
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
     coparticipacao,
     status,
     lote_producao_id,
+    tipo_comissao,
     valor_comissao,
     data_venda,
     last_chamado_at,
@@ -163,6 +165,7 @@ export async function POST(req: NextRequest) {
         cardColor: card_color || null,
         notas: notas || null,
         etiquetas: etiquetas || null,
+        tipoComissao: tipo_comissao || "interno",
         retornarEm: retornar_em ? new Date(retornar_em) : null,
       },
     });

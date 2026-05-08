@@ -43,6 +43,7 @@ model Lead {
   notas              String?   @db.Text
   etiquetas          String?   @db.Text
   retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
+  tipoComissao       String    @default("interno") @map("tipo_comissao") @db.Text
 
   user         User?         @relation(fields: [userId], references: [id])
   loteProducao LoteProducao? @relation(fields: [loteProducaoId], references: [id])

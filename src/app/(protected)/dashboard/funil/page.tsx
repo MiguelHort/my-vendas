@@ -387,8 +387,7 @@ const FunilPage = () => {
     React.useState<string>("este-mes");
   const [cardSort, setCardSort] = React.useState<"sem-atividade" | "data-criacao">("sem-atividade");
 
-  // comissao_interna por operadora (%)
-  const [commissionMap, setCommissionMap] = React.useState<Record<string, number>>({});
+  const [commissionMap, setCommissionMap] = React.useState<Record<string, { interna: number; externa: number }>>({});
 
   // Scroll container para o minimapa
   const [scrollContainer, setScrollContainer] = React.useState<HTMLDivElement | null>(null);
@@ -551,9 +550,9 @@ const FunilPage = () => {
     });
     fetch(`/api/configuracoes/comissoes?${params}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: { operadora: string; comissao_interna: number }[]) => {
-        const map: Record<string, number> = {};
-        data.forEach((r) => { map[r.operadora] = r.comissao_interna; });
+      .then((data: { operadora: string; comissao_interna: number; comissao_externa: number }[]) => {
+        const map: Record<string, { interna: number; externa: number }> = {};
+        data.forEach((r) => { map[r.operadora] = { interna: r.comissao_interna, externa: r.comissao_externa }; });
         setCommissionMap(map);
       })
       .catch(() => {/* silently ignore */});
@@ -578,8 +577,9 @@ const FunilPage = () => {
 
     if (newStatus === "Concluído") {
       const lead = leads.find((l) => l.id === leadId);
-      const pct = lead?.operadora_ofertada
-        ? (commissionMap[lead.operadora_ofertada] ?? 100)
+      const comInfo = lead?.operadora_ofertada ? commissionMap[lead.operadora_ofertada] : undefined;
+      const pct = comInfo
+        ? (lead?.tipo_comissao === "externo" ? comInfo.externa : comInfo.interna)
         : 100;
       const calc = lead?.valor_mensalidade
         ? lead.valor_mensalidade * (pct / 100)
@@ -880,7 +880,10 @@ const FunilPage = () => {
     const colLeads = leads.filter((l) => l.status === status);
     return colLeads.reduce((sum, l) => {
       if (!l.valor_mensalidade || !l.operadora_ofertada) return sum;
-      const pct = commissionMap[l.operadora_ofertada] ?? 100;
+      const comInfo = commissionMap[l.operadora_ofertada];
+      const pct = comInfo
+        ? (l.tipo_comissao === "externo" ? comInfo.externa : comInfo.interna)
+        : 100;
       return sum + l.valor_mensalidade * (pct / 100);
     }, 0);
   };
@@ -1149,6 +1152,7 @@ const FunilPage = () => {
                                   displayName: firebaseUser.displayName,
                                 }}
                                 onRefreshLeads={fetchLeads}
+                                commissionMap={commissionMap}
                               />
                             </div>
                           )}

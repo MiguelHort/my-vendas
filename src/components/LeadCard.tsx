@@ -83,6 +83,7 @@ export type Lead = {
   notas: string | null;
   etiquetas: string | null; // JSON string: Etiqueta[]
   retornar_em: string | null;
+  tipo_comissao: string;
 };
 
 type LeadCardProps = {
@@ -93,6 +94,7 @@ type LeadCardProps = {
     displayName: string | null;
   };
   onRefreshLeads: () => void;
+  commissionMap?: Record<string, { interna: number; externa: number }>;
 };
 
 // ========================
@@ -223,6 +225,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   lead,
   firebaseUser,
   onRefreshLeads,
+  commissionMap = {},
 }) => {
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
@@ -277,11 +280,23 @@ const LeadCard: React.FC<LeadCardProps> = ({
       data_entrada: lead.data_entrada,
       data_venda: lead.data_venda,
       last_chamado_at: lead.last_chamado_at,
+      tipo_comissao: lead.tipo_comissao || "interno",
       status: lead.status,
       card_color: lead.card_color,
       notas: lead.notas,
       etiquetas: lead.etiquetas,
     });
+    // pré-calcula valor_comissao se ainda não definido
+    const opNome = lead.operadora_ofertada;
+    const tipo = lead.tipo_comissao || "interno";
+    const comInfo = opNome ? commissionMap[opNome] : undefined;
+    const pct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : 100;
+    if (!lead.valor_comissao && lead.valor_mensalidade) {
+      setEditFormData((prev) => ({
+        ...prev,
+        valor_comissao: parseFloat((lead.valor_mensalidade! * (pct / 100)).toFixed(2)),
+      }));
+    }
     setShowEditModal(true);
   };
 
@@ -319,6 +334,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
           id: lead.id,
           ...editFormData,
           valor_comissao: editFormData.valor_comissao ?? null,
+          tipo_comissao: editFormData.tipo_comissao ?? "interno",
           data_venda: editFormData.data_venda ?? null,
           last_chamado_at: editFormData.last_chamado_at ?? null,
           card_color: editFormData.card_color ?? null,
@@ -1043,6 +1059,40 @@ const LeadCard: React.FC<LeadCardProps> = ({
                 </p>
               </div>
 
+              {/* Tipo de comissão */}
+              <div className="space-y-2">
+                <Label>Tipo de Comissão</Label>
+                <div className="flex gap-2">
+                  {(["interno", "externo"] as const).map((tipo) => {
+                    const active = (editFormData.tipo_comissao ?? "interno") === tipo;
+                    const opNome = editFormData.operadora_ofertada;
+                    const comInfo = opNome ? commissionMap[opNome] : undefined;
+                    const pct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : null;
+                    return (
+                      <button
+                        key={tipo}
+                        type="button"
+                        onClick={() => {
+                          const newPct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : 100;
+                          const newValor = editFormData.valor_mensalidade
+                            ? parseFloat((editFormData.valor_mensalidade * (newPct / 100)).toFixed(2))
+                            : editFormData.valor_comissao ?? null;
+                          setEditFormData({ ...editFormData, tipo_comissao: tipo, valor_comissao: newValor });
+                        }}
+                        className="flex-1 rounded-xl border-2 py-2 text-xs font-semibold transition-all capitalize"
+                        style={{
+                          borderColor: active ? "#8b5cf6" : "transparent",
+                          backgroundColor: active ? "#8b5cf620" : "#f3f4f6",
+                          color: active ? "#7c3aed" : "#6b7280",
+                        }}
+                      >
+                        {tipo}{pct !== null ? ` (${pct}%)` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Modalidade</Label>
                 <Select
@@ -1220,6 +1270,20 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       })
                     }
                   />
+                  {(() => {
+                    const opNome = editFormData.operadora_ofertada;
+                    const comInfo = opNome ? commissionMap[opNome] : undefined;
+                    if (!comInfo || !editFormData.valor_mensalidade) return null;
+                    const tipo = editFormData.tipo_comissao ?? "interno";
+                    const pct = tipo === "externo" ? comInfo.externa : comInfo.interna;
+                    const calc = editFormData.valor_mensalidade * (pct / 100);
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        {opNome} · {editFormData.valor_mensalidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} × {pct}% ={" "}
+                        <span className="font-medium">{calc.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <Label>Data da Venda</Label>
