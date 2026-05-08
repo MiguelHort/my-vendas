@@ -18,6 +18,7 @@ import {
   Menu,
   ChevronDown,
   LogOut,
+  Settings,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -460,6 +461,16 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
                 </div>
 
                 <DropdownMenuSeparator />
+
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/dashboard/configuracoes"
+                    className="gap-2 rounded-lg cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Configurações
+                  </Link>
+                </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={handleLogout}

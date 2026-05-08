@@ -95,9 +95,10 @@ model User {
   isSupervisor   Boolean @default(false) @map("is_supervisor")
   supervisorCode String? @unique @map("supervisor_code") @db.VarChar(16)
 
-  leads         Lead[]
-  lotesProducao LoteProducao[]
-  funnelColumns FunnelColumn[]
+  leads           Lead[]
+  lotesProducao   LoteProducao[]
+  funnelColumns   FunnelColumn[]
+  planCommissions PlanCommission[]
 
   // ✅ Relações para equipe (um supervisor tem vários corretores)
   supervisingLinks SupervisorBrokerLink[] @relation("SupervisorLinks")
@@ -106,6 +107,23 @@ model User {
   @@map("users")
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
+  @@schema("public")
+}
+
+model PlanCommission {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  operadora        String   @db.Text
+  comissaoInterna  Decimal  @default(100) @map("comissao_interna")
+  comissaoExterna  Decimal  @default(100) @map("comissao_externa")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, operadora])
+  @@index([userId])
+  @@map("plan_commissions")
   @@schema("public")
 }
 

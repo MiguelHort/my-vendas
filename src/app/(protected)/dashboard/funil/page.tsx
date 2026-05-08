@@ -387,6 +387,9 @@ const FunilPage = () => {
     React.useState<string>("este-mes");
   const [cardSort, setCardSort] = React.useState<"sem-atividade" | "data-criacao">("sem-atividade");
 
+  // comissao_interna por operadora (%)
+  const [commissionMap, setCommissionMap] = React.useState<Record<string, number>>({});
+
   // Scroll container para o minimapa
   const [scrollContainer, setScrollContainer] = React.useState<HTMLDivElement | null>(null);
 
@@ -539,6 +542,23 @@ const FunilPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtroFinalizados]);
 
+  React.useEffect(() => {
+    if (!firebaseUser) return;
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+    fetch(`/api/configuracoes/comissoes?${params}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: { operadora: string; comissao_interna: number }[]) => {
+        const map: Record<string, number> = {};
+        data.forEach((r) => { map[r.operadora] = r.comissao_interna; });
+        setCommissionMap(map);
+      })
+      .catch(() => {/* silently ignore */});
+  }, [firebaseUser]);
+
   // ========================
   // DRAG & DROP
   // ========================
@@ -557,9 +577,16 @@ const FunilPage = () => {
     }
 
     if (newStatus === "Concluído") {
+      const lead = leads.find((l) => l.id === leadId);
+      const pct = lead?.operadora_ofertada
+        ? (commissionMap[lead.operadora_ofertada] ?? 100)
+        : 100;
+      const calc = lead?.valor_mensalidade
+        ? lead.valor_mensalidade * (pct / 100)
+        : 0;
       setConclusaoLeadId(leadId);
-      setValorComissaoInput("");
-      setDataVendaInput("");
+      setValorComissaoInput(calc > 0 ? calc.toFixed(2) : "");
+      setDataVendaInput(new Date().toISOString().substring(0, 10));
       setShowConclusaoModal(true);
       return;
     }
@@ -681,8 +708,8 @@ const FunilPage = () => {
   // ========================
 
   const handleConfirmConclusao = async () => {
-    if (!valorComissaoInput.trim() || !dataVendaInput.trim()) {
-      toast.error("Informe o valor da comissão e a data da venda.");
+    if (!dataVendaInput.trim()) {
+      toast.error("Informe a data da venda.");
       return;
     }
     if (!firebaseUser) return;
@@ -847,6 +874,15 @@ const FunilPage = () => {
       // sem-atividade: mais tempo sem update sobe
       return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
     });
+  };
+
+  const getColumnCommission = (status: string) => {
+    const colLeads = leads.filter((l) => l.status === status);
+    return colLeads.reduce((sum, l) => {
+      if (!l.valor_mensalidade || !l.operadora_ofertada) return sum;
+      const pct = commissionMap[l.operadora_ofertada] ?? 100;
+      return sum + l.valor_mensalidade * (pct / 100);
+    }, 0);
   };
 
   const getHiddenCount = (status: string) => {
@@ -1023,6 +1059,7 @@ const FunilPage = () => {
             const hiddenCount = getHiddenCount(column.id);
             const colLeads = getLeadsByStatus(column.id);
             const isRetornar = column.id === "Retornar";
+            const colCommission = getColumnCommission(column.id);
 
             return (
               <div
@@ -1056,6 +1093,19 @@ const FunilPage = () => {
                       {colLeads.length}
                     </span>
                   </div>
+                  {colCommission > 0 && (
+                    <p
+                      className="text-[11px] font-semibold tabular-nums mt-1.5 pl-4"
+                      style={{ color: column.color }}
+                    >
+                      {colCommission.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </p>
+                  )}
                   {(hiddenCount > 0 || isRetornar) && (
                     <p className="text-[10px] text-muted-foreground mt-1 pl-4">
                       {hiddenCount > 0 && `+${hiddenCount} ocultos`}
@@ -1161,7 +1211,7 @@ const FunilPage = () => {
               <div>
                 <DialogTitle className="text-base font-semibold tracking-tight">Concluir Venda</DialogTitle>
                 <DialogDescription className="text-xs mt-0.5">
-                  Informe o valor da comissão recebida e a data da venda.
+                  Confirme o valor da comissão e a data da venda.
                 </DialogDescription>
               </div>
             </div>
@@ -1172,10 +1222,25 @@ const FunilPage = () => {
               <Input
                 type="number"
                 step="0.01"
-                placeholder="Ex: 350.00"
+                placeholder="0.00"
                 value={valorComissaoInput}
                 onChange={(e) => setValorComissaoInput(e.target.value)}
               />
+              {(() => {
+                const lead = leads.find((l) => l.id === conclusaoLeadId);
+                if (!lead?.valor_mensalidade || !lead.operadora_ofertada) return null;
+                const pct = commissionMap[lead.operadora_ofertada] ?? 100;
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    {lead.operadora_ofertada} · mensalidade{" "}
+                    {lead.valor_mensalidade.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}{" "}
+                    × {pct}%
+                  </p>
+                );
+              })()}
             </div>
             <div className="space-y-2">
               <Label>Data da Venda</Label>
