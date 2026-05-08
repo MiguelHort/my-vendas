@@ -640,32 +640,10 @@ const LeadCard: React.FC<LeadCardProps> = ({
         <DialogContent className="max-w-3xl overflow-hidden rounded-3xl border-0 p-0 shadow-2xl sm:max-h-[90vh]">
           <DialogHeader className="border-b bg-gradient-to-br from-primary/10 via-background to-background px-6 py-5 text-left">
             <div className="flex items-center gap-4">
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold text-white shadow-sm ring-1 ring-white/40"
-                style={{
-                  background: `linear-gradient(135deg, ${primaryAccent}, ${primaryAccent}B3)`,
-                }}
-              >
-                {leadInitials}
-              </div>
               <div className="min-w-0 flex-1">
-                <DialogTitle className="truncate text-lg font-semibold tracking-tight">
-                  Editar {lead.nome}
+                <DialogTitle className="truncate text-lgfont-semibold tracking-tight">
+                  Editar: <span className="text-primary">{lead.nome}</span>
                 </DialogTitle>
-                <DialogDescription className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-background/70 px-2 py-0.5 ring-1 ring-border/60">
-                    <MapPin className="h-3 w-3" /> {locationText}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-background/70 px-2 py-0.5 ring-1 ring-border/60">
-                    <Users className="h-3 w-3" /> {lead.qtd_vidas}{" "}
-                    {lead.qtd_vidas === 1 ? "vida" : "vidas"}
-                  </span>
-                  {lead.operadora_ofertada && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-background/70 px-2 py-0.5 ring-1 ring-border/60">
-                      <Sparkles className="h-3 w-3" /> {lead.operadora_ofertada}
-                    </span>
-                  )}
-                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
