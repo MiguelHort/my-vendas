@@ -1233,10 +1233,13 @@ const FunilPage = () => {
               {(() => {
                 const lead = leads.find((l) => l.id === conclusaoLeadId);
                 if (!lead?.valor_mensalidade || !lead.operadora_ofertada) return null;
-                const pct = commissionMap[lead.operadora_ofertada] ?? 100;
+                const comInfo = commissionMap[lead.operadora_ofertada];
+                const pct = comInfo
+                  ? (lead.tipo_comissao === "externo" ? comInfo.externa : comInfo.interna)
+                  : 100;
                 return (
                   <p className="text-xs text-muted-foreground">
-                    {lead.operadora_ofertada} · mensalidade{" "}
+                    {lead.operadora_ofertada} · {lead.tipo_comissao} · mensalidade{" "}
                     {lead.valor_mensalidade.toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
