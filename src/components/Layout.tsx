@@ -476,9 +476,9 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
         onLogout={handleLogout}
       />
 
-      <SidebarInset>
+      <SidebarInset className="overflow-hidden">
         {/* ===== HEADER ===== */}
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 sticky top-0 z-40 bg-background/80 backdrop-blur-md">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 bg-background/80 backdrop-blur-md z-40">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
 
@@ -515,13 +515,15 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
         </header>
 
         {/* ===== CONTENT ===== */}
-        <main className="flex-1">
-          {fullWidth ? (
-            <div className="px-4 lg:px-6 py-4">{children}</div>
-          ) : (
-            children
-          )}
-        </main>
+        <div className="flex-1 overflow-auto">
+          <main>
+            {fullWidth ? (
+              <div className="px-4 lg:px-6 py-4">{children}</div>
+            ) : (
+              children
+            )}
+          </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
