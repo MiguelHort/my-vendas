@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
+import Link from "next/link";
 import { Layout } from "@/components/Layout";
 import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
 
@@ -119,10 +120,22 @@ function useCountUp(target: number, duration = 800) {
   return displayed;
 }
 
+/* ─── nivel helpers (inline — evita import circular) ─── */
+type NivelInfo = { number: number; name: string; color: string; glow: string };
+
+function getNivelInfo(commission: number): NivelInfo {
+  if (commission >= 30_000) return { number: 5, name: "Elite",       color: "#67e8f9", glow: "rgba(103,232,249,0.25)" };
+  if (commission >= 15_000) return { number: 4, name: "Especialista",color: "#facc15", glow: "rgba(250,204,21,0.25)"  };
+  if (commission >= 6_000)  return { number: 3, name: "Consultor",   color: "#e2e8f0", glow: "rgba(226,232,240,0.25)" };
+  if (commission >= 2_000)  return { number: 2, name: "Corretor",    color: "#d97706", glow: "rgba(217,119,6,0.25)"   };
+  return                           { number: 1, name: "Aspirante",   color: "#cbd5e1", glow: "rgba(203,213,225,0.25)" };
+}
+
 const DashboardPage = () => {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [nivelInfo, setNivelInfo] = useState<NivelInfo | null>(null);
   const [volumeProducao, setVolumeProducao] = useState<number>(0);
   const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
@@ -340,6 +353,19 @@ const DashboardPage = () => {
     if (!firebaseUser || loadingAuth) return;
     fetchLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, loadingAuth]);
+
+  useEffect(() => {
+    if (!firebaseUser || loadingAuth) return;
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+    fetch(`/api/nivel?${params}`)
+      .then((r) => r.json())
+      .then((d) => setNivelInfo(getNivelInfo(d.lastMonthCommission ?? 0)))
+      .catch(() => {});
   }, [firebaseUser, loadingAuth]);
 
   useEffect(() => {
@@ -705,6 +731,28 @@ const DashboardPage = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Nível badge */}
+              {nivelInfo && (
+                <Link href="/dashboard/nivel">
+                  <div
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 cursor-pointer"
+                    style={{
+                      background: `color-mix(in srgb, ${nivelInfo.color} 10%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${nivelInfo.color} 35%, transparent)`,
+                      color: nivelInfo.color,
+                      boxShadow: `0 0 10px ${nivelInfo.glow}`,
+                    }}
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full animate-pulse"
+                      style={{ background: nivelInfo.color }}
+                    />
+                    Nível {nivelInfo.number} — {nivelInfo.name}
+                    <ArrowUpRight className="h-3 w-3 opacity-60" />
+                  </div>
+                </Link>
+              )}
+
               {qtdLeadsParaRetorno > 0 ? (
                 <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 backdrop-blur px-3 py-1.5 text-xs font-medium shadow-sm">
                   <span className="relative flex h-2 w-2">

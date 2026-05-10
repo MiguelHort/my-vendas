@@ -20,6 +20,8 @@ import {
   History,
   ChevronsUpDown,
   Bot,
+  Trophy,
+  Medal,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -95,6 +97,8 @@ const crmItems = [
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
   { href: "/dashboard/jacson", label: "Jacson IA", icon: Bot },
+  { href: "/dashboard/conquistas", label: "Conquistas", icon: Trophy },
+  { href: "/dashboard/nivel", label: "Nível", icon: Medal },
 ];
 
 const equipeItems = [
@@ -124,6 +128,8 @@ const segmentLabels: Record<string, string> = {
   configuracoes: "Configurações",
   "novo-lead": "Novo Lead",
   jacson: "Jacson IA",
+  conquistas: "Conquistas",
+  nivel: "Nível",
 };
 
 type BreadcrumbEntry = { label: string; href: string };
