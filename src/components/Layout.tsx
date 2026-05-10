@@ -19,9 +19,11 @@ import {
   Settings,
   History,
   ChevronsUpDown,
+  Bot,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
+import { JacsonWidget } from "@/components/JacsonWidget";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +94,7 @@ const crmItems = [
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
+  { href: "/dashboard/jacson", label: "Jacson IA", icon: Bot },
 ];
 
 const equipeItems = [
@@ -120,6 +123,7 @@ const segmentLabels: Record<string, string> = {
   admin: "Admin",
   configuracoes: "Configurações",
   "novo-lead": "Novo Lead",
+  jacson: "Jacson IA",
 };
 
 type BreadcrumbEntry = { label: string; href: string };
@@ -524,6 +528,8 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
             )}
           </main>
         </div>
+
+        {pathname !== "/dashboard/jacson" && <JacsonWidget />}
       </SidebarInset>
     </SidebarProvider>
   );
