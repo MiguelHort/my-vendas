@@ -719,9 +719,7 @@ const FunilPage = () => {
     const previousAllLeads = [...allLeads];
 
     const tempId = conclusaoLeadId;
-    const valorNumber = parseFloat(
-      valorComissaoInput.replace(".", "").replace(",", ".")
-    );
+    const valorNumber = parseFloat(valorComissaoInput);
     const dataVendaISO = dataVendaInput
       ? new Date(dataVendaInput + "T00:00:00").toISOString()
       : null;

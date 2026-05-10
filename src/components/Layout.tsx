@@ -19,6 +19,7 @@ import {
   ChevronDown,
   LogOut,
   Settings,
+  History,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -77,6 +78,7 @@ type MeUser = {
 const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
 ];
 
