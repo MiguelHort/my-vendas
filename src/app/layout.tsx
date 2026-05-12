@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import CookieBanner from "@/components/CookieBanner";
+import ClarityLoader from "@/components/ClarityLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,28 +33,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <head>
-        {/* Microsoft Clarity */}
-        <Script
-          id="microsoft-clarity"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(c,l,a,r,i,t,y){
-                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "v99obi3143");
-            `,
-          }}
-        />
-      </head>
-
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
         <Toaster position="top-right" richColors />
+        {/* Carrega Clarity apenas após consentimento de analytics */}
+        <ClarityLoader />
+        {/* Banner de cookies — visível até o usuário escolher */}
+        <CookieBanner />
       </body>
     </html>
   );

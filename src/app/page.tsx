@@ -25,6 +25,18 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+import { resetCookieConsent } from "@/components/CookieBanner";
+
+function ManageCookiesLink() {
+  return (
+    <button
+      onClick={resetCookieConsent}
+      className="hover:text-foreground transition-colors"
+    >
+      Gerenciar cookies
+    </button>
+  );
+}
 
 export default function LandingPage() {
   const mockRef = useRef<HTMLDivElement | null>(null);
@@ -557,6 +569,7 @@ export default function LandingPage() {
             <Link href="/privacidade" className="hover:text-foreground">
               Privacidade
             </Link>
+            <ManageCookiesLink />
           </div>
         </div>
       </footer>
