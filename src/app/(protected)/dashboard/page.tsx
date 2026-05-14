@@ -25,6 +25,12 @@ import {
   Activity,
   Filter,
   AlertCircle,
+  Medal,
+  Award,
+  Star,
+  Trophy,
+  Crown,
+  type LucideIcon,
 } from "lucide-react";
 
 // shadcn ui
@@ -121,14 +127,17 @@ function useCountUp(target: number, duration = 800) {
 }
 
 /* ─── nivel helpers (inline — evita import circular) ─── */
-type NivelInfo = { number: number; name: string; color: string; glow: string };
+type NivelInfo = { number: number; name: string; color: string; glow: string; Icon: LucideIcon };
+
+const NIVEL_COLOR = "var(--primary)";
+const NIVEL_GLOW  = "color-mix(in srgb, var(--primary) 35%, transparent)";
 
 function getNivelInfo(commission: number): NivelInfo {
-  if (commission >= 30_000) return { number: 5, name: "Elite",       color: "#67e8f9", glow: "rgba(103,232,249,0.25)" };
-  if (commission >= 15_000) return { number: 4, name: "Especialista",color: "#facc15", glow: "rgba(250,204,21,0.25)"  };
-  if (commission >= 6_000)  return { number: 3, name: "Consultor",   color: "#e2e8f0", glow: "rgba(226,232,240,0.25)" };
-  if (commission >= 2_000)  return { number: 2, name: "Corretor",    color: "#d97706", glow: "rgba(217,119,6,0.25)"   };
-  return                           { number: 1, name: "Aspirante",   color: "#cbd5e1", glow: "rgba(203,213,225,0.25)" };
+  if (commission >= 30_000) return { number: 5, name: "Elite",        color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Crown  };
+  if (commission >= 15_000) return { number: 4, name: "Especialista", color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Trophy };
+  if (commission >= 6_000)  return { number: 3, name: "Consultor",    color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Star   };
+  if (commission >= 2_000)  return { number: 2, name: "Corretor",     color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Award  };
+  return                           { number: 1, name: "Aspirante",    color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Medal  };
 }
 
 const DashboardPage = () => {
@@ -139,6 +148,8 @@ const DashboardPage = () => {
   const [volumeProducao, setVolumeProducao] = useState<number>(0);
   const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
+  const [filtroDataFim, setFiltroDataFim] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadingVolume, setLoadingVolume] = useState(true);
 
@@ -172,6 +183,12 @@ const DashboardPage = () => {
         past.setDate(past.getDate() - 90);
         startDate = past;
         endDate = new Date();
+        break;
+      case "personalizado":
+        if (filtroDataInicio && filtroDataFim) {
+          startDate = new Date(filtroDataInicio + "T00:00:00");
+          endDate   = new Date(filtroDataFim   + "T23:59:59");
+        }
         break;
     }
 
@@ -223,10 +240,19 @@ const DashboardPage = () => {
         return "Mês passado";
       case "ultimos-90":
         return "Últimos 90 dias";
+      case "personalizado":
+        if (filtroDataInicio && filtroDataFim) {
+          const fmt = (s: string) => {
+            const [y, m, d] = s.split("-");
+            return `${d}/${m}/${y}`;
+          };
+          return `${fmt(filtroDataInicio)} → ${fmt(filtroDataFim)}`;
+        }
+        return "Intervalo personalizado";
       default:
         return "Período";
     }
-  }, [filtroPeriodo]);
+  }, [filtroPeriodo, filtroDataInicio, filtroDataFim]);
 
   // ----------------- fetch Leads -----------------
   const fetchLeads = async () => {
@@ -372,7 +398,7 @@ const DashboardPage = () => {
     if (!firebaseUser || loadingAuth) return;
     fetchVolumeProducao();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem]);
+  }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem, filtroDataInicio, filtroDataFim]);
 
   // ----------------- métricas (filtradas) -----------------
   const filteredLeads = useMemo(() => {
@@ -388,7 +414,7 @@ const DashboardPage = () => {
       return dentroDataRange && origemMatch;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads, filtroOrigem, filtroPeriodo]);
+  }, [leads, filtroOrigem, filtroPeriodo, filtroDataInicio, filtroDataFim]);
 
   const totalLeads = filteredLeads.length;
   const vendasFechadas = filteredLeads.filter(
@@ -731,28 +757,6 @@ const DashboardPage = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Nível badge */}
-              {nivelInfo && (
-                <Link href="/dashboard/nivel">
-                  <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 cursor-pointer"
-                    style={{
-                      background: `color-mix(in srgb, ${nivelInfo.color} 10%, transparent)`,
-                      border: `1px solid color-mix(in srgb, ${nivelInfo.color} 35%, transparent)`,
-                      color: nivelInfo.color,
-                      boxShadow: `0 0 10px ${nivelInfo.glow}`,
-                    }}
-                  >
-                    <span
-                      className="h-1.5 w-1.5 rounded-full animate-pulse"
-                      style={{ background: nivelInfo.color }}
-                    />
-                    Nível {nivelInfo.number} — {nivelInfo.name}
-                    <ArrowUpRight className="h-3 w-3 opacity-60" />
-                  </div>
-                </Link>
-              )}
-
               {qtdLeadsParaRetorno > 0 ? (
                 <div className="inline-flex items-center gap-2 rounded-full border bg-background/60 backdrop-blur px-3 py-1.5 text-xs font-medium shadow-sm">
                   <span className="relative flex h-2 w-2">
@@ -770,6 +774,29 @@ const DashboardPage = () => {
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Tudo em dia</span>
                 </div>
+              )}
+              {/* Nível badge */}
+              {nivelInfo && (
+                <Link href="/dashboard/nivel">
+                  <div
+                    className="inline-flex items-center gap-3 rounded-2xl px-4 py-2.5 font-bold transition-all duration-200 hover:scale-105 hover:brightness-110 cursor-pointer relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(135deg, color-mix(in srgb, ${nivelInfo.color} 18%, transparent), color-mix(in srgb, ${nivelInfo.color} 8%, transparent))`,
+                      border: `1.5px solid color-mix(in srgb, ${nivelInfo.color} 55%, transparent)`,
+                      color: nivelInfo.color,
+                      boxShadow: `0 0 18px color-mix(in srgb, var(--primary) 35%, transparent), 0 0 40px color-mix(in srgb, var(--primary) 12%, transparent), inset 0 1px 0 color-mix(in srgb, var(--primary) 25%, transparent)`,
+                    }}
+                  >
+                    <nivelInfo.Icon className="h-5 w-5 shrink-0" />
+                    <div className="flex flex-col leading-none gap-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest opacity-70">
+                        Nível {nivelInfo.number}
+                      </span>
+                      <span className="text-sm">{nivelInfo.name}</span>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 opacity-50 shrink-0" />
+                  </div>
+                </Link>
               )}
             </div>
           </header>
@@ -800,17 +827,39 @@ const DashboardPage = () => {
                 </SelectContent>
               </Select>
 
-              <Tabs
-                value={filtroPeriodo}
-                onValueChange={setFiltroPeriodo}
-                className="flex-1"
-              >
-                <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-flex">
-                  <TabsTrigger value="este-mes">Este mês</TabsTrigger>
-                  <TabsTrigger value="mes-passado">Mês passado</TabsTrigger>
-                  <TabsTrigger value="ultimos-90">90 dias</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div className="flex flex-col gap-2 flex-1">
+                <Tabs
+                  value={filtroPeriodo}
+                  onValueChange={setFiltroPeriodo}
+                  className="flex-1"
+                >
+                  <TabsList className="grid grid-cols-4 w-full sm:w-auto sm:inline-flex">
+                    <TabsTrigger value="este-mes">Este mês</TabsTrigger>
+                    <TabsTrigger value="mes-passado">Mês passado</TabsTrigger>
+                    <TabsTrigger value="ultimos-90">90 dias</TabsTrigger>
+                    <TabsTrigger value="personalizado">Intervalo</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {filtroPeriodo === "personalizado" && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="date"
+                      value={filtroDataInicio}
+                      onChange={(e) => setFiltroDataInicio(e.target.value)}
+                      className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <span className="text-xs text-muted-foreground">até</span>
+                    <input
+                      type="date"
+                      value={filtroDataFim}
+                      min={filtroDataInicio || undefined}
+                      onChange={(e) => setFiltroDataFim(e.target.value)}
+                      className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
