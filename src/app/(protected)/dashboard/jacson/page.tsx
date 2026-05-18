@@ -7,8 +7,9 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Bot, Send, User, Sparkles, RotateCcw, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Bot, Send, User, Sparkles, RotateCcw, Mic, Volume2, VolumeX } from "lucide-react";
 import { useVoice, speak, stopSpeaking } from "@/hooks/useVoice";
+import { VoiceRecordingBar } from "@/components/VoiceRecordingBar";
 
 type Message = {
   role: "user" | "assistant";
@@ -186,37 +187,43 @@ export default function JacsonPage() {
 
         {/* Input */}
         <div className="shrink-0 px-4 lg:px-6 py-4 border-t border-border bg-background/80 backdrop-blur-sm">
-          <div className="flex gap-2 items-end max-w-3xl mx-auto">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={listening ? "Ouvindo... fale agora" : "Pergunte algo sobre sua conta... (Enter para enviar)"}
-              className="min-h-[44px] max-h-32 resize-none text-sm"
-              rows={1}
-              disabled={loading || !firebaseUser || listening}
-            />
-            {voiceSupported && (
-              <Button
-                onClick={listening ? stop : start}
-                disabled={loading || !firebaseUser}
-                size="icon"
-                variant={listening ? "destructive" : "outline"}
-                className={cn("shrink-0 size-11 rounded-xl", listening && "animate-pulse")}
-                title={listening ? "Parar gravação" : "Falar com o Jacson"}
-              >
-                {listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-              </Button>
+          <div className="max-w-3xl mx-auto">
+            {listening ? (
+              <VoiceRecordingBar onStop={stop} size="md" />
+            ) : (
+              <div className="flex gap-2 items-end">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Pergunte algo sobre sua conta... (Enter para enviar)"
+                  className="min-h-[44px] max-h-32 resize-none text-sm"
+                  rows={1}
+                  disabled={loading || !firebaseUser}
+                />
+                {voiceSupported && (
+                  <Button
+                    onClick={start}
+                    disabled={loading || !firebaseUser}
+                    size="icon"
+                    variant="outline"
+                    className="shrink-0 size-11 rounded-xl"
+                    title="Falar com o Jacson"
+                  >
+                    <Mic className="size-4" />
+                  </Button>
+                )}
+                <Button
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || loading || !firebaseUser}
+                  size="icon"
+                  className="shrink-0 size-11 rounded-xl"
+                >
+                  <Send className="size-4" />
+                </Button>
+              </div>
             )}
-            <Button
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || !firebaseUser || listening}
-              size="icon"
-              className="shrink-0 size-11 rounded-xl"
-            >
-              <Send className="size-4" />
-            </Button>
           </div>
           <p className="text-center text-[11px] text-muted-foreground mt-2">
             {listening ? "Fale agora — parará automaticamente ao terminar" : "Shift+Enter para nova linha · Enter para enviar"}

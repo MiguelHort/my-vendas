@@ -6,9 +6,10 @@ import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, X, Send, Maximize2, RotateCcw, User, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Bot, X, Send, Maximize2, RotateCcw, User, Mic, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { useVoice, speak, stopSpeaking } from "@/hooks/useVoice";
+import { VoiceRecordingBar } from "@/components/VoiceRecordingBar";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -177,38 +178,42 @@ export function JacsonWidget() {
 
         {/* Input */}
         <div className="shrink-0 px-3 py-3 border-t border-border">
-          <div className="flex gap-2 items-end">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={listening ? "Ouvindo..." : "Pergunte sobre seus leads..."}
-              className="min-h-[38px] max-h-24 resize-none text-sm"
-              rows={1}
-              disabled={loading || !firebaseUser || listening}
-            />
-            {voiceSupported && (
-              <Button
-                onClick={listening ? stop : start}
+          {listening ? (
+            <VoiceRecordingBar onStop={stop} size="sm" />
+          ) : (
+            <div className="flex gap-2 items-end">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Pergunte sobre seus leads..."
+                className="min-h-[38px] max-h-24 resize-none text-sm"
+                rows={1}
                 disabled={loading || !firebaseUser}
+              />
+              {voiceSupported && (
+                <Button
+                  onClick={start}
+                  disabled={loading || !firebaseUser}
+                  size="icon"
+                  variant="outline"
+                  className="shrink-0 size-9 rounded-xl"
+                  title="Falar"
+                >
+                  <Mic className="size-3.5" />
+                </Button>
+              )}
+              <Button
+                onClick={() => sendMessage(input)}
+                disabled={!input.trim() || loading || !firebaseUser}
                 size="icon"
-                variant={listening ? "destructive" : "outline"}
-                className={cn("shrink-0 size-9 rounded-xl", listening && "animate-pulse")}
-                title={listening ? "Parar gravação" : "Falar"}
+                className="shrink-0 size-9 rounded-xl"
               >
-                {listening ? <MicOff className="size-3.5" /> : <Mic className="size-3.5" />}
+                <Send className="size-3.5" />
               </Button>
-            )}
-            <Button
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || !firebaseUser || listening}
-              size="icon"
-              className="shrink-0 size-9 rounded-xl"
-            >
-              <Send className="size-3.5" />
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
