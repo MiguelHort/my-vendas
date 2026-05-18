@@ -6,8 +6,9 @@ import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, X, Send, Maximize2, RotateCcw, User } from "lucide-react";
+import { Bot, X, Send, Maximize2, RotateCcw, User, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
+import { useVoice, speak, stopSpeaking } from "@/hooks/useVoice";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -22,8 +23,13 @@ export function JacsonWidget() {
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { listening, start, stop, supported: voiceSupported } = useVoice({
+    onTranscript: (text) => sendMessage(text),
+  });
 
   useEffect(() => {
     if (open) {
@@ -59,6 +65,7 @@ export function JacsonWidget() {
       if (!res.ok) throw new Error(data.error ?? "Erro");
 
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      if (ttsEnabled) speak(data.reply);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -77,6 +84,7 @@ export function JacsonWidget() {
   }
 
   function handleReset() {
+    stopSpeaking();
     setMessages([WELCOME]);
     setInput("");
   }
@@ -103,6 +111,15 @@ export function JacsonWidget() {
             <p className="text-[11px] text-muted-foreground leading-tight">Assistente IA</p>
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-lg"
+              onClick={() => { setTtsEnabled((v) => !v); if (ttsEnabled) stopSpeaking(); }}
+              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Jacson"}
+            >
+              {ttsEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5 text-muted-foreground" />}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -166,14 +183,26 @@ export function JacsonWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Pergunte sobre seus leads..."
+              placeholder={listening ? "Ouvindo..." : "Pergunte sobre seus leads..."}
               className="min-h-[38px] max-h-24 resize-none text-sm"
               rows={1}
-              disabled={loading || !firebaseUser}
+              disabled={loading || !firebaseUser || listening}
             />
+            {voiceSupported && (
+              <Button
+                onClick={listening ? stop : start}
+                disabled={loading || !firebaseUser}
+                size="icon"
+                variant={listening ? "destructive" : "outline"}
+                className={cn("shrink-0 size-9 rounded-xl", listening && "animate-pulse")}
+                title={listening ? "Parar gravação" : "Falar"}
+              >
+                {listening ? <MicOff className="size-3.5" /> : <Mic className="size-3.5" />}
+              </Button>
+            )}
             <Button
               onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || !firebaseUser}
+              disabled={!input.trim() || loading || !firebaseUser || listening}
               size="icon"
               className="shrink-0 size-9 rounded-xl"
             >
