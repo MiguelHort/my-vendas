@@ -2,13 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Minimal type shim for browsers that use webkitSpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySpeechRecognition = any;
 
 type UseVoiceOptions = {
   onTranscript: (text: string) => void;
@@ -17,7 +12,7 @@ type UseVoiceOptions = {
 
 export function useVoice({ onTranscript, lang = "pt-BR" }: UseVoiceOptions) {
   const [listening, setListening] = useState(false);
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<AnySpeechRecognition>(null);
   // Keep a stable ref to the latest callback so we don't stale-close over it
   const callbackRef = useRef(onTranscript);
   callbackRef.current = onTranscript;
@@ -28,14 +23,16 @@ export function useVoice({ onTranscript, lang = "pt-BR" }: UseVoiceOptions) {
 
   const start = useCallback(() => {
     if (!supported) return;
-    const Rec = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const Rec = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     const recognition = new Rec();
     recognition.lang = lang;
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
+    recognition.onresult = (e: AnySpeechRecognition) => {
+      const text = e.results[0][0].transcript as string;
       callbackRef.current(text);
     };
     recognition.onend = () => setListening(false);
