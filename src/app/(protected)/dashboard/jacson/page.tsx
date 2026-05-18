@@ -7,7 +7,8 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Bot, Send, User, Sparkles, RotateCcw } from "lucide-react";
+import { Bot, Send, User, Sparkles, RotateCcw, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { useVoice, speak, stopSpeaking } from "@/hooks/useVoice";
 
 type Message = {
   role: "user" | "assistant";
@@ -32,8 +33,13 @@ export default function JacsonPage() {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { listening, start, stop, supported: voiceSupported } = useVoice({
+    onTranscript: (text) => sendMessage(text),
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,6 +76,7 @@ export default function JacsonPage() {
         ...prev,
         { role: "assistant", content: data.reply },
       ]);
+      if (ttsEnabled) speak(data.reply);
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -94,6 +101,7 @@ export default function JacsonPage() {
   }
 
   function handleReset() {
+    stopSpeaking();
     setMessages([WELCOME_MESSAGE]);
     setInput("");
     textareaRef.current?.focus();
@@ -119,15 +127,27 @@ export default function JacsonPage() {
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <RotateCcw className="size-3.5" />
-            <span className="hidden sm:inline text-xs">Nova conversa</span>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setTtsEnabled((v) => !v); if (ttsEnabled) stopSpeaking(); }}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Jacson"}
+            >
+              {ttsEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+              <span className="hidden sm:inline text-xs">{ttsEnabled ? "Voz ativa" : "Voz"}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="size-3.5" />
+              <span className="hidden sm:inline text-xs">Nova conversa</span>
+            </Button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -172,14 +192,26 @@ export default function JacsonPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Pergunte algo sobre sua conta... (Enter para enviar)"
+              placeholder={listening ? "Ouvindo... fale agora" : "Pergunte algo sobre sua conta... (Enter para enviar)"}
               className="min-h-[44px] max-h-32 resize-none text-sm"
               rows={1}
-              disabled={loading || !firebaseUser}
+              disabled={loading || !firebaseUser || listening}
             />
+            {voiceSupported && (
+              <Button
+                onClick={listening ? stop : start}
+                disabled={loading || !firebaseUser}
+                size="icon"
+                variant={listening ? "destructive" : "outline"}
+                className={cn("shrink-0 size-11 rounded-xl", listening && "animate-pulse")}
+                title={listening ? "Parar gravação" : "Falar com o Jacson"}
+              >
+                {listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+              </Button>
+            )}
             <Button
               onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || !firebaseUser}
+              disabled={!input.trim() || loading || !firebaseUser || listening}
               size="icon"
               className="shrink-0 size-11 rounded-xl"
             >
@@ -187,7 +219,7 @@ export default function JacsonPage() {
             </Button>
           </div>
           <p className="text-center text-[11px] text-muted-foreground mt-2">
-            Shift+Enter para nova linha · Enter para enviar
+            {listening ? "Fale agora — parará automaticamente ao terminar" : "Shift+Enter para nova linha · Enter para enviar"}
           </p>
         </div>
       </div>
