@@ -10,7 +10,6 @@ import {
   Workflow,
   Plus,
   MapPinned,
-  CircleDollarSign,
   UserStar,
   Users,
   CodeXml,
@@ -105,10 +104,6 @@ const equipeItems = [
   { href: "/dashboard/equipe", label: "Equipe", icon: Users },
   { href: "/dashboard/equipe/metricas", label: "Métricas", icon: ChartNoAxesCombined },
   { href: "/dashboard/codigo", label: "Código", icon: CodeXml },
-];
-
-const cotacaoItems = [
-  { href: "/dashboard/cotacao", label: "Cotação", icon: CircleDollarSign },
 ];
 
 /* ========================
@@ -234,29 +229,6 @@ function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {equipeItems.map((item) => {
-                const Icon = item.icon;
-                const active = isRouteActive(pathname, item.href);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Cotação */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Cotação</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {cotacaoItems.map((item) => {
                 const Icon = item.icon;
                 const active = isRouteActive(pathname, item.href);
                 return (

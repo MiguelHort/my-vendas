@@ -19,6 +19,7 @@ import {
   AlertCircle,
   BarChart2,
   Filter,
+  Layers,
   MapPin,
   Trophy,
   Users,
@@ -33,13 +34,25 @@ import {
 
 type Lead = {
   id: string;
+  nome: string;
   origem: string;
   status: string;
   valor_comissao: number | null;
   data_entrada: string;
   estado: string;
+  cidade?: string | null;
+  operadora_ofertada?: string | null;
+  qtd_vidas?: number;
   updated_at?: string;
   data_venda: string | null;
+  last_chamado_at?: string | null;
+  retornar_em?: string | null;
+};
+
+type FunnelColumn = {
+  id: string;
+  title: string;
+  color: string;
 };
 
 type Broker = {
@@ -93,6 +106,25 @@ const STATUS_ORDER = [
 ] as const;
 type LeadStatus = (typeof STATUS_ORDER)[number];
 
+function timeAgo(isoStr: string | null | undefined): string {
+  if (!isoStr) return "";
+  const mins = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60_000);
+  if (mins < 60) return `${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+const DEFAULT_FUNNEL_COLUMNS: FunnelColumn[] = [
+  { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
+  { id: "Abordagem",  title: "Abordagem",  color: "#3b82f6" },
+  { id: "Avaliando",  title: "Avaliando",  color: "#eab308" },
+  { id: "Fechamento", title: "Fechamento", color: "#8b5cf6" },
+  { id: "Concluído",  title: "Concluído",  color: "#22c55e" },
+];
+
+const RETORNAR_COLUMN: FunnelColumn = { id: "Retornar", title: "Retornar Futuramente", color: "#f59e0b" };
+
 const STATUS_ACCENT: Record<LeadStatus, { pill: string }> = {
   Dispensado: { pill: "ring-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300" },
   Abordagem:  { pill: "ring-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300" },
@@ -112,6 +144,7 @@ export default function DesempenhoTimePage() {
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>("");
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [funnelColumns, setFunnelColumns] = useState<FunnelColumn[]>(DEFAULT_FUNNEL_COLUMNS);
   const [loading, setLoading] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
 
@@ -152,6 +185,29 @@ export default function DesempenhoTimePage() {
     } catch (e) {
       console.error(e);
       toast.error("Erro ao carregar corretores");
+    }
+  };
+
+  const fetchFunnelColumns = async (brokerId: string) => {
+    if (!firebaseUser) return;
+    try {
+      const meRes = await authedFetch("/api/supervisor/me");
+      const meBody = await meRes.json().catch(() => ({}));
+      if (!meRes.ok) return;
+      const meDbId: string = meBody.id;
+      const finalBrokerId = brokerId === "ME" ? meDbId : brokerId;
+
+      const res = await authedFetch(
+        `/api/supervisor/funnel-columns?brokerId=${encodeURIComponent(finalBrokerId)}`
+      );
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(body.columns) && body.columns.length > 0) {
+        setFunnelColumns(body.columns);
+      } else {
+        setFunnelColumns(DEFAULT_FUNNEL_COLUMNS);
+      }
+    } catch {
+      setFunnelColumns(DEFAULT_FUNNEL_COLUMNS);
     }
   };
 
@@ -198,6 +254,7 @@ export default function DesempenhoTimePage() {
     if (!firebaseUser || loadingAuth) return;
     if (!selectedBrokerId) return;
     fetchLeads(selectedBrokerId);
+    fetchFunnelColumns(selectedBrokerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBrokerId, firebaseUser, loadingAuth]);
 
@@ -384,14 +441,22 @@ export default function DesempenhoTimePage() {
 
         {/* Content */}
         {loadingLeads ? (
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
-            <Skeleton className="h-[480px] rounded-2xl" />
-            <div className="space-y-6">
-              <Skeleton className="h-56 rounded-2xl" />
-              <Skeleton className="h-56 rounded-2xl" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
+              <Skeleton className="h-[480px] rounded-2xl" />
+              <div className="space-y-6">
+                <Skeleton className="h-56 rounded-2xl" />
+                <Skeleton className="h-56 rounded-2xl" />
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {STATUS_ORDER.map((st) => (
+                <Skeleton key={st} className="shrink-0 w-[220px] h-[200px] rounded-xl" />
+              ))}
             </div>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
             {/* Mapa */}
             <Card className="overflow-hidden border-muted-foreground/10 shadow-sm">
@@ -650,6 +715,93 @@ export default function DesempenhoTimePage() {
               </Card>
             </div>
           </div>
+
+          {/* Mini Kanban */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
+                <Layers className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Kanban do Corretor</h2>
+                <p className="text-sm text-muted-foreground">Funil de {selectedLabel} — somente leitura</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-3">
+              {[
+                ...funnelColumns,
+                ...(leads.some((l) => l.status === "Retornar") ? [RETORNAR_COLUMN] : []),
+              ].map((col) => {
+                const colLeads = leads.filter((l) => l.status === col.id);
+                return (
+                  <div
+                    key={col.id}
+                    className="shrink-0 w-[220px] flex flex-col rounded-xl border border-muted-foreground/10 bg-background/60 shadow-sm overflow-hidden"
+                    style={{ borderTopWidth: 2, borderTopStyle: "solid", borderTopColor: col.color }}
+                  >
+                    {/* Column header */}
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-muted-foreground/10">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: col.color }}
+                        />
+                        <span className="text-sm font-medium truncate">{col.title}</span>
+                      </div>
+                      <span
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shrink-0 ml-1"
+                        style={{
+                          backgroundColor: `${col.color}22`,
+                          color: col.color,
+                          border: `1px solid ${col.color}44`,
+                        }}
+                      >
+                        {colLeads.length}
+                      </span>
+                    </div>
+
+                    {/* Cards */}
+                    <div className="flex-1 overflow-y-auto max-h-[300px] p-2 space-y-1.5">
+                      {colLeads.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 gap-1 text-muted-foreground">
+                          <span className="text-xl">○</span>
+                          <span className="text-xs">Vazio</span>
+                        </div>
+                      ) : (
+                        colLeads.map((lead) => (
+                          <div
+                            key={lead.id}
+                            className="rounded-lg border border-muted-foreground/10 bg-card p-2.5 hover:bg-muted/40 transition-colors"
+                          >
+                            <p className="text-xs font-semibold leading-tight line-clamp-1 mb-1">
+                              {lead.nome}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-1">
+                              {[lead.estado, lead.cidade, lead.operadora_ofertada]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              {lead.qtd_vidas != null && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {lead.qtd_vidas} {lead.qtd_vidas === 1 ? "vida" : "vidas"}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground ml-auto">
+                                {timeAgo(lead.updated_at)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          </>
         )}
       </div>
     </Layout>
