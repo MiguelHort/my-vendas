@@ -926,13 +926,19 @@ export default function DesempenhoTimePage() {
         authedFetch("/api/team/metrics?period=este-mes"),
       ]);
 
-      const supOk = supRes.status === "fulfilled" && supRes.value.ok;
+      const supResponse = supRes.status === "fulfilled" ? supRes.value : null;
       const brokerOk = brokerRes.status === "fulfilled" && brokerRes.value.ok;
 
-      if (supOk) {
-        setUserRole("supervisor");
-        fetchBrokers();
-      } else if (brokerOk) {
+      if (supResponse?.ok) {
+        const supBody = await supResponse.json().catch(() => ({}));
+        if (supBody.isSupervisor) {
+          setUserRole("supervisor");
+          fetchBrokers();
+          return;
+        }
+      }
+
+      if (brokerOk) {
         setUserRole("broker");
         const body = await (brokerRes as PromiseFulfilledResult<Response>).value.json();
         setBrokerMetrics(body);
