@@ -12,7 +12,6 @@ import {
   MapPinned,
   UserStar,
   Users,
-  CodeXml,
   ChartNoAxesCombined,
   LogOut,
   Settings,
@@ -103,7 +102,6 @@ const crmItems = [
 const equipeItems = [
   { href: "/dashboard/equipe", label: "Equipe", icon: Users },
   { href: "/dashboard/equipe/metricas", label: "Métricas", icon: ChartNoAxesCombined },
-  { href: "/dashboard/codigo", label: "Código", icon: CodeXml },
 ];
 
 /* ========================
@@ -117,7 +115,6 @@ const segmentLabels: Record<string, string> = {
   "mapa-estados": "Mapa",
   equipe: "Equipe",
   metricas: "Métricas",
-  codigo: "Código",
   cotacao: "Cotação",
   admin: "Admin",
   configuracoes: "Configurações",
@@ -148,9 +145,10 @@ function buildBreadcrumbs(pathname: string | null): BreadcrumbEntry[] {
    HELPERS
 ======================== */
 
-function isRouteActive(pathname: string | null, href: string) {
+function isRouteActive(pathname: string | null, href: string, exact = false) {
   if (!pathname) return false;
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (exact) return pathname === href;
   return pathname === href || pathname.startsWith(href + "/");
 }
 
@@ -230,7 +228,7 @@ function AppSidebar({
             <SidebarMenu>
               {equipeItems.map((item) => {
                 const Icon = item.icon;
-                const active = isRouteActive(pathname, item.href);
+                const active = isRouteActive(pathname, item.href, true);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
