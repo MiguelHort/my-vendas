@@ -18,15 +18,21 @@ import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import {
   AlertCircle,
   BarChart2,
+  Check,
   Filter,
   Layers,
   MapPin,
   Medal,
+  Pencil,
+  Target,
   TrendingUp,
   Trophy,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -87,6 +93,27 @@ type MemberStats = {
   totalComissao: number;
   conversionRate: number;
   lastActivity: string | null;
+  monthSales: number;
+  monthTarget: number;
+};
+
+type BrokerRankingEntry = {
+  id: string;
+  name: string | null;
+  email: string;
+  vendas: number;
+  conversionRate: number;
+};
+
+type BrokerTeamMetrics = {
+  period: string;
+  team: {
+    totalLeads: number;
+    totalVendas: number;
+    avgConversionRate: number;
+    byStatus: Record<string, number>;
+  };
+  ranking: BrokerRankingEntry[];
 };
 
 type TeamStats = {
@@ -229,10 +256,29 @@ function StatCard({
   );
 }
 
-function TeamOverview({ stats }: { stats: TeamStats }) {
+function TeamOverview({
+  stats,
+  onGoalSave,
+}: {
+  stats: TeamStats;
+  onGoalSave: (brokerId: string, amount: number) => Promise<void>;
+}) {
   const { team, members } = stats;
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [goalInput, setGoalInput] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+
   const ranked = [...members].sort((a, b) => b.totalVendas - a.totalVendas);
+
+  async function handleGoalSave(memberId: string) {
+    const amount = parseFloat(goalInput.replace(/[^0-9.,]/g, "").replace(",", "."));
+    if (isNaN(amount) || amount < 0) return;
+    setSavingId(memberId);
+    await onGoalSave(memberId, amount);
+    setSavingId(null);
+    setEditingId(null);
+  }
 
   const vendaChartData = ranked.map((m) => ({
     nome: shortName(m),
@@ -330,34 +376,38 @@ function TeamOverview({ stats }: { stats: TeamStats }) {
             {ranked.map((member, idx) => {
               const pct = team.totalVendas > 0 ? (member.totalVendas / team.totalVendas) * 100 : 0;
               const isFirst = idx === 0 && member.totalVendas > 0;
+              const goalPct = member.monthTarget > 0
+                ? Math.min(100, Math.round((member.monthSales / member.monthTarget) * 100))
+                : null;
+              const isEditing = editingId === member.id;
+              const isSaving = savingId === member.id;
               return (
                 <div
                   key={member.id}
-                  className={`flex items-center gap-3 rounded-xl p-3 transition-colors ${isFirst ? "bg-emerald-500/5 border border-emerald-500/20" : "hover:bg-muted/40"}`}
+                  className={`flex items-start gap-3 rounded-xl p-3 transition-colors ${isFirst ? "bg-emerald-500/5 border border-emerald-500/20" : "hover:bg-muted/40"}`}
                 >
-                  <span className="text-lg w-8 text-center shrink-0">
+                  <span className="text-lg w-8 text-center shrink-0 mt-0.5">
                     {RANK_MEDALS[idx] ?? <span className="text-sm font-bold text-muted-foreground">{idx + 1}</span>}
                   </span>
                   <div className="flex-1 min-w-0">
+                    {/* Name + vendas count */}
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold truncate">
                         {member.name || member.email}
                         {member.isSelf && <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(você)</span>}
                       </p>
                       <span className="text-sm font-bold tabular-nums shrink-0 ml-2">
-                        {member.totalVendas}
+                        {member.totalVendas} <span className="text-[10px] font-normal text-muted-foreground">vendas</span>
                       </span>
                     </div>
+                    {/* Ranking progress bar (vendas share) */}
                     <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: isFirst ? "#10b981" : "#8b5cf6",
-                        }}
+                        style={{ width: `${pct}%`, backgroundColor: isFirst ? "#10b981" : "#8b5cf6" }}
                       />
                     </div>
-                    <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center justify-between mt-1 mb-2">
                       <span className="text-[10px] text-muted-foreground">
                         {member.conversionRate}% conversão
                       </span>
@@ -365,6 +415,84 @@ function TeamOverview({ stats }: { stats: TeamStats }) {
                         {formatBRL(member.totalComissao)}
                       </span>
                     </div>
+
+                    {/* Monthly goal section */}
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <Input
+                          className="h-7 text-xs px-2 py-0 w-28"
+                          placeholder="Meta R$"
+                          value={goalInput}
+                          onChange={(e) => setGoalInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleGoalSave(member.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          autoFocus
+                          disabled={isSaving}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                          onClick={() => handleGoalSave(member.id)}
+                          disabled={isSaving}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground"
+                          onClick={() => setEditingId(null)}
+                          disabled={isSaving}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-1">
+                        {goalPct !== null ? (
+                          <>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <Target className="h-3 w-3" />
+                                Meta do mês: {formatBRL(member.monthTarget)}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className={`text-[10px] font-semibold tabular-nums ${goalPct >= 100 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                  {formatBRL(member.monthSales)} ({goalPct}%)
+                                </span>
+                                <button
+                                  onClick={() => { setEditingId(member.id); setGoalInput(String(member.monthTarget)); }}
+                                  className="text-muted-foreground hover:text-foreground transition-colors ml-0.5"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${goalPct}%`,
+                                  backgroundColor: goalPct >= 100 ? "#10b981" : goalPct >= 50 ? "#f59e0b" : "#8b5cf6",
+                                }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingId(member.id); setGoalInput(""); }}
+                            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Target className="h-3 w-3" />
+                            Definir meta do mês
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -488,8 +616,140 @@ function TeamOverview({ stats }: { stats: TeamStats }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// BROKER LIMITED VIEW
+// ─────────────────────────────────────────────
+
+function BrokerTeamView({
+  metrics,
+  loading,
+  period,
+  onPeriodChange,
+}: {
+  metrics: BrokerTeamMetrics | null;
+  loading: boolean;
+  period: string;
+  onPeriodChange: (p: string) => void;
+}) {
+  const RANK_MEDALS_LOCAL = ["🥇", "🥈", "🥉"];
+
+  if (loading || !metrics) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        </div>
+        <Skeleton className="h-64 rounded-2xl" />
+      </div>
+    );
+  }
+
+  const { team, ranking } = metrics;
+
+  return (
+    <div className="space-y-6">
+      {/* Period filter */}
+      <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm border border-muted-foreground/10 rounded-2xl px-4 py-2 shadow-sm self-start w-fit">
+        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Select value={period} onValueChange={onPeriodChange}>
+          <SelectTrigger className="w-[170px] border-0 shadow-none focus:ring-0 bg-transparent">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-popover">
+            <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
+            <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
+            <SelectItem value="este-mes">Este Mês</SelectItem>
+            <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
+            <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          icon={<Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+          iconBg="bg-violet-500/10 ring-1 ring-violet-500/20"
+          label="Total de Leads"
+          value={team.totalLeads.toLocaleString("pt-BR")}
+        />
+        <StatCard
+          icon={<Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          iconBg="bg-emerald-500/10 ring-1 ring-emerald-500/20"
+          label="Vendas no Período"
+          value={team.totalVendas.toLocaleString("pt-BR")}
+          sub="status Concluído"
+        />
+        <StatCard
+          icon={<TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+          iconBg="bg-amber-500/10 ring-1 ring-amber-500/20"
+          label="Conversão Média"
+          value={`${team.avgConversionRate}%`}
+          sub="leads → Concluído"
+        />
+      </div>
+
+      {/* Ranking */}
+      <Card className="border-muted-foreground/10 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+              <Medal className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Ranking de Vendas</CardTitle>
+              <CardDescription>Ordenado por vendas concluídas no período</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {ranking.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
+              <Trophy className="h-8 w-8 opacity-30" />
+              <p className="text-sm">Nenhuma venda no período.</p>
+            </div>
+          ) : (
+            ranking.map((member, idx) => {
+              const topVendas = ranking[0]?.vendas ?? 0;
+              const pct = topVendas > 0 ? (member.vendas / topVendas) * 100 : 0;
+              const isFirst = idx === 0 && member.vendas > 0;
+              return (
+                <div
+                  key={member.id}
+                  className={`flex items-center gap-3 rounded-xl p-3 transition-colors ${isFirst ? "bg-emerald-500/5 border border-emerald-500/20" : "hover:bg-muted/40"}`}
+                >
+                  <span className="text-lg w-8 text-center shrink-0">
+                    {RANK_MEDALS_LOCAL[idx] ?? <span className="text-sm font-bold text-muted-foreground">{idx + 1}</span>}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold truncate">{member.name || member.email}</p>
+                      <span className="text-sm font-bold tabular-nums shrink-0 ml-2">{member.vendas}</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: isFirst ? "#10b981" : "#8b5cf6" }}
+                      />
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-[10px] text-muted-foreground">{member.conversionRate}% conversão</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DesempenhoTimePage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
+
+  const [userRole, setUserRole] = useState<"supervisor" | "broker" | "none" | null>(null);
 
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>("");
@@ -503,6 +763,11 @@ export default function DesempenhoTimePage() {
 
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(false);
+
+  // Broker-only state
+  const [brokerMetrics, setBrokerMetrics] = useState<BrokerTeamMetrics | null>(null);
+  const [brokerPeriod, setBrokerPeriod] = useState("este-mes");
+  const [loadingBroker, setLoadingBroker] = useState(false);
 
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -526,6 +791,40 @@ export default function DesempenhoTimePage() {
       },
     });
   }
+
+  const fetchBrokerMetrics = async (period: string) => {
+    if (!firebaseUser) return;
+    setLoadingBroker(true);
+    try {
+      const res = await authedFetch(`/api/team/metrics?period=${period}`);
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) setBrokerMetrics(body);
+      else toast.error(body.error || "Erro ao carregar dados do time");
+    } catch {
+      toast.error("Erro ao carregar dados do time");
+    } finally {
+      setLoadingBroker(false);
+    }
+  };
+
+  const saveGoal = async (brokerId: string, amount: number) => {
+    try {
+      const res = await authedFetch("/api/supervisor/team-goals", {
+        method: "PUT",
+        body: JSON.stringify({ brokerId, targetAmount: amount }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error || "Erro ao salvar meta");
+        return;
+      }
+      toast.success("Meta atualizada!");
+      // reload team stats so the progress bar updates
+      await fetchTeamStats();
+    } catch {
+      toast.error("Erro ao salvar meta");
+    }
+  };
 
   const fetchBrokers = async () => {
     if (!firebaseUser) return;
@@ -620,7 +919,31 @@ export default function DesempenhoTimePage() {
 
   useEffect(() => {
     if (!firebaseUser || loadingAuth) return;
-    fetchBrokers();
+
+    const detectRole = async () => {
+      const [supRes, brokerRes] = await Promise.allSettled([
+        authedFetch("/api/supervisor/me"),
+        authedFetch("/api/team/metrics?period=este-mes"),
+      ]);
+
+      const supOk = supRes.status === "fulfilled" && supRes.value.ok;
+      const brokerOk = brokerRes.status === "fulfilled" && brokerRes.value.ok;
+
+      if (supOk) {
+        setUserRole("supervisor");
+        fetchBrokers();
+      } else if (brokerOk) {
+        setUserRole("broker");
+        const body = await (brokerRes as PromiseFulfilledResult<Response>).value.json();
+        setBrokerMetrics(body);
+        setLoading(false);
+      } else {
+        setUserRole("none");
+        setLoading(false);
+      }
+    };
+
+    detectRole();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, loadingAuth]);
 
@@ -631,6 +954,12 @@ export default function DesempenhoTimePage() {
     fetchFunnelColumns(selectedBrokerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBrokerId, firebaseUser, loadingAuth]);
+
+  useEffect(() => {
+    if (userRole !== "broker" || !firebaseUser || loadingAuth) return;
+    fetchBrokerMetrics(brokerPeriod);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brokerPeriod, userRole]);
 
   useEffect(() => {
     if (!firebaseUser || loadingAuth) return;
@@ -719,7 +1048,7 @@ export default function DesempenhoTimePage() {
   }, [vendasPorEstado]);
 
   // ---- loading / auth states ----
-  if (loadingAuth || loading) {
+  if (loadingAuth || loading || userRole === null) {
     return (
       <Layout>
         <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -757,6 +1086,54 @@ export default function DesempenhoTimePage() {
               </p>
             </div>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ---- "no team" state ----
+  if (userRole === "none") {
+    return (
+      <Layout>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+              <Users className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold">Você não faz parte de uma equipe</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Entre em uma equipe como corretor ou crie a sua como supervisor.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ---- broker view ----
+  if (userRole === "broker") {
+    return (
+      <Layout>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              Métricas da Equipe
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Resultados gerais do time e ranking de vendas.
+            </p>
+          </div>
+          <BrokerTeamView
+            metrics={brokerMetrics}
+            loading={loadingBroker}
+            period={brokerPeriod}
+            onPeriodChange={(p) => setBrokerPeriod(p)}
+          />
         </div>
       </Layout>
     );
@@ -859,8 +1236,8 @@ export default function DesempenhoTimePage() {
                 {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Skeleton className="h-72 rounded-2xl" />
-                <Skeleton className="h-72 rounded-2xl" />
+                <Skeleton className="h-80 rounded-2xl" />
+                <Skeleton className="h-80 rounded-2xl" />
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Skeleton className="h-64 rounded-2xl" />
@@ -868,7 +1245,7 @@ export default function DesempenhoTimePage() {
               </div>
             </div>
           ) : teamStats ? (
-            <TeamOverview stats={teamStats} />
+            <TeamOverview stats={teamStats} onGoalSave={saveGoal} />
           ) : null
         ) : loadingLeads ? (
           <div className="space-y-6">

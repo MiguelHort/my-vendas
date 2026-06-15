@@ -190,6 +190,20 @@ enum SupervisorLinkStatus {
   @@schema("public")
 }
 
+model MemberGoal {
+  id           String   @id @default(uuid()) @db.Uuid
+  supervisorId String   @map("supervisor_id") @db.Uuid
+  brokerId     String   @map("broker_id") @db.Uuid
+  targetAmount Decimal  @map("target_amount")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([supervisorId, brokerId])
+  @@map("member_goals")
+  @@schema("public")
+}
+
 // =====================
 // Cotação
 // =====================

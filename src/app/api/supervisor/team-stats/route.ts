@@ -27,23 +27,40 @@ export async function GET(req: NextRequest) {
       ...links.map((l) => ({ id: l.broker.id, name: l.broker.name, email: l.broker.email, isSelf: false })),
     ];
 
+    // busca goals do supervisor
+    const goalRows = await prisma.memberGoal.findMany({
+      where: { supervisorId: me.id },
+    });
+    const goalsMap: Record<string, number> = {};
+    for (const g of goalRows) goalsMap[g.brokerId] = Number(g.targetAmount);
+
     const allLeads = await prisma.lead.findMany({
       where: { userId: { in: allMembers.map((m) => m.id) } },
-      select: { userId: true, status: true, valorComissao: true, updatedAt: true },
+      select: { userId: true, status: true, valorComissao: true, updatedAt: true, dataVenda: true },
     });
+
+    // janela do mês atual
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const members = allMembers.map((member) => {
       const memberLeads = allLeads.filter((l) => l.userId === member.id);
       const byStatus: Record<string, number> = {};
       let totalVendas = 0;
       let totalComissao = 0;
+      let monthSales = 0;
       let lastActivity: Date | null = null;
 
       for (const lead of memberLeads) {
         byStatus[lead.status] = (byStatus[lead.status] || 0) + 1;
         if (lead.status === "Concluído") {
           totalVendas++;
-          if (lead.valorComissao) totalComissao += Number(lead.valorComissao);
+          const commission = lead.valorComissao ? Number(lead.valorComissao) : 0;
+          totalComissao += commission;
+          // soma comissão do mês corrente
+          if (lead.dataVenda && lead.dataVenda >= monthStart) {
+            monthSales += commission;
+          }
         }
         if (!lastActivity || lead.updatedAt > lastActivity) lastActivity = lead.updatedAt;
       }
@@ -62,6 +79,8 @@ export async function GET(req: NextRequest) {
         totalComissao: Math.round(totalComissao * 100) / 100,
         conversionRate: Math.round(conversionRate * 10) / 10,
         lastActivity: lastActivity ? (lastActivity as Date).toISOString() : null,
+        monthSales: Math.round(monthSales * 100) / 100,
+        monthTarget: goalsMap[member.id] ?? 0,
       };
     });
 
