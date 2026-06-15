@@ -21,8 +21,11 @@ import {
   Filter,
   Layers,
   MapPin,
+  Medal,
+  TrendingUp,
   Trophy,
   Users,
+  Wallet,
 } from "lucide-react";
 import {
   Select,
@@ -31,6 +34,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  CartesianGrid,
+} from "recharts";
 
 type Lead = {
   id: string;
@@ -59,6 +74,30 @@ type Broker = {
   id: string;
   name: string | null;
   email: string;
+};
+
+type MemberStats = {
+  id: string;
+  name: string | null;
+  email: string;
+  isSelf: boolean;
+  totalLeads: number;
+  byStatus: Record<string, number>;
+  totalVendas: number;
+  totalComissao: number;
+  conversionRate: number;
+  lastActivity: string | null;
+};
+
+type TeamStats = {
+  members: MemberStats[];
+  team: {
+    totalLeads: number;
+    totalVendas: number;
+    totalComissao: number;
+    avgConversionRate: number;
+    byStatus: Record<string, number>;
+  };
 };
 
 const geographyUrl =
@@ -115,6 +154,26 @@ function timeAgo(isoStr: string | null | undefined): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
+function shortName(member: { name: string | null; email: string }): string {
+  if (member.name) return member.name.split(" ")[0];
+  return member.email.split("@")[0];
+}
+
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+const RANK_MEDALS = ["🥇", "🥈", "🥉"];
+
+const STATUS_COLORS_MAP: Record<string, string> = {
+  Dispensado: "#6b7280",
+  Abordagem:  "#3b82f6",
+  Avaliando:  "#eab308",
+  Fechamento: "#8b5cf6",
+  Concluído:  "#22c55e",
+  Retornar:   "#f59e0b",
+};
+
 const DEFAULT_FUNNEL_COLUMNS: FunnelColumn[] = [
   { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
   { id: "Abordagem",  title: "Abordagem",  color: "#3b82f6" },
@@ -137,16 +196,313 @@ function normalizeStatus(s: string) {
   return (s || "").trim();
 }
 
+// ─────────────────────────────────────────────
+// TEAM OVERVIEW COMPONENT
+// ─────────────────────────────────────────────
+
+function StatCard({
+  icon,
+  iconBg,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  value: string | number;
+  sub?: string;
+}) {
+  return (
+    <Card className="border-muted-foreground/10 shadow-sm">
+      <CardContent className="p-5 flex items-start gap-4">
+        <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-bold tabular-nums leading-tight mt-0.5">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TeamOverview({ stats }: { stats: TeamStats }) {
+  const { team, members } = stats;
+
+  const ranked = [...members].sort((a, b) => b.totalVendas - a.totalVendas);
+
+  const vendaChartData = ranked.map((m) => ({
+    nome: shortName(m),
+    vendas: m.totalVendas,
+    fill: m.totalVendas === ranked[0]?.totalVendas && m.totalVendas > 0 ? "#10b981" : "#8b5cf6",
+  }));
+
+  const taxaChartData = ranked.map((m) => ({
+    nome: shortName(m),
+    taxa: m.conversionRate,
+    fill: m.conversionRate === ranked.reduce((best, x) => (x.conversionRate > best ? x.conversionRate : best), 0) && m.conversionRate > 0
+      ? "#10b981"
+      : "#3b82f6",
+  }));
+
+  const statusChartData = Object.entries(team.byStatus)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({
+      name,
+      value,
+      color: STATUS_COLORS_MAP[name] || "#94a3b8",
+    }));
+
+  const CustomBarTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="rounded-xl border border-muted-foreground/10 bg-popover px-3 py-2 text-xs shadow-md">
+        <p className="font-semibold">{payload[0]?.payload?.nome}</p>
+        <p className="text-muted-foreground">{payload[0]?.name}: <span className="font-bold text-foreground">{payload[0]?.value}</span></p>
+      </div>
+    );
+  };
+
+  const CustomPieTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="rounded-xl border border-muted-foreground/10 bg-popover px-3 py-2 text-xs shadow-md">
+        <p className="font-semibold">{payload[0]?.name}</p>
+        <p className="text-muted-foreground">{payload[0]?.value} lead{payload[0]?.value !== 1 ? "s" : ""}</p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 4 summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={<Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+          iconBg="bg-violet-500/10 ring-1 ring-violet-500/20"
+          label="Total de Leads"
+          value={team.totalLeads.toLocaleString("pt-BR")}
+          sub={`${members.length} membro${members.length !== 1 ? "s" : ""} no time`}
+        />
+        <StatCard
+          icon={<Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          iconBg="bg-emerald-500/10 ring-1 ring-emerald-500/20"
+          label="Total de Vendas"
+          value={team.totalVendas.toLocaleString("pt-BR")}
+          sub="status Concluído"
+        />
+        <StatCard
+          icon={<Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-500/10 ring-1 ring-blue-500/20"
+          label="Comissão Total"
+          value={formatBRL(team.totalComissao)}
+          sub="estimativa acumulada"
+        />
+        <StatCard
+          icon={<TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+          iconBg="bg-amber-500/10 ring-1 ring-amber-500/20"
+          label="Conversão Média"
+          value={`${team.avgConversionRate}%`}
+          sub="leads → Concluído"
+        />
+      </div>
+
+      {/* Ranking + Distribuição de Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Leaderboard */}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                <Medal className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Ranking de Vendas</CardTitle>
+                <CardDescription>Corretores ordenados por Concluído</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {ranked.map((member, idx) => {
+              const pct = team.totalVendas > 0 ? (member.totalVendas / team.totalVendas) * 100 : 0;
+              const isFirst = idx === 0 && member.totalVendas > 0;
+              return (
+                <div
+                  key={member.id}
+                  className={`flex items-center gap-3 rounded-xl p-3 transition-colors ${isFirst ? "bg-emerald-500/5 border border-emerald-500/20" : "hover:bg-muted/40"}`}
+                >
+                  <span className="text-lg w-8 text-center shrink-0">
+                    {RANK_MEDALS[idx] ?? <span className="text-sm font-bold text-muted-foreground">{idx + 1}</span>}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold truncate">
+                        {member.name || member.email}
+                        {member.isSelf && <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(você)</span>}
+                      </p>
+                      <span className="text-sm font-bold tabular-nums shrink-0 ml-2">
+                        {member.totalVendas}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: isFirst ? "#10b981" : "#8b5cf6",
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-muted-foreground">
+                        {member.conversionRate}% conversão
+                      </span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        {formatBRL(member.totalComissao)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Distribuição de status */}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                <BarChart2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Distribuição do Time</CardTitle>
+                <CardDescription>Todos os leads por status</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-60">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="55%"
+                    outerRadius="80%"
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusChartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip content={<CustomPieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center mt-2">
+              {statusChartData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                  {entry.name} ({entry.value})
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráficos de barras */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Vendas por corretor */}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Vendas por Corretor</CardTitle>
+                <CardDescription>Total de leads Concluídos</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={vendaChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <RechartsTooltip content={<CustomBarTooltip />} cursor={{ fill: "currentColor", fillOpacity: 0.04 }} />
+                  <Bar dataKey="vendas" name="Vendas" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                    {vendaChartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Taxa de conversão */}
+        <Card className="border-muted-foreground/10 shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Taxa de Conversão</CardTitle>
+                <CardDescription>% de leads que viraram venda</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={taxaChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
+                  <RechartsTooltip content={<CustomBarTooltip />} cursor={{ fill: "currentColor", fillOpacity: 0.04 }} />
+                  <Bar dataKey="taxa" name="Taxa" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                    {taxaChartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function DesempenhoTimePage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>("");
 
+  const [activeTab, setActiveTab] = useState<"individual" | "equipe">("individual");
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [funnelColumns, setFunnelColumns] = useState<FunnelColumn[]>(DEFAULT_FUNNEL_COLUMNS);
   const [loading, setLoading] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
+
+  const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -185,6 +541,24 @@ export default function DesempenhoTimePage() {
     } catch (e) {
       console.error(e);
       toast.error("Erro ao carregar corretores");
+    }
+  };
+
+  const fetchTeamStats = async () => {
+    if (!firebaseUser) return;
+    setLoadingTeam(true);
+    try {
+      const res = await authedFetch("/api/supervisor/team-stats");
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error("Erro ao carregar dados do time: " + (body.error || res.statusText));
+        return;
+      }
+      setTeamStats(body);
+    } catch {
+      toast.error("Erro ao carregar dados do time");
+    } finally {
+      setLoadingTeam(false);
     }
   };
 
@@ -257,6 +631,14 @@ export default function DesempenhoTimePage() {
     fetchFunnelColumns(selectedBrokerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBrokerId, firebaseUser, loadingAuth]);
+
+  useEffect(() => {
+    if (!firebaseUser || loadingAuth) return;
+    if (activeTab !== "equipe") return;
+    if (teamStats) return; // já carregou
+    fetchTeamStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, firebaseUser, loadingAuth]);
 
   const statusCounts = useMemo(() => {
     const base: Record<LeadStatus, number> = {
@@ -391,56 +773,104 @@ export default function DesempenhoTimePage() {
     <Layout>
       <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center">
-                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-              </div>
-              Desempenho do Time
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Selecione um corretor para ver o mapa e os indicadores do funil.
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                Desempenho do Time
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {activeTab === "individual"
+                  ? "Selecione um corretor para ver o mapa e os indicadores do funil."
+                  : "Visão consolidada de toda a equipe com rankings e gráficos."}
+              </p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 bg-muted rounded-2xl p-1 self-start lg:self-auto">
+              <button
+                onClick={() => setActiveTab("individual")}
+                className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "individual"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Individual
+              </button>
+              <button
+                onClick={() => setActiveTab("equipe")}
+                className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "equipe"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Visão da Equipe
+              </button>
+            </div>
           </div>
 
-          {/* Filter bar */}
-          <div className="flex flex-wrap items-center gap-1 bg-background/70 backdrop-blur-sm border border-muted-foreground/10 rounded-2xl px-4 py-2 shadow-sm">
-            <Filter className="h-4 w-4 text-muted-foreground shrink-0 mr-1" />
+          {/* Filter bar — só na aba individual */}
+          {activeTab === "individual" && (
+            <div className="flex flex-wrap items-center gap-1 bg-background/70 backdrop-blur-sm border border-muted-foreground/10 rounded-2xl px-4 py-2 shadow-sm self-start">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0 mr-1" />
 
-            <Select value={selectedBrokerId} onValueChange={setSelectedBrokerId}>
-              <SelectTrigger className="w-[220px] border-0 shadow-none focus:ring-0 bg-transparent">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="ME">Eu (Supervisor)</SelectItem>
-                {brokers.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name ? `${b.name} (${b.email})` : b.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={selectedBrokerId} onValueChange={setSelectedBrokerId}>
+                <SelectTrigger className="w-[220px] border-0 shadow-none focus:ring-0 bg-transparent">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="ME">Eu (Supervisor)</SelectItem>
+                  {brokers.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name ? `${b.name} (${b.email})` : b.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <div className="w-px h-5 bg-muted-foreground/20 mx-1" />
+              <div className="w-px h-5 bg-muted-foreground/20 mx-1" />
 
-            <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
-              <SelectTrigger className="w-[170px] border-0 shadow-none focus:ring-0 bg-transparent">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
-                <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
-                <SelectItem value="este-mes">Este Mês</SelectItem>
-                <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
-                <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <Select value={filtroFinalizados} onValueChange={setFiltroFinalizados}>
+                <SelectTrigger className="w-[170px] border-0 shadow-none focus:ring-0 bg-transparent">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="7-dias">Últimos 7 dias</SelectItem>
+                  <SelectItem value="15-dias">Últimos 15 dias</SelectItem>
+                  <SelectItem value="este-mes">Este Mês</SelectItem>
+                  <SelectItem value="3-meses">Últimos 3 meses</SelectItem>
+                  <SelectItem value="todo-historico">Todo o Histórico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Content */}
-        {loadingLeads ? (
+        {activeTab === "equipe" ? (
+          loadingTeam ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Skeleton className="h-72 rounded-2xl" />
+                <Skeleton className="h-72 rounded-2xl" />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Skeleton className="h-64 rounded-2xl" />
+                <Skeleton className="h-64 rounded-2xl" />
+              </div>
+            </div>
+          ) : teamStats ? (
+            <TeamOverview stats={teamStats} />
+          ) : null
+        ) : loadingLeads ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6">
               <Skeleton className="h-[480px] rounded-2xl" />
