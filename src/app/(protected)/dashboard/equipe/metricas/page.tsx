@@ -34,6 +34,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { FileDown } from "lucide-react";
+import { generateTeamReport, type ReportOptions } from "@/lib/generateTeamReport";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -617,6 +628,206 @@ function TeamOverview({
 }
 
 // ─────────────────────────────────────────────
+// REPORT MODAL
+// ─────────────────────────────────────────────
+
+const PERIOD_OPTIONS = [
+  { value: "este-mes",       label: "Este Mês" },
+  { value: "7-dias",         label: "Últimos 7 dias" },
+  { value: "15-dias",        label: "Últimos 15 dias" },
+  { value: "3-meses",        label: "Últimos 3 meses" },
+  { value: "todo-historico", label: "Todo o Histórico" },
+];
+
+const METRIC_OPTIONS = [
+  { key: "showSummary",     label: "Resumo geral da equipe" },
+  { key: "showRanking",     label: "Ranking de vendas" },
+  { key: "showGoals",       label: "Meta do mês vs realizado" },
+  { key: "showStatus",      label: "Distribuição por status" },
+  { key: "showCommissions", label: "Comissões individuais" },
+] as const;
+
+type MetricKey = (typeof METRIC_OPTIONS)[number]["key"];
+
+function ReportModal({
+  open,
+  onClose,
+  members,
+  teamStats,
+}: {
+  open: boolean;
+  onClose: () => void;
+  members: { id: string; name: string | null; email: string }[];
+  teamStats: TeamStats;
+}) {
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(
+    () => new Set(members.map((m) => m.id))
+  );
+  const [period, setPeriod] = useState("este-mes");
+  const [metrics, setMetrics] = useState<Record<MetricKey, boolean>>({
+    showSummary:     true,
+    showRanking:     true,
+    showGoals:       true,
+    showStatus:      true,
+    showCommissions: false,
+  });
+  const [generating, setGenerating] = useState(false);
+
+  // reset when reopened
+  useEffect(() => {
+    if (open) {
+      setSelectedMembers(new Set(members.map((m) => m.id)));
+      setPeriod("este-mes");
+      setMetrics({ showSummary: true, showRanking: true, showGoals: true, showStatus: true, showCommissions: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const allSelected = selectedMembers.size === members.length;
+
+  function toggleMember(id: string) {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelected) setSelectedMembers(new Set());
+    else setSelectedMembers(new Set(members.map((m) => m.id)));
+  }
+
+  function toggleMetric(key: MetricKey) {
+    setMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  async function handleGenerate() {
+    if (selectedMembers.size === 0) return;
+    const anyMetric = METRIC_OPTIONS.some(({ key }) => metrics[key]);
+    if (!anyMetric) return;
+
+    setGenerating(true);
+    try {
+      const options: ReportOptions = {
+        period,
+        memberIds: Array.from(selectedMembers),
+        ...metrics,
+      };
+      await generateTeamReport(teamStats.members, teamStats.team, options);
+      onClose();
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileDown className="h-5 w-5 text-violet-500" />
+            Gerar Relatório PDF
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-1">
+          {/* Period */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Período</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PERIOD_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPeriod(opt.value)}
+                  className={`rounded-xl border px-3 py-2 text-sm text-left transition-colors ${
+                    period === opt.value
+                      ? "border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-300 font-medium"
+                      : "border-muted-foreground/20 hover:bg-muted/60 text-muted-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Members */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Membros</p>
+              <button
+                onClick={toggleAll}
+                className="text-xs text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+              </button>
+            </div>
+            <div className="max-h-36 overflow-y-auto space-y-2 rounded-xl border border-muted-foreground/10 p-3">
+              {members.map((m) => (
+                <div key={m.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`member-${m.id}`}
+                    checked={selectedMembers.has(m.id)}
+                    onCheckedChange={() => toggleMember(m.id)}
+                  />
+                  <Label htmlFor={`member-${m.id}`} className="text-sm font-normal cursor-pointer truncate">
+                    {m.name || m.email}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Métricas</p>
+            <div className="space-y-2.5">
+              {METRIC_OPTIONS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`metric-${key}`}
+                    checked={metrics[key]}
+                    onCheckedChange={() => toggleMetric(key)}
+                  />
+                  <Label htmlFor={`metric-${key}`} className="text-sm font-normal cursor-pointer">
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={generating}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleGenerate}
+            disabled={generating || selectedMembers.size === 0 || !METRIC_OPTIONS.some(({ key }) => metrics[key])}
+            className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
+          >
+            {generating ? (
+              <>
+                <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
+                Gerando…
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────
 // BROKER LIMITED VIEW
 // ─────────────────────────────────────────────
 
@@ -763,6 +974,7 @@ export default function DesempenhoTimePage() {
 
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Broker-only state
   const [brokerMetrics, setBrokerMetrics] = useState<BrokerTeamMetrics | null>(null);
@@ -1172,28 +1384,41 @@ export default function DesempenhoTimePage() {
               </p>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 bg-muted rounded-2xl p-1 self-start lg:self-auto">
-              <button
-                onClick={() => setActiveTab("individual")}
-                className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === "individual"
-                    ? "bg-background shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+            {/* Tabs + Report button */}
+            <div className="flex items-center gap-2 self-start lg:self-auto">
+              <div className="flex gap-1 bg-muted rounded-2xl p-1">
+                <button
+                  onClick={() => setActiveTab("individual")}
+                  className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                    activeTab === "individual"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Individual
+                </button>
+                <button
+                  onClick={() => setActiveTab("equipe")}
+                  className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                    activeTab === "equipe"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Visão da Equipe
+                </button>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setReportOpen(true)}
+                disabled={!teamStats}
+                className="gap-2 rounded-xl border-violet-500/30 text-violet-700 dark:text-violet-300 hover:bg-violet-500/10 hover:border-violet-500/50"
               >
-                Individual
-              </button>
-              <button
-                onClick={() => setActiveTab("equipe")}
-                className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === "equipe"
-                    ? "bg-background shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Visão da Equipe
-              </button>
+                <FileDown className="h-4 w-4" />
+                Relatório
+              </Button>
             </div>
           </div>
 
@@ -1617,6 +1842,15 @@ export default function DesempenhoTimePage() {
           </>
         )}
       </div>
+
+      {teamStats && (
+        <ReportModal
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          members={teamStats.members}
+          teamStats={teamStats}
+        />
+      )}
     </Layout>
   );
 }
