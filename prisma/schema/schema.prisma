@@ -45,8 +45,14 @@ model Lead {
   retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
   tipoComissao       String    @default("interno") @map("tipo_comissao") @db.Text
 
+  // SDR de IA
+  sdrCategoria         String?   @map("sdr_categoria") @db.VarChar(1)
+  sdrScore             Int?      @map("sdr_score")
+  sdrQualificationData Json?     @map("sdr_qualification_data")
+
   user         User?         @relation(fields: [userId], references: [id])
   loteProducao LoteProducao? @relation(fields: [loteProducaoId], references: [id])
+  sdrConversation SdrConversation?
 
   @@index([userId])
   @@index([loteProducaoId])
@@ -102,9 +108,15 @@ model User {
   planCommissions PlanCommission[]
   consents        UserConsent[]
 
-  // ✅ Relações para equipe (um supervisor tem vários corretores)
+  // Equipe
   supervisingLinks SupervisorBrokerLink[] @relation("SupervisorLinks")
   brokerLink       SupervisorBrokerLink?  @relation("BrokerLink")
+
+  // SDR de IA
+  whatsappInstance WhatsappInstance?
+  sdrConfig        SdrConfig?
+  sdrConversations SdrConversation[]
+  aiUsageLogs      AiUsageLog[]
 
   @@map("users")
   @@index([stripeCustomerId])
@@ -201,6 +213,101 @@ model MemberGoal {
 
   @@unique([supervisorId, brokerId])
   @@map("member_goals")
+  @@schema("public")
+}
+
+// =====================
+// SDR de IA
+// =====================
+
+model WhatsappInstance {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @unique @map("user_id") @db.Uuid
+  senderId    String    @unique @map("sender_id") @db.Text
+  status      String    @default("disconnected") @db.Text
+  phoneNumber String?   @map("phone_number") @db.Text
+  connectedAt DateTime? @map("connected_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_instances")
+  @@schema("public")
+}
+
+model SdrConfig {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @map("user_id") @db.Uuid
+  enabled              Boolean  @default(false)
+  nomeAssistente       String   @default("Assistente") @map("nome_assistente") @db.Text
+  saudacao             String?  @db.Text
+  tom                  String   @default("formal") @db.Text
+  handoffMinCategoria  String   @default("B") @map("handoff_min_categoria") @db.VarChar(1)
+  followupMaxTentativas Int     @default(3) @map("followup_max_tentativas")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sdr_config")
+  @@schema("public")
+}
+
+model SdrConversation {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  leadId          String?   @unique @map("lead_id") @db.Uuid
+  whatsappNumber  String    @map("whatsapp_number") @db.Text
+  status          String    @default("active") @db.Text
+  consentAt       DateTime? @map("consent_at") @db.Timestamptz(6)
+  followupCount   Int       @default(0) @map("followup_count")
+  lastMessageAt   DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead     Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages SdrMessage[]
+  aiLogs   AiUsageLog[]
+
+  @@unique([userId, whatsappNumber])
+  @@index([userId])
+  @@map("sdr_conversations")
+  @@schema("public")
+}
+
+model SdrMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  role           String   @db.Text
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation SdrConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("sdr_messages")
+  @@schema("public")
+}
+
+model AiUsageLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  conversationId String?  @map("conversation_id") @db.Uuid
+  model          String   @db.Text
+  callType       String   @map("call_type") @db.Text
+  tokensIn       Int?     @map("tokens_in")
+  tokensOut      Int?     @map("tokens_out")
+  costEstimate   Decimal? @map("cost_estimate") @db.Decimal(10, 6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation SdrConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_usage_log")
   @@schema("public")
 }
 

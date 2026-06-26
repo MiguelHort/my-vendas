@@ -95,6 +95,7 @@ const crmItems = [
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
   { href: "/dashboard/jacson", label: "Jacson IA", icon: Bot },
+  { href: "/dashboard/configuracoes/sdr", label: "SDR de IA", icon: Bot },
   { href: "/dashboard/conquistas", label: "Conquistas", icon: Trophy },
   { href: "/dashboard/nivel", label: "Nível", icon: Medal },
 ];
