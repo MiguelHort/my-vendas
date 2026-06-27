@@ -6,26 +6,15 @@ export const runtime = "nodejs";
 
 /**
  * Verifica a assinatura HMAC-SHA256 do webhook Zavu.
- * Loga os headers recebidos para diagnóstico.
+ * Header: X-Zavu-Signature: t=<timestamp>,v1=<hmac>
+ * Payload assinado: rawBody (apenas o body, sem o timestamp)
+ * Chave: ZAVU_WEBHOOK_SECRET completo (incluindo prefixo whsec_)
  */
-async function verifySignature(req: NextRequest, rawBody: string): Promise<boolean> {
+function verifySignature(req: NextRequest, rawBody: string): boolean {
   const secret = process.env.ZAVU_WEBHOOK_SECRET;
+  if (!secret) return true; // dev sem secret configurado
 
-  // Loga headers relevantes para diagnóstico
   const sigHeader = req.headers.get("x-zavu-signature") ?? "";
-  const authHeader = req.headers.get("authorization") ?? "";
-  console.log("[Zavu webhook] headers de assinatura:", {
-    "x-zavu-signature": sigHeader || "(ausente)",
-    "authorization": authHeader ? "(presente)" : "(ausente)",
-    "user-agent": req.headers.get("user-agent") ?? "",
-    secret_configured: !!secret,
-  });
-
-  if (!secret) {
-    // Sem secret configurado: aceita (dev/diagnóstico)
-    return true;
-  }
-
   if (!sigHeader) return false;
 
   const parts = Object.fromEntries(
@@ -35,54 +24,25 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
     }),
   ) as Record<string, string>;
 
-  const timestamp = parts["t"];
   const v1 = parts["v1"];
+  if (!v1) return false;
 
-  if (!timestamp || !v1) return false;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
 
-  // Rejeita webhooks com mais de 5 minutos de atraso (replay protection)
-  const age = Date.now() / 1000 - Number(timestamp);
-  if (age > 300) return false;
-
-  const hexPart = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-
-  // Variações de chave
-  const keys: Record<string, string | Buffer> = {
-    full: secret,
-    stripped: hexPart,
-    decoded: Buffer.from(hexPart, "hex"),
-  };
-
-  // Variações de payload
-  const payloads: Record<string, string> = {
-    ts_dot_body: `${timestamp}.${rawBody}`,
-    body_only: rawBody,
-    ts_nl_body: `${timestamp}\n${rawBody}`,
-  };
-
-  const results: Record<string, string> = {};
-  let matchKey = "";
-  for (const [kn, k] of Object.entries(keys)) {
-    for (const [pn, p] of Object.entries(payloads)) {
-      const hmac = crypto.createHmac("sha256", k).update(p).digest("hex");
-      const label = `${kn}_${pn}`;
-      results[label] = hmac.slice(0, 8) + "..."; // log parcial por segurança
-      if (hmac === v1) matchKey = label;
-    }
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
+  } catch {
+    return false;
   }
-
-  console.log("[Zavu webhook] HMAC matrix:", { received: v1.slice(0, 8) + "...", match: matchKey || "NENHUM", ...results });
-
-  if (matchKey) {
-    return true;
-  }
-  return false;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const rawBody = await req.text();
 
-  const valid = await verifySignature(req, rawBody);
+  const valid = verifySignature(req, rawBody);
   if (!valid) {
     return NextResponse.json({ error: "Assinatura inválida" }, { status: 401 });
   }
