@@ -26,11 +26,7 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
     return true;
   }
 
-  if (!sigHeader) {
-    // Zavu não enviou header de assinatura — aceita e loga aviso
-    console.warn("[Zavu webhook] AVISO: nenhum header x-zavu-signature recebido. Verificar formato na doc da Zavu.");
-    return true;
-  }
+  if (!sigHeader) return false;
 
   const parts = Object.fromEntries(
     sigHeader.split(",").map((p) => {
@@ -42,31 +38,27 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
   const timestamp = parts["t"];
   const v1 = parts["v1"];
 
-  if (!timestamp || !v1) {
-    console.warn("[Zavu webhook] AVISO: formato de assinatura inesperado:", sigHeader);
-    return true; // aceita para diagnóstico
-  }
+  if (!timestamp || !v1) return false;
 
-  // Verifica idade (5 min) — apenas loga para diagnóstico
+  // Rejeita webhooks com mais de 5 minutos de atraso (replay protection)
   const age = Date.now() / 1000 - Number(timestamp);
-  if (age > 300) console.warn("[Zavu webhook] Webhook com mais de 5min de atraso. age:", age);
+  if (age > 300) return false;
+
+  // Zavu apresenta o secret com prefixo "whsec_" + bytes hex-encoded.
+  // O HMAC usa os bytes decodificados (32 bytes brutos), não a string completa.
+  const hexSecret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  const keyBytes = Buffer.from(hexSecret, "hex");
 
   const payload = `${timestamp}.${rawBody}`;
   const expected = crypto
-    .createHmac("sha256", secret)
+    .createHmac("sha256", keyBytes)
     .update(payload)
     .digest("hex");
 
   try {
-    const valid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
-    if (!valid) {
-      console.warn("[Zavu webhook] Assinatura HMAC inválida. expected:", expected, "received:", v1);
-      // TODO: reativar rejeição após confirmar o formato correto da Zavu
-    }
-    return true; // aceita temporariamente para diagnóstico
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
   } catch {
-    console.warn("[Zavu webhook] Erro ao comparar assinaturas. expected:", expected, "received:", v1);
-    return true; // aceita para diagnóstico
+    return false;
   }
 }
 
