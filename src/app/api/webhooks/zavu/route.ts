@@ -45,28 +45,38 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
   if (age > 300) return false;
 
   const hexPart = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-  const payload = `${timestamp}.${rawBody}`;
 
-  // Testa as 3 variações de chave para descobrir qual a Zavu usa
-  const a = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  const b = crypto.createHmac("sha256", hexPart).update(payload).digest("hex");
-  const c = crypto.createHmac("sha256", Buffer.from(hexPart, "hex")).update(payload).digest("hex");
+  // Variações de chave
+  const keys: Record<string, string | Buffer> = {
+    full: secret,
+    stripped: hexPart,
+    decoded: Buffer.from(hexPart, "hex"),
+  };
 
-  console.log("[Zavu webhook] HMAC debug:", {
-    received: v1,
-    a_full_string: a,
-    b_hex_stripped: b,
-    c_hex_decoded: c,
-    match_a: a === v1,
-    match_b: b === v1,
-    match_c: c === v1,
-  });
+  // Variações de payload
+  const payloads: Record<string, string> = {
+    ts_dot_body: `${timestamp}.${rawBody}`,
+    body_only: rawBody,
+    ts_nl_body: `${timestamp}\n${rawBody}`,
+  };
 
-  try {
-    return crypto.timingSafeEqual(Buffer.from(c), Buffer.from(v1));
-  } catch {
-    return false;
+  const results: Record<string, string> = {};
+  let matchKey = "";
+  for (const [kn, k] of Object.entries(keys)) {
+    for (const [pn, p] of Object.entries(payloads)) {
+      const hmac = crypto.createHmac("sha256", k).update(p).digest("hex");
+      const label = `${kn}_${pn}`;
+      results[label] = hmac.slice(0, 8) + "..."; // log parcial por segurança
+      if (hmac === v1) matchKey = label;
+    }
   }
+
+  console.log("[Zavu webhook] HMAC matrix:", { received: v1.slice(0, 8) + "...", match: matchKey || "NENHUM", ...results });
+
+  if (matchKey) {
+    return true;
+  }
+  return false;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
