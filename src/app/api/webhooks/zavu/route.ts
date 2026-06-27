@@ -44,19 +44,26 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
   const age = Date.now() / 1000 - Number(timestamp);
   if (age > 300) return false;
 
-  // Zavu apresenta o secret com prefixo "whsec_" + bytes hex-encoded.
-  // O HMAC usa os bytes decodificados (32 bytes brutos), não a string completa.
-  const hexSecret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-  const keyBytes = Buffer.from(hexSecret, "hex");
-
+  const hexPart = secret.startsWith("whsec_") ? secret.slice(6) : secret;
   const payload = `${timestamp}.${rawBody}`;
-  const expected = crypto
-    .createHmac("sha256", keyBytes)
-    .update(payload)
-    .digest("hex");
+
+  // Testa as 3 variações de chave para descobrir qual a Zavu usa
+  const a = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  const b = crypto.createHmac("sha256", hexPart).update(payload).digest("hex");
+  const c = crypto.createHmac("sha256", Buffer.from(hexPart, "hex")).update(payload).digest("hex");
+
+  console.log("[Zavu webhook] HMAC debug:", {
+    received: v1,
+    a_full_string: a,
+    b_hex_stripped: b,
+    c_hex_decoded: c,
+    match_a: a === v1,
+    match_b: b === v1,
+    match_c: c === v1,
+  });
 
   try {
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
+    return crypto.timingSafeEqual(Buffer.from(c), Buffer.from(v1));
   } catch {
     return false;
   }
