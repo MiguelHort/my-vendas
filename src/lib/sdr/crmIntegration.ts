@@ -13,29 +13,24 @@ export async function upsertSdrLead(
   whatsappNumber: string,
   classification: ClassificationResult,
 ): Promise<string> {
-  const dados = classification.dados_extraidos;
-
-  // Número limpo (remove @s.whatsapp.net se vier nesse formato)
+  const { checklist, placar } = classification;
   const telefone = whatsappNumber.replace(/@.*$/, "");
 
-  // Tenta encontrar lead existente já vinculado à conversa
   const conv = await prisma.sdrConversation.findUnique({
     where: { id: conversationId },
     select: { leadId: true },
   });
 
   if (conv?.leadId) {
-    // Atualiza lead existente
     await prisma.lead.update({
       where: { id: conv.leadId },
       data: {
-        nome: dados.nome ?? undefined,
-        cidade: dados.cidade_estado?.split("/")[0]?.trim() ?? undefined,
-        estado: dados.cidade_estado?.split("/")[1]?.trim() ?? undefined,
-        qtdVidas: dados.vidas ?? undefined,
-        temPlanoAnterior: dados.tem_plano_hoje ?? undefined,
-        sdrCategoria: classification.categoria,
-        sdrScore: classification.score,
+        cidade:           checklist.regiao.cidade     ?? undefined,
+        estado:           checklist.regiao.estado     ?? undefined,
+        qtdVidas:         checklist.vidas.quantidade  ?? undefined,
+        temPlanoAnterior: checklist.plano_atual.possui ?? undefined,
+        sdrCategoria:     classification.categoria,
+        sdrScore:         placar.total,
         sdrQualificationData: JSON.parse(JSON.stringify(classification)),
         updatedAt: new Date(),
       },
@@ -43,21 +38,20 @@ export async function upsertSdrLead(
     return conv.leadId;
   }
 
-  // Cria novo lead
   const lead = await prisma.lead.create({
     data: {
       userId,
-      nome: dados.nome ?? `Lead WhatsApp ${telefone.slice(-4)}`,
+      nome:             `Lead WhatsApp ${telefone.slice(-4)}`,
       telefone,
-      origem: SDR_LEAD_ORIGEM,
-      status: SDR_LEAD_STATUS_INICIAL,
-      dataEntrada: new Date(),
-      qtdVidas: dados.vidas ?? 1,
-      cidade: dados.cidade_estado?.split("/")[0]?.trim() ?? null,
-      estado: dados.cidade_estado?.split("/")[1]?.trim() ?? null,
-      temPlanoAnterior: dados.tem_plano_hoje ?? null,
-      sdrCategoria: classification.categoria,
-      sdrScore: classification.score,
+      origem:           SDR_LEAD_ORIGEM,
+      status:           SDR_LEAD_STATUS_INICIAL,
+      dataEntrada:      new Date(),
+      qtdVidas:         checklist.vidas.quantidade    ?? 1,
+      cidade:           checklist.regiao.cidade       ?? null,
+      estado:           checklist.regiao.estado       ?? null,
+      temPlanoAnterior: checklist.plano_atual.possui  ?? null,
+      sdrCategoria:     classification.categoria,
+      sdrScore:         placar.total,
       sdrQualificationData: JSON.parse(JSON.stringify(classification)),
     },
   });

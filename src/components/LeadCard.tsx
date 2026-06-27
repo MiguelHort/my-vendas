@@ -26,6 +26,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Bot,
   Building2,
   CalendarDays,
   CheckCheck,
@@ -85,6 +86,9 @@ export type Lead = {
   etiquetas: string | null; // JSON string: Etiqueta[]
   retornar_em: string | null;
   tipo_comissao: string;
+  sdr_categoria: string | null;
+  sdr_score: number | null;
+  sdr_qualification_data: Record<string, unknown> | null;
 };
 
 type LeadCardProps = {
@@ -589,6 +593,80 @@ const LeadCard: React.FC<LeadCardProps> = ({
               </div>
             )}
           </div>
+
+          {/* SDR IA — triagem automática */}
+          {lead.sdr_categoria && (() => {
+            const catColor: Record<string, string> = {
+              A: "#22c55e", B: "#3b82f6", C: "#eab308", D: "#6b7280", E: "#ef4444",
+            };
+            const color = catColor[lead.sdr_categoria] ?? "#6b7280";
+            const sdr = lead.sdr_qualification_data ?? {};
+            const checklist = (sdr.checklist as Record<string, unknown>) ?? {};
+            const flags = (sdr.flags as Record<string, boolean>) ?? {};
+            const vidas = (checklist.vidas as Record<string, unknown>);
+            const regiao = (checklist.regiao as Record<string, string | null>);
+            const finalidade = (checklist.finalidade as Record<string, string | null>);
+            const qtd = vidas?.quantidade as number | null;
+            const pessoas = (vidas?.pessoas as Array<{ idade: number | null }>) ?? [];
+            const idades = pessoas.filter((p) => p.idade != null).map((p) => `${p.idade}a`).join(", ");
+            const regiaoTxt = [regiao?.cidade, regiao?.estado].filter(Boolean).join("/");
+            const fin = finalidade?.tipo;
+            return (
+              <div
+                className="rounded-md border px-2 py-1.5 space-y-1"
+                style={{ borderColor: `${color}50`, backgroundColor: `${color}0d` }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <Bot className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[10px] font-semibold text-muted-foreground">SDR IA</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {flags.risco_saude && (
+                      <span title="Condição preexistente (risco CPT)" className="text-[11px]">⚕️</span>
+                    )}
+                    {flags.alerta_adverso && (
+                      <span title="Alerta: possível seleção adversa" className="text-[11px]">🚨</span>
+                    )}
+                    <span
+                      className="inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-bold text-white"
+                      style={{ backgroundColor: color }}
+                    >
+                      {lead.sdr_categoria}
+                    </span>
+                    <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+                      {lead.sdr_score}/100
+                    </span>
+                  </div>
+                </div>
+                {(qtd || regiaoTxt || fin) && (
+                  <div className="text-[10px] text-muted-foreground space-y-0.5">
+                    {qtd && (
+                      <div>
+                        <Users className="inline h-2.5 w-2.5 mr-0.5" />
+                        {qtd} {qtd === 1 ? "vida" : "vidas"}
+                        {idades ? ` (${idades})` : ""}
+                      </div>
+                    )}
+                    {regiaoTxt && (
+                      <div>
+                        <MapPin className="inline h-2.5 w-2.5 mr-0.5" />
+                        {regiaoTxt}
+                      </div>
+                    )}
+                    {fin && (
+                      <div>
+                        {fin === "prevencao" ? "🛡️ Prevenção" : "⚕️ Tratamento"}
+                        {(checklist.finalidade as Record<string, string | null>)?.condicao
+                          ? ` — ${(checklist.finalidade as Record<string, string | null>).condicao}`
+                          : ""}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Notas — borda lateral em vez de bloco colorido */}
           {lead.notas && (

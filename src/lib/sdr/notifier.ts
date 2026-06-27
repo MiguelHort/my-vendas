@@ -6,7 +6,6 @@ interface HandoffPayload {
   classification: ClassificationResult;
 }
 
-/** Envia notificação de handoff ao corretor via WhatsApp Cloud API (Meta). */
 async function sendWhatsAppHandoff(payload: HandoffPayload): Promise<void> {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_TOKEN;
@@ -17,17 +16,19 @@ async function sendWhatsAppHandoff(payload: HandoffPayload): Promise<void> {
     return;
   }
 
-  const dados = payload.classification.dados_extraidos;
-  const score = payload.classification.score;
-  const cat = payload.classification.categoria;
-  const motivos = payload.classification.motivos.join("; ");
+  const { categoria, placar, flags, resumo_para_corretor } = payload.classification;
+  const catEmoji: Record<string, string> = { A: "🔥", B: "✅", C: "⚠️", D: "❄️", E: "🚫" };
+
+  const flagLines: string[] = [];
+  if (flags.risco_saude) flagLines.push("⚕️ Risco saúde — possível CPT");
+  if (flags.alerta_adverso) flagLines.push("🚨 Alerta: possível seleção adversa");
 
   const body =
-    `🔥 *Lead ${cat} — Score ${score}/100*\n` +
-    `👤 ${payload.lead.nome ?? "Sem nome"} — ${payload.lead.telefone}\n` +
-    `📍 ${dados.cidade_estado ?? "—"} | ${dados.tipo}\n` +
-    `⚡ ${motivos}\n` +
-    `📱 Abra o WinLeads para atender.`;
+    `${catEmoji[categoria] ?? "📋"} *Lead ${categoria} — Score ${placar.total}/100*\n` +
+    `📱 ${payload.lead.telefone}\n` +
+    (resumo_para_corretor ? `\n${resumo_para_corretor}\n` : "") +
+    (flagLines.length ? `\n${flagLines.join("\n")}\n` : "") +
+    `\n📲 Abra o WinLeads para atender.`;
 
   try {
     const res = await fetch(
@@ -56,17 +57,10 @@ async function sendWhatsAppHandoff(payload: HandoffPayload): Promise<void> {
   }
 }
 
-/**
- * Dispara handoff ao corretor:
- * - Log no console (sempre)
- * - WhatsApp Cloud API (se configurado)
- */
 export async function notifyHandoff(payload: HandoffPayload): Promise<void> {
   const { lead, classification } = payload;
-
   console.log(
-    `[SDR handoff] Lead ${lead.leadId} — Categoria ${classification.categoria} Score ${classification.score}`,
+    `[SDR handoff] Lead ${lead.leadId} — Categoria ${classification.categoria} Score ${classification.placar.total}`,
   );
-
   await sendWhatsAppHandoff(payload);
 }

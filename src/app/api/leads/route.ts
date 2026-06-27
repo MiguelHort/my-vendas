@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
       etiquetas: l.etiquetas ?? null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
       tipo_comissao: l.tipoComissao,
+      sdr_categoria: l.sdrCategoria ?? null,
+      sdr_score: l.sdrScore ?? null,
+      sdr_qualification_data: l.sdrQualificationData ?? null,
     }));
 
     return NextResponse.json(payload);

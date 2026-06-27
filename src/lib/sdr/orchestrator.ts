@@ -130,8 +130,8 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
   // 7. Salvar resposta do SDR
   await saveMessage(conversation.id, "assistant", assistantText);
 
-  // 8. Classificar conversa (a partir da 2ª troca)
-  if (allMessages.length >= 2) {
+  // 8. Classificar conversa (a partir da 1ª mensagem do lead)
+  if (allMessages.length >= 1) {
     const conversationText = buildConversationText(allMessages);
 
     try {
@@ -161,13 +161,13 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
       );
 
       // 10. Handoff se necessário
-      if (classification.handoff && conversation.status !== "handoff") {
+      if (classification.proxima_acao === "passar_corretor" && conversation.status !== "handoff") {
         await markHandoff(conversation.id);
 
         await notifyHandoff({
           corretor: { name: user.name, email: user.email },
           lead: {
-            nome: classification.dados_extraidos.nome,
+            nome: null,
             telefone: msg.from,
             leadId,
           },
@@ -184,8 +184,8 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
         return;
       }
 
-      if (classification.proxima_acao === "arquivar") {
-        console.log(`[SDR] Lead arquivado (categoria E): ${conversation.id}`);
+      if (classification.proxima_acao === "arquivar" || classification.categoria === "E") {
+        console.log(`[SDR] Lead arquivado (categoria ${classification.categoria}): ${conversation.id}`);
       }
     } catch (err) {
       console.error("[SDR] Erro no classificador:", err);

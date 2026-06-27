@@ -319,11 +319,21 @@ function KanbanMinimap({
 
 const DEFAULT_COLUMNS: FunnelColumn[] = [
   { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
+  { id: "SDR", title: "SDR / Triagem", color: "#6366f1" },
   { id: "Abordagem", title: "Abordagem", color: "#3b82f6" },
   { id: "Avaliando", title: "Avaliando", color: "#eab308" },
   { id: "Fechamento", title: "Fechamento", color: "#8b5cf6" },
   { id: "Concluído", title: "Concluído", color: "#22c55e" },
 ];
+
+const SDR_COLUMN: FunnelColumn = { id: "SDR", title: "SDR / Triagem", color: "#6366f1" };
+
+function ensureSdrColumn(cols: FunnelColumn[]): FunnelColumn[] {
+  if (cols.some((c) => c.id === "SDR")) return cols;
+  const dispensadoIdx = cols.findIndex((c) => c.id === "Dispensado");
+  const insertAt = dispensadoIdx >= 0 ? dispensadoIdx + 1 : 0;
+  return [...cols.slice(0, insertAt), SDR_COLUMN, ...cols.slice(insertAt)];
+}
 
 const RETORNAR_COLUMN: FunnelColumn = {
   id: "Retornar",
@@ -349,7 +359,7 @@ function loadColumnsFromStorage(): FunnelColumn[] {
   if (typeof window === "undefined") return DEFAULT_COLUMNS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return ensureSdrColumn(JSON.parse(raw) as FunnelColumn[]);
   } catch {}
   return DEFAULT_COLUMNS;
 }
@@ -427,8 +437,9 @@ const FunilPage = () => {
           saveFunnelColumns(firebaseUser, local);
           return;
         }
-        setColumns(data.columns);
-        saveColumnsToStorage(data.columns);
+        const cols = ensureSdrColumn(data.columns as FunnelColumn[]);
+        setColumns(cols);
+        saveColumnsToStorage(cols);
       })
       .catch(() => {/* mantém localStorage */});
   }, [firebaseUser]);

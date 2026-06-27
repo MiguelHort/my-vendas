@@ -1,86 +1,80 @@
 import { SDR_SCORING } from "./config";
-import type { ClassificationResult, SdrCategoria, SdrProximaAcao } from "./types";
+import type { ClassificationResult, SdrCategoria, SdrFlags, SdrPlacar, SdrProximaAcao } from "./types";
 
-/** Mapeia score numérico para categoria A-E usando os thresholds de config. */
-export function scoreToCategoria(
-  score: number,
-  sinalDescarte: boolean,
-): SdrCategoria {
-  if (sinalDescarte || score < SDR_SCORING.thresholds.D) return "E";
-  if (score < SDR_SCORING.thresholds.C) return "D";
-  if (score < SDR_SCORING.thresholds.B) return "C";
-  if (score < SDR_SCORING.thresholds.A) return "B";
+/** Mapeia score + flags para categoria A-E. Ordem de avaliação conforme spec v2. */
+export function scoreToCategoria(total: number, flags: SdrFlags): SdrCategoria {
+  if (flags.regiao_sem_oferta) return "E";
+  if (total < SDR_SCORING.thresholds.D) return "E";
+  if (total < SDR_SCORING.thresholds.C) return "D";
+  if (flags.alerta_adverso) return "C"; // teto máximo quando há sinalização de seleção adversa
+  if (total < SDR_SCORING.thresholds.B) return "C";
+  if (total < SDR_SCORING.thresholds.A) return "B";
   return "A";
 }
 
 /** Decide se deve acionar handoff com base na categoria e na config do corretor. */
-export function shouldHandoff(
-  categoria: SdrCategoria,
-  handoffMinCategoria: string,
-): boolean {
+export function shouldHandoff(categoria: SdrCategoria, handoffMinCategoria: string): boolean {
   const order: SdrCategoria[] = ["A", "B", "C", "D", "E"];
   return order.indexOf(categoria) <= order.indexOf(handoffMinCategoria as SdrCategoria);
 }
 
-/** Retorna a próxima ação recomendada com base na categoria. */
-export function proximaAcao(
+/** Determina a próxima ação a partir de categoria, flags e completude do núcleo. */
+function calcProximaAcao(
   categoria: SdrCategoria,
-  handoff: boolean,
+  flags: SdrFlags,
+  nucleoCompleto: boolean,
+  handoffMinCategoria: string,
 ): SdrProximaAcao {
-  if (handoff) return "notificar_corretor";
-  if (categoria === "C") return "follow_up_agendado";
+  if (flags.pediu_humano || flags.insiste_preco) return "passar_corretor";
+  if (nucleoCompleto && shouldHandoff(categoria, handoffMinCategoria)) return "passar_corretor";
+  if (!nucleoCompleto || flags.info_incompleta) return "perguntar";
   if (categoria === "D") return "nutrir";
-  return "arquivar"; // E
+  if (categoria === "E") return "arquivar";
+  return "perguntar";
 }
 
-/** Valida e normaliza o resultado do classificador Gemini para garantir consistência. */
+/** Valida e normaliza o JSON retornado pelo Gemini, recalculando score e categoria. */
 export function normalizeClassification(
   raw: ClassificationResult,
   handoffMinCategoria: string,
 ): ClassificationResult {
-  const { thresholds, dimensions } = SDR_SCORING;
+  const { dimensions } = SDR_SCORING;
 
-  // Clamp dimensões nos máximos configurados
-  const dim = raw.dimensoes ?? ({} as ClassificationResult["dimensoes"]);
-  const clamped = {
-    intencao:          Math.min(dim.intencao ?? 0, dimensions.intencao.max),
-    urgencia:          Math.min(dim.urgencia ?? 0, dimensions.urgencia.max),
-    gatilho:           Math.min(dim.gatilho ?? 0, dimensions.gatilho.max),
-    perfil_tamanho:    Math.min(dim.perfil_tamanho ?? 0, dimensions.perfil_tamanho.max),
-    capacidade:        Math.min(dim.capacidade ?? 0, dimensions.capacidade.max),
-    decisor:           Math.min(dim.decisor ?? 0, dimensions.decisor.max),
-    engajamento_dados: Math.min(dim.engajamento_dados ?? 0, dimensions.engajamento_dados.max),
+  // Clamp placar
+  const p = raw.placar ?? ({} as SdrPlacar);
+  const clamped: SdrPlacar = {
+    tamanho:     Math.min(p.tamanho     ?? 0, dimensions.tamanho.max),
+    localizacao: Math.min(p.localizacao ?? 0, dimensions.localizacao.max),
+    capacidade:  Math.min(p.capacidade  ?? 0, dimensions.capacidade.max),
+    qualidade:   Math.min(p.qualidade   ?? 0, dimensions.qualidade.max),
+    engajamento: Math.min(p.engajamento ?? 0, dimensions.engajamento.max),
+    prioridade:  Math.min(p.prioridade  ?? 0, dimensions.prioridade.max),
+    total: 0,
+  };
+  clamped.total = (clamped.tamanho + clamped.localizacao + clamped.capacidade +
+                   clamped.qualidade + clamped.engajamento + clamped.prioridade);
+
+  const flags: SdrFlags = {
+    regiao_sem_oferta: raw.flags?.regiao_sem_oferta ?? false,
+    risco_saude:       raw.flags?.risco_saude       ?? false,
+    alerta_adverso:    raw.flags?.alerta_adverso    ?? false,
+    info_incompleta:   raw.flags?.info_incompleta   ?? true,
+    pediu_humano:      raw.flags?.pediu_humano      ?? false,
+    insiste_preco:     raw.flags?.insiste_preco     ?? false,
   };
 
-  // Recalcula score como soma das dimensões (fonte da verdade)
-  const score = Object.values(clamped).reduce((a, b) => a + b, 0);
-
-  const sinalDescarte = raw.sinal_descarte ?? false;
-  const categoria = scoreToCategoria(score, sinalDescarte);
-  const handoff = shouldHandoff(categoria, handoffMinCategoria);
-  const proxima = proximaAcao(categoria, handoff);
+  const nucleoCompleto = raw.nucleo_completo ?? false;
+  const categoria = scoreToCategoria(clamped.total, flags);
+  const proximaAcao = calcProximaAcao(categoria, flags, nucleoCompleto, handoffMinCategoria);
 
   return {
-    ...raw,
-    score,
+    checklist: raw.checklist,
+    nucleo_completo: nucleoCompleto,
+    placar: clamped,
+    flags,
     categoria,
-    dimensoes: clamped,
-    sinal_descarte: sinalDescarte,
-    handoff,
-    proxima_acao: proxima,
-    dados_extraidos: raw.dados_extraidos ?? {
-      nome: null,
-      idade: null,
-      cidade_estado: null,
-      tipo: "indefinido",
-      vidas: null,
-      tem_plano_hoje: null,
-      motivo_gatilho: null,
-      prazo: null,
-      decisor: null,
-    },
-    motivos: raw.motivos ?? [],
+    proxima_acao: proximaAcao,
+    proxima_pergunta_alvo: raw.proxima_pergunta_alvo ?? null,
+    resumo_para_corretor: raw.resumo_para_corretor ?? null,
   };
-
-  void thresholds; // referenciado indiretamente via scoreToCategoria
 }
