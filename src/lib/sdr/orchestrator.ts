@@ -239,6 +239,8 @@ export function parseZavuPayload(
 
     // Mensagem de áudio — extrai URL para transcrição posterior
     if (data.messageType === "audio") {
+      console.log("[SDR] Payload áudio completo:", JSON.stringify(data, null, 2));
+
       const audioData =
         (data.audio as Record<string, unknown>) ??
         (data.media as Record<string, unknown>) ??
