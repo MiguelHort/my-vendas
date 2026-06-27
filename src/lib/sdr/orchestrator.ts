@@ -9,6 +9,7 @@ import {
 import {
   sdrReply,
   classifyConversation,
+  transcribeAudio,
   buildHistoryFromMessages,
   buildConversationText,
 } from "./geminiClient";
@@ -61,12 +62,38 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
     await recordConsent(conversation.id);
   }
 
+  // 4b. Transcrever áudio se necessário
+  let messageText = msg.body;
+  if (msg.audioUrl) {
+    try {
+      const transcription = await transcribeAudio(msg.audioUrl, msg.audioMime);
+      messageText = transcription.text || msg.body;
+      await logAiUsage({
+        userId: user.id,
+        conversationId: conversation.id,
+        callType: "transcribe_audio",
+        tokensIn: transcription.tokensIn,
+        tokensOut: transcription.tokensOut,
+        costEstimate: transcription.costEstimate,
+      });
+      console.log(`[SDR] Áudio transcrito (${msg.from}): "${messageText}"`);
+    } catch (err) {
+      console.error("[SDR] Erro ao transcrever áudio:", err);
+      await zavuProvider.sendText(
+        msg.senderId,
+        msg.from,
+        "Desculpe, não consegui entender o áudio. Pode digitar sua mensagem? 😊",
+      );
+      return;
+    }
+  }
+
   // 5. Salvar mensagem do lead
-  await saveMessage(conversation.id, "lead", msg.body);
+  await saveMessage(conversation.id, "lead", messageText);
 
   const allMessages = [
     ...conversation.messages,
-    { role: "lead", content: msg.body },
+    { role: "lead", content: messageText },
   ];
 
   const isFirstMessage = conversation.messages.length === 0;
@@ -87,7 +114,7 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
     );
   } else {
     const history = buildHistoryFromMessages(allMessages.slice(0, -1));
-    const replyResult = await sdrReply(systemPrompt, history, msg.body);
+    const replyResult = await sdrReply(systemPrompt, history, messageText);
     assistantText = replyResult.text;
 
     await logAiUsage({
@@ -197,22 +224,47 @@ export function parseZavuPayload(
     // Filtra só WhatsApp
     if (data.channel !== "whatsapp") return null;
 
-    // Só texto por ora (áudio/imagem = não suportado)
-    if (data.messageType !== "text") {
-      console.log(`[SDR] Tipo não suportado: ${data.messageType}`);
-      return null;
-    }
-
-    const bodyText = (data.text as string)?.trim();
-    if (!bodyText) return null;
-
     const from = data.from as string;
     if (!from) return null;
 
     const messageId = data.messageId as string;
     const timestamp = (data.providerTimestamp as number) ?? Date.now();
 
-    return { senderId, from, body: bodyText, messageId, timestamp };
+    // Mensagem de texto
+    if (data.messageType === "text") {
+      const bodyText = (data.text as string)?.trim();
+      if (!bodyText) return null;
+      return { senderId, from, body: bodyText, messageId, timestamp };
+    }
+
+    // Mensagem de áudio — extrai URL para transcrição posterior
+    if (data.messageType === "audio") {
+      const audioData =
+        (data.audio as Record<string, unknown>) ??
+        (data.media as Record<string, unknown>) ??
+        {};
+      const audioUrl =
+        (audioData.url as string) ??
+        (audioData.link as string) ??
+        (data.url as string) ??
+        null;
+
+      if (!audioUrl) {
+        console.log("[SDR] Áudio sem URL — ignorando");
+        return null;
+      }
+
+      const audioMime =
+        (audioData.mimeType as string) ??
+        (audioData.mime_type as string) ??
+        "audio/ogg";
+
+      return { senderId, from, body: "[áudio]", audioUrl, audioMime, messageId, timestamp };
+    }
+
+    // Outros tipos não suportados
+    console.log(`[SDR] Tipo não suportado: ${data.messageType}`);
+    return null;
   } catch {
     return null;
   }

@@ -70,7 +70,7 @@ export async function upsertSdrLead(
 export async function logAiUsage(params: {
   userId: string;
   conversationId: string;
-  callType: "sdr_reply" | "classifier";
+  callType: "sdr_reply" | "classifier" | "transcribe_audio";
   tokensIn: number;
   tokensOut: number;
   costEstimate: number;

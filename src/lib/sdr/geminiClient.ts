@@ -133,6 +133,41 @@ ${conversationText}`;
   return { result, tokensIn, tokensOut, costEstimate };
 }
 
+export async function transcribeAudio(
+  audioUrl: string,
+  mimeType: string = "audio/ogg",
+): Promise<GeminiCallResult> {
+  const ai = client();
+
+  const audioResp = await fetch(audioUrl);
+  if (!audioResp.ok) throw new Error(`Falha ao baixar áudio: ${audioResp.status}`);
+  const buffer = await audioResp.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString("base64");
+
+  // Remove parâmetros de codec (ex: "audio/ogg; codecs=opus" → "audio/ogg")
+  const normalizedMime = mimeType.split(";")[0].trim() || "audio/ogg";
+
+  const result = await ai.models.generateContent({
+    model: model(),
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: normalizedMime, data: base64 } },
+        { text: "Transcreva este áudio em português. Retorne APENAS o texto transcrito, sem explicações ou formatação adicional." },
+      ],
+    }],
+  });
+
+  const text = (result.text ?? "").trim();
+  const tokensIn = result.usageMetadata?.promptTokenCount ?? 0;
+  const tokensOut = result.usageMetadata?.candidatesTokenCount ?? 0;
+  const costEstimate =
+    tokensIn * GEMINI_COST_PER_TOKEN.input +
+    tokensOut * GEMINI_COST_PER_TOKEN.output;
+
+  return { text, tokensIn, tokensOut, costEstimate };
+}
+
 export function buildHistoryFromMessages(
   messages: { role: string; content: string }[],
 ): HistoryEntry[] {

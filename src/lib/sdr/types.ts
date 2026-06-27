@@ -47,4 +47,7 @@ export interface IncomingMessage {
   body: string;
   messageId: string;
   timestamp: number;
+  /** Presente quando a mensagem original era um áudio */
+  audioUrl?: string;
+  audioMime?: string;
 }
