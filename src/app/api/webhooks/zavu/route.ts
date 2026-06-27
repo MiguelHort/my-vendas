@@ -54,19 +54,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Responde 200 imediatamente (Zavu re-tentará se não receber 200)
-  const response = NextResponse.json({ ok: true });
-
-  setImmediate(async () => {
-    try {
-      const msg = parseZavuPayload(body);
-      if (msg) {
-        await handleIncomingMessage(msg);
-      }
-    } catch (err) {
-      console.error("[SDR webhook Zavu] Erro ao processar mensagem:", err);
+  try {
+    const msg = parseZavuPayload(body);
+    if (msg) {
+      await handleIncomingMessage(msg);
     }
-  });
+  } catch (err) {
+    console.error("[SDR webhook Zavu] Erro ao processar mensagem:", err);
+  }
 
-  return response;
+  return NextResponse.json({ ok: true });
 }
