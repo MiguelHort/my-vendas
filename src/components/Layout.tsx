@@ -175,7 +175,7 @@ function AppSidebar({
   onLogout: () => void;
 }) {
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -446,7 +446,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
   const breadcrumbs = buildBreadcrumbs(pathname);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh">
       <AppSidebar
         pathname={pathname}
         isAdmin={isAdmin}
@@ -457,7 +457,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
         onLogout={handleLogout}
       />
 
-      <SidebarInset className="overflow-hidden">
+      <SidebarInset className="overflow-hidden md:peer-data-[variant=inset]:shadow-lg md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border/60">
         {/* ===== HEADER ===== */}
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 bg-background/80 backdrop-blur-md z-40">
           <SidebarTrigger className="-ml-1" />
