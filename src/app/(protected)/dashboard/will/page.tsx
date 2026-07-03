@@ -21,6 +21,7 @@ import {
   BarChart2,
   GitCompare,
 } from "lucide-react";
+import Image from "next/image";
 import { useVoice, speak, stopSpeaking } from "@/hooks/useVoice";
 import { VoiceRecordingBar } from "@/components/VoiceRecordingBar";
 
@@ -186,6 +187,22 @@ export default function WillPage() {
             {/* Sugestões de perguntas */}
             {showSuggestions && (
               <div className="space-y-3 mt-2">
+
+                {/* Will mascot */}
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <Image
+                    src="/will.png"
+                    alt="Will — Assistente WinLeads"
+                    width={320}
+                    height={175}
+                    className="object-contain animate-float drop-shadow-lg rounded-2xl"
+                    priority
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pergunte qualquer coisa sobre sua conta
+                  </p>
+                </div>
+
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
                   <Sparkles className="size-3" />
                   Sugestões rápidas
@@ -280,7 +297,7 @@ function ChatBubble({ message }: { message: Message }) {
       )}>
         {isUser ? <User className="size-4" /> : <Bot className="size-4" />}
       </div>
-
+      
       {/* Bubble */}
       <div className={cn(
         "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
@@ -316,8 +333,8 @@ function FormattedText({ content }: { content: string }) {
 function TypingIndicator() {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-        <Bot className="size-4" />
+      <div className="shrink-0 rounded-xl overflow-hidden ring-1 ring-emerald-500/20">
+        <Image src="/will.png" alt="Will" width={58} height={32} className="h-8 w-auto" />
       </div>
       <div className="bg-card border border-muted-foreground/10 shadow-sm rounded-2xl rounded-tl-sm px-4 py-3">
         <div className="flex gap-1 items-center h-4">

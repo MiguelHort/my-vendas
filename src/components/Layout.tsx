@@ -99,8 +99,8 @@ const crmItems = [
 ];
 
 const assistentesItems = [
-  { href: "/dashboard/will", label: "Will Chat", icon: Bot },
-  { href: "/dashboard/configuracoes/sdr", label: "Will SDR", icon: Bot },
+  { href: "/dashboard/will", label: "Chat", icon: Bot },
+  { href: "/dashboard/configuracoes/sdr", label: "SDR", icon: Bot },
 ];
 
 const equipeItems = [
@@ -226,7 +226,7 @@ function AppSidebar({
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Assistentes</SidebarGroupLabel>
+          <SidebarGroupLabel>Assistentes (Will)</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {assistentesItems.map((item) => {
