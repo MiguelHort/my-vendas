@@ -39,10 +39,10 @@ const SUGGESTED_QUESTIONS = [
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content:
-    "Olá! Sou o **Jacson**, seu assistente de IA no WinLeads. Tenho acesso aos dados da sua conta e posso te ajudar a entender sua performance, leads, vendas e comissões. O que você quer saber?",
+    "Olá! Sou o **Will**, seu assistente de IA no WinLeads. Tenho acesso aos dados da sua conta e posso te ajudar a entender sua performance, leads, vendas e comissões. O que você quer saber?",
 };
 
-export default function JacsonPage() {
+export default function WillPage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
@@ -73,7 +73,7 @@ export default function JacsonPage() {
       const token = await firebaseUser.getIdToken();
       const history = newMessages.slice(1, -1);
 
-      const res = await fetch("/api/jacson", {
+      const res = await fetch("/api/Will", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,7 +135,7 @@ export default function JacsonPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm leading-tight tracking-tight">Jacson</p>
+                <p className="font-semibold text-sm leading-tight tracking-tight">Will</p>
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -158,7 +158,7 @@ export default function JacsonPage() {
                   ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Jacson"}
+              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Will"}
             >
               {ttsEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
               <span className="hidden sm:inline">{ttsEnabled ? "Voz ativa" : "Voz"}</span>
@@ -238,7 +238,7 @@ export default function JacsonPage() {
                     size="icon"
                     variant="outline"
                     className="shrink-0 size-11 rounded-xl border-muted-foreground/20 hover:border-emerald-500/30 hover:bg-emerald-500/5"
-                    title="Falar com o Jacson"
+                    title="Falar com o Will"
                   >
                     <Mic className="size-4" />
                   </Button>

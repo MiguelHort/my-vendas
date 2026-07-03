@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
-const SYSTEM_PROMPT = `Você é Jacson, o assistente de IA do WinLeads, um CRM para corretores de planos de saúde.
+const SYSTEM_PROMPT = `Você é Will, o assistente de IA do WinLeads, um CRM para corretores de planos de saúde.
 Seu papel é ajudar o corretor a entender sua performance e dados da conta de forma clara e direta.
 
 Você receberá os dados reais da conta do corretor: estatísticas gerais E a lista completa dos leads.
@@ -106,8 +106,8 @@ function buildAccountContext(
   const leadsSection =
     allLeads.length > 0
       ? `\n=== LISTA COMPLETA DE LEADS (${allLeads.length} leads, mais recentes primeiro) ===\n` +
-        allLeads.map(formatLeadLine).join("\n") +
-        "\n=== FIM DOS LEADS ==="
+      allLeads.map(formatLeadLine).join("\n") +
+      "\n=== FIM DOS LEADS ==="
       : "";
 
   return `=== DADOS DA CONTA DO CORRETOR ===
@@ -282,14 +282,14 @@ export async function POST(req: NextRequest) {
     const historyText =
       history.length > 0
         ? "\n\n=== HISTÓRICO DA CONVERSA ===\n" +
-          history
-            .slice(-10)
-            .map((m) => `${m.role === "user" ? "Corretor" : "Jacson"}: ${m.content}`)
-            .join("\n") +
-          "\n=== FIM DO HISTÓRICO ==="
+        history
+          .slice(-10)
+          .map((m) => `${m.role === "user" ? "Corretor" : "Will"}: ${m.content}`)
+          .join("\n") +
+        "\n=== FIM DO HISTÓRICO ==="
         : "";
 
-    const fullPrompt = `${SYSTEM_PROMPT}\n\n${accountContext}${historyText}\n\nCorretor: ${message}\nJacson:`;
+    const fullPrompt = `${SYSTEM_PROMPT}\n\n${accountContext}${historyText}\n\nCorretor: ${message}\nWill:`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(fullPrompt);
@@ -297,7 +297,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ reply });
   } catch (err) {
-    console.error("Erro em /api/jacson:", err);
+    console.error("Erro em /api/Will:", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }

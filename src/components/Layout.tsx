@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
-import { JacsonWidget } from "@/components/JacsonWidget";
+import { WillWidget } from "@/components/WillWidget";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -94,10 +94,13 @@ const crmItems = [
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
-  { href: "/dashboard/jacson", label: "Jacson IA", icon: Bot },
-  { href: "/dashboard/configuracoes/sdr", label: "SDR de IA", icon: Bot },
   { href: "/dashboard/conquistas", label: "Conquistas", icon: Trophy },
   { href: "/dashboard/nivel", label: "Nível", icon: Medal },
+];
+
+const assistentesItems = [
+  { href: "/dashboard/will", label: "Will Chat", icon: Bot },
+  { href: "/dashboard/configuracoes/sdr", label: "Will SDR", icon: Bot },
 ];
 
 const equipeItems = [
@@ -120,7 +123,7 @@ const segmentLabels: Record<string, string> = {
   admin: "Admin",
   configuracoes: "Configurações",
   "novo-lead": "Novo Lead",
-  jacson: "Jacson IA",
+  Will: "Will IA",
   conquistas: "Conquistas",
   nivel: "Nível",
 };
@@ -205,6 +208,28 @@ function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {crmItems.map((item) => {
+                const Icon = item.icon;
+                const active = isRouteActive(pathname, item.href);
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <Link href={item.href}>
+                        <Icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Assistentes</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {assistentesItems.map((item) => {
                 const Icon = item.icon;
                 const active = isRouteActive(pathname, item.href);
                 return (
@@ -506,7 +531,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
           </main>
         </div>
 
-        {pathname !== "/dashboard/jacson" && <JacsonWidget />}
+        {pathname !== "/dashboard/Will" && <WillWidget />}
       </SidebarInset>
     </SidebarProvider>
   );

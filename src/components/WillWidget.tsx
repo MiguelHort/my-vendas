@@ -15,10 +15,10 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const WELCOME: Message = {
   role: "assistant",
-  content: "Olá! Sou o **Jacson**. Pergunte qualquer coisa sobre seus leads ou sua performance.",
+  content: "Olá! Sou o **Will**. Pergunte qualquer coisa sobre seus leads ou sua performance.",
 };
 
-export function JacsonWidget() {
+export function WillWidget() {
   const [firebaseUser] = useAuthState(auth);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
@@ -53,7 +53,7 @@ export function JacsonWidget() {
       const token = await firebaseUser.getIdToken();
       const history = newMessages.slice(1, -1);
 
-      const res = await fetch("/api/jacson", {
+      const res = await fetch("/api/Will", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export function JacsonWidget() {
             <Bot className="size-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight">Jacson</p>
+            <p className="text-sm font-semibold leading-tight">Will</p>
             <p className="text-[11px] text-muted-foreground leading-tight">Assistente IA</p>
           </div>
           <div className="flex items-center gap-1">
@@ -117,7 +117,7 @@ export function JacsonWidget() {
               size="icon"
               className="size-7 rounded-lg"
               onClick={() => { setTtsEnabled((v) => !v); if (ttsEnabled) stopSpeaking(); }}
-              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Jacson"}
+              title={ttsEnabled ? "Desativar voz" : "Ativar voz do Will"}
             >
               {ttsEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5 text-muted-foreground" />}
             </Button>
@@ -130,7 +130,7 @@ export function JacsonWidget() {
             >
               <RotateCcw className="size-3.5" />
             </Button>
-            <Link href="/dashboard/jacson">
+            <Link href="/dashboard/Will">
               <Button
                 variant="ghost"
                 size="icon"
@@ -226,8 +226,8 @@ export function JacsonWidget() {
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2",
           open && "rotate-12"
         )}
-        title="Jacson IA"
-        aria-label="Abrir assistente Jacson"
+        title="Will IA"
+        aria-label="Abrir assistente Will"
       >
         {open ? (
           <X className="size-5 text-white" />

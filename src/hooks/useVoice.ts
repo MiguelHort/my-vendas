@@ -53,7 +53,7 @@ export function useVoice({ onTranscript, lang = "pt-BR" }: UseVoiceOptions) {
   return { listening, start, stop, supported };
 }
 
-/** Read a Jacson response aloud (strips ** markdown). */
+/** Read a Will response aloud (strips ** markdown). */
 export function speak(text: string) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const clean = text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\n/g, " ");
