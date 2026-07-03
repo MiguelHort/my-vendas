@@ -416,13 +416,26 @@ const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, filtroOrigem, filtroPeriodo, filtroDataInicio, filtroDataFim]);
 
-  const totalLeads = filteredLeads.length;
-  const vendasFechadas = filteredLeads.filter(
-    (l) => l.status === "Concluído"
-  ).length;
+  // Vendas fechadas no período filtradas por data_venda (não data_entrada)
+  const vendasNoPeriodo = useMemo(() => {
+    const { startDate, endDate } = getDateRange();
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = endDate.toISOString().slice(0, 10);
 
-  const totalComissoes = filteredLeads
-    .filter((l) => l.status === "Concluído")
+    return leads.filter((lead) => {
+      if (lead.status !== "Concluído" || !lead.data_venda) return false;
+      const dateStr = lead.data_venda.slice(0, 10);
+      const origemMatch =
+        filtroOrigem === "Todos" || lead.origem === filtroOrigem;
+      return dateStr >= startStr && dateStr <= endStr && origemMatch;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, filtroOrigem, filtroPeriodo, filtroDataInicio, filtroDataFim]);
+
+  const totalLeads = filteredLeads.length;
+  const vendasFechadas = vendasNoPeriodo.length;
+
+  const totalComissoes = vendasNoPeriodo
     .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
 
   const leadsQualificados = filteredLeads.filter((l) =>
@@ -435,7 +448,7 @@ const DashboardPage = () => {
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
   const taxaFechamento =
-    leadsQualificados > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
+    volumeProducao > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
 
   const leadsParaRetorno = useMemo(() => {
     return filteredLeads.filter(leadPrecisaRetorno).sort((a, b) => {
@@ -469,7 +482,7 @@ const DashboardPage = () => {
 
   // ----------------- Série de vendas -----------------
   const vendasConcluidas = useMemo(() => {
-    return leads.filter((l) => l.status === "Concluído");
+    return leads.filter((l) => l.status === "Concluído" && !!l.data_venda);
   }, [leads]);
 
   const vendasSerieData = useMemo(() => {
@@ -487,7 +500,7 @@ const DashboardPage = () => {
       for (const d of days) map.set(ymd(d), 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_entrada);
+        const d = new Date(l.data_venda!);
         if (Number.isNaN(d.getTime())) continue;
         const key = ymd(d);
         if (map.has(key)) map.set(key, (map.get(key) || 0) + 1);
@@ -511,7 +524,7 @@ const DashboardPage = () => {
       for (let day = 1; day <= daysInMonth; day++) map.set(day, 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_entrada);
+        const d = new Date(l.data_venda!);
         if (Number.isNaN(d.getTime())) continue;
         if (d.getFullYear() !== year || d.getMonth() !== month) continue;
         map.set(d.getDate(), (map.get(d.getDate()) || 0) + 1);
@@ -529,7 +542,7 @@ const DashboardPage = () => {
       for (let m = 0; m < 12; m++) map.set(m, 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_entrada);
+        const d = new Date(l.data_venda!);
         if (Number.isNaN(d.getTime())) continue;
         if (d.getFullYear() !== year) continue;
         map.set(d.getMonth(), (map.get(d.getMonth()) || 0) + 1);
