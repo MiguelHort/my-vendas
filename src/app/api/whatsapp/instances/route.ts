@@ -74,6 +74,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "senderId é obrigatório" }, { status: 400 });
   }
 
+  const requester = await getOrCreateUserByFirebaseUid({ firebaseUid, email, name });
+  if (requester.role !== "ADMIN") {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  }
+
   // Valida que o senderId existe e está acessível na Zavu
   const apiStatus = await zavuProvider.getStatus(senderId);
   if (apiStatus !== "active") {
@@ -133,6 +138,9 @@ export async function DELETE(req: NextRequest) {
   }
 
   const user = await getOrCreateUserByFirebaseUid({ firebaseUid, email, name });
+  if (user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  }
   await prisma.whatsappInstance.deleteMany({ where: { userId: user.id } });
 
   return NextResponse.json({ ok: true });

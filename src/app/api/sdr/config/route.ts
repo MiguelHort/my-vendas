@@ -45,6 +45,10 @@ export async function PUT(req: NextRequest) {
 
   const user = await getOrCreateUserByFirebaseUid({ firebaseUid, email, name });
 
+  if (user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  }
+
   const data: {
     enabled?: boolean;
     nomeAssistente?: string;

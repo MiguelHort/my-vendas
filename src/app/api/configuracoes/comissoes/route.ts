@@ -98,6 +98,10 @@ export async function PUT(req: NextRequest) {
       name: name || undefined,
     });
 
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+    }
+
     const updated = await prisma.planCommission.upsert({
       where: { userId_operadora: { userId: user.id, operadora } },
       update: {

@@ -98,7 +98,6 @@ const crmItems = [
 
 const assistentesItems = [
   { href: "/dashboard/will", label: "Chat", icon: Bot },
-  { href: "/dashboard/configuracoes/sdr", label: "SDR", icon: Bot },
   { href: "/dashboard/configuracoes/alertas", label: "Alertas", icon: Bell },
 ];
 
