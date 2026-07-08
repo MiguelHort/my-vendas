@@ -91,12 +91,8 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  stripeCustomerId     String?  @map("stripe_customer_id") @db.Text
-  stripeSubscriptionId String?  @map("stripe_subscription_id") @db.Text
-  subscriptionStatus   String?  @map("subscription_status") @db.Text
-  isActive             Boolean  @default(false) @map("is_active")
-
-  admin        Boolean  @default(false) @map("admin")
+  role     Role    @default(VENDEDOR)
+  approved Boolean @default(false)
 
   // ✅ NOVO: supervisor
   isSupervisor   Boolean @default(false) @map("is_supervisor")
@@ -106,7 +102,6 @@ model User {
   lotesProducao   LoteProducao[]
   funnelColumns   FunnelColumn[]
   planCommissions PlanCommission[]
-  consents        UserConsent[]
 
   // Equipe
   supervisingLinks SupervisorBrokerLink[] @relation("SupervisorLinks")
@@ -118,24 +113,16 @@ model User {
   sdrConversations SdrConversation[]
   aiUsageLogs      AiUsageLog[]
 
+  // Alertas
+  alertConfig UserAlertConfig?
+
   @@map("users")
-  @@index([stripeCustomerId])
-  @@index([stripeSubscriptionId])
   @@schema("public")
 }
 
-model UserConsent {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  type       String   @db.Text
-  version    String   @db.Text
-  acceptedAt DateTime @map("accepted_at") @db.Timestamptz(6)
-  ip         String?  @db.Text
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("user_consents")
+enum Role {
+  ADMIN
+  VENDEDOR
   @@schema("public")
 }
 
@@ -213,6 +200,20 @@ model MemberGoal {
 
   @@unique([supervisorId, brokerId])
   @@map("member_goals")
+  @@schema("public")
+}
+
+model UserAlertConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  whatsappNumber String?  @map("whatsapp_number") @db.Text
+  alertNovoLead  Boolean  @default(false) @map("alert_novo_lead")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_alert_config")
   @@schema("public")
 }
 

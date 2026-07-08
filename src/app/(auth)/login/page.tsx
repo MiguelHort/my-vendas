@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { loginWithEmail } from "@/lib/auth";
 
 import {
   Card,
@@ -14,42 +15,48 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import Link from "next/link";
-import { Line } from "recharts";
-import { Separator } from "@/components/ui/separator";
-import { ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleGoogle() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      const result = await loginWithEmail(email, password);
+      const token = await result.user.getIdToken();
 
-      // Chama a API para sincronizar com o banco (tabela users)
-      await fetch("/api/sync-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firebaseUid: user.uid,
-          email: user.email,
-          name: user.displayName,
-        }),
+      const res = await fetch("/api/me", {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json();
+
+      if (!data?.ok) {
+        if (data?.reason === "pending-approval") {
+          setError(
+            "Sua conta está aguardando aprovação de um administrador."
+          );
+        } else {
+          setError("Não foi possível acessar sua conta.");
+        }
+        await signOut(auth);
+        return;
+      }
 
       router.push("/dashboard");
     } catch (err: any) {
       console.error(err);
-      setError("Erro ao entrar com Google");
+      setError("Email ou senha inválidos.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +64,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-linear-to-br from-slate-100 to-slate-200 px-4">
-      <Link href="/dashboard" className="flex items-center gap-3">
+      <Link href="/login" className="flex items-center gap-3">
         <Image
           src="/imgs/logo01.png"
           alt="WinLeads"
@@ -77,34 +84,47 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-5 mt-1">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-14 flex items-center justify-center gap-3 border-slate-300 hover:bg-slate-100 transition-all text-slate-800 rounded-xl"
-            onClick={handleGoogle}
-            disabled={loading}
-          >
-            <Image
-              src="/google-logo.png"
-              alt="Google Logo"
-              width={28}
-              height={28}
-              className="opacity-90"
-            />
-            {loading ? "Conectando..." : "Entrar com Google"}
-          </Button>
+        <CardContent className="mt-1">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@empresa.com"
+              />
+            </div>
 
-          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
 
-          <Separator className="mt-3" />
+            {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <div className="flex items-center justify-center gap-3 my-2">
-            <ShieldCheck className="w-5 h-5 text-green-500" />
-            <p className="text-sm text-center text-slate-600">
-              Login seguro com autenticação do Google
-            </p>
-          </div>
+            <Button type="submit" className="w-full h-11 mt-1" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+
+          <p className="text-sm text-center text-slate-500 mt-5">
+            Ainda não tem conta?{" "}
+            <Link href="/cadastro" className="font-medium text-primary hover:underline">
+              Cadastre-se
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

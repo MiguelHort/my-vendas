@@ -20,6 +20,7 @@ import {
   Bot,
   Trophy,
   Medal,
+  Bell,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -76,11 +77,8 @@ type MeUser = {
   firebaseUid: string;
   email: string;
   name: string | null;
-  admin: boolean;
-  isActive: boolean;
-  subscriptionStatus: string | null;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  role: "ADMIN" | "VENDEDOR";
+  approved: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -101,6 +99,7 @@ const crmItems = [
 const assistentesItems = [
   { href: "/dashboard/will", label: "Chat", icon: Bot },
   { href: "/dashboard/configuracoes/sdr", label: "SDR", icon: Bot },
+  { href: "/dashboard/configuracoes/alertas", label: "Alertas", icon: Bell },
 ];
 
 const equipeItems = [
@@ -122,6 +121,7 @@ const segmentLabels: Record<string, string> = {
   cotacao: "Cotação",
   admin: "Admin",
   configuracoes: "Configurações",
+  alertas: "Alertas",
   "novo-lead": "Novo Lead",
   Will: "Will IA",
   conquistas: "Conquistas",
@@ -248,27 +248,29 @@ function AppSidebar({
         </SidebarGroup>
 
         {/* Equipe */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Equipe</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {equipeItems.map((item) => {
-                const Icon = item.icon;
-                const active = isRouteActive(pathname, item.href, true);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Equipe</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {equipeItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isRouteActive(pathname, item.href, true);
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                        <Link href={item.href}>
+                          <Icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Admin */}
         {isAdmin && (
@@ -392,7 +394,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
         });
         const data = await res.json();
         setMeUser(data?.user ?? null);
-        setIsAdmin(!!data?.user?.admin);
+        setIsAdmin(data?.user?.role === "ADMIN");
       } catch {
         setMeUser(null);
         setIsAdmin(false);

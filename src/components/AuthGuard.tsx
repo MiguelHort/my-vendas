@@ -2,18 +2,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged, getIdToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import ConsentModal from "@/components/ConsentModal";
 
-type GuardState = "loading" | "consent-required" | "ready";
+type GuardState = "loading" | "ready";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<GuardState>("loading");
-  const [token, setToken] = useState<string>("");
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -25,7 +22,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
       try {
         const idToken = await getIdToken(firebaseUser, true);
-        setToken(idToken);
 
         const res = await fetch("/api/me", {
           method: "GET",
@@ -35,19 +31,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         const data = await res.json();
 
         if (!data?.ok) {
-          if (pathname !== "/planos") router.replace("/planos");
-          else setState("ready");
-          return;
-        }
-
-        // Verifica consentimento LGPD
-        const consentRes = await fetch("/api/lgpd/consent", {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        const consentData = await consentRes.json();
-
-        if (!consentData?.hasConsented) {
-          setState("consent-required");
+          if (data?.reason === "pending-approval") {
+            router.replace("/aguardando-aprovacao");
+          } else {
+            router.replace("/login");
+          }
           return;
         }
 
@@ -60,22 +48,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsub();
-  }, [router, pathname]);
+  }, [router]);
 
   if (state === "loading") {
     return (
       <div className="w-full h-screen flex items-center justify-center text-muted-foreground">
         Validando acesso...
       </div>
-    );
-  }
-
-  if (state === "consent-required") {
-    return (
-      <>
-        <div className="w-full h-screen flex items-center justify-center text-muted-foreground" />
-        <ConsentModal token={token} onAccepted={() => setState("ready")} />
-      </>
     );
   }
 

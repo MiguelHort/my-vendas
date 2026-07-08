@@ -23,8 +23,7 @@ export async function GET(req: NextRequest) {
         name: user.name,
         email: user.email,
         createdAt: user.createdAt,
-        subscriptionStatus: user.subscriptionStatus,
-        isActive: user.isActive,
+        role: user.role,
       },
     });
   } catch (err) {

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"kanban\")",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; npx tsc --noEmit --project tsconfig.json 2>&1 | Where-Object { $_ -match \"metricas|supervisor.leads\" })",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"metricas|supervisor\" })",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"cotacao|validator\" } | Select-Object -First 20)",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; $out = npx tsc --noEmit 2>&1; $filtered = $out | Where-Object { $_ -notmatch \"cotacao|validator\\\\.ts\" }; $filtered | Select-Object -First 30; Write-Host \"Total filtered lines: $\\($filtered.Count\\)\")",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; $out = npx tsc --noEmit 2>&1; $filtered = $out | Where-Object { $_ -notmatch \"cotacao|validator\\\\.ts\" }; $filtered | Select-Object -First 30; Write-Host \"Erros nos meus arquivos: $\\($filtered.Count\\)\")",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; $out = npx tsc --noEmit 2>&1; $filtered = $out | Where-Object { $_ -notmatch \"cotacao|validator\\\\.ts\" }; Write-Host \"Erros nos meus arquivos: $\\($filtered.Count\\)\"; $filtered | Select-Object -First 10)",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; $out = npx tsc --noEmit 2>&1; $filtered = $out | Where-Object { $_ -notmatch \"cotacao|validator\\\\.ts\" }; Write-Host \"Erros: $\\($filtered.Count\\)\"; $filtered | Select-Object -First 10)",
+      "PowerShell(cd \"c:\\\\Projects\\\\my-vendas\"; $out = npx tsc --noEmit 2>&1; $filtered = $out | Where-Object { $_ -notmatch \"cotacao|validator\\\\.ts\" }; Write-Host \"Erros: $\\($filtered.Count\\)\"; $filtered)",
+      "PowerShell(cd c:\\\\Projects\\\\my-vendas; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"validator\\\\.ts\" } | Select-Object -First 40)",
+      "PowerShell(cd c:\\\\Projects\\\\my-vendas; npx tsc --noEmit --skipLibCheck 2>&1 | Where-Object { $_ -notmatch \"validator\\\\.ts\" })",
+      "Bash(node -e \"const at = require\\('c:/Projects/my-vendas/node_modules/jspdf-autotable'\\); console.log\\('default:', typeof at.default, 'keys:', Object.keys\\(at\\).slice\\(0,5\\)\\)\")",
+      "Bash(node -e \"const j = require\\('c:/Projects/my-vendas/node_modules/jspdf'\\); console.log\\('keys:', Object.keys\\(j\\).slice\\(0,5\\)\\)\")",
+      "Bash(node -e \"const j = require\\('c:/Projects/my-vendas/node_modules/jspdf'\\); console.log\\('jsPDF type:', typeof j.jsPDF\\); console.log\\('default type:', typeof j.default\\)\")",
+      "Bash(xargs grep -l \"toast\\\\|Notification\\\\|notification\")",
+      "WebSearch",
+      "WebFetch(domain:zavu.dev)",
+      "WebFetch(domain:docs.zavu.dev)",
+      "Bash(xargs grep -l \"agenda\\\\|node-cron\\\\|cron-job\\\\|node-schedule\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Projects\\my-vendas\\src\\app\\(protected)\\dashboard\\cotacao"
+    ]
+  }
+}

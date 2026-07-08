@@ -29,6 +29,7 @@ import {
   UserMinus,
   Users,
   XCircle,
+  Lock,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────
@@ -78,6 +79,9 @@ const BROKER_STATUS_CONFIG = {
 
 export default function EquipePage() {
   const [user, loadingAuth] = useAuthState(auth);
+
+  // admin gate
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   // role selection
   const [activeRole, setActiveRole] = useState<ActiveRole | null>(null);
@@ -146,9 +150,25 @@ export default function EquipePage() {
 
   useEffect(() => {
     if (!user || loadingAuth) return;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setIsAdmin(data?.user?.role === "ADMIN");
+      } catch {
+        setIsAdmin(false);
+      }
+    })();
+  }, [user, loadingAuth]);
+
+  useEffect(() => {
+    if (!user || loadingAuth || isAdmin !== true) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loadingAuth]);
+  }, [user, loadingAuth, isAdmin]);
 
   // ── Supervisor actions ──────────────────────────────
 
@@ -241,7 +261,7 @@ export default function EquipePage() {
 
   // ── Loading ─────────────────────────────────────────
 
-  if (loadingAuth || loadingData) {
+  if (loadingAuth || isAdmin === null || (isAdmin && loadingData)) {
     return (
       <Layout>
         <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
@@ -254,6 +274,26 @@ export default function EquipePage() {
             <Skeleton className="h-36 rounded-2xl" />
           </div>
           <Skeleton className="h-48 rounded-2xl" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <div className="p-4 md:p-8 max-w-4xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Lock className="h-7 w-7 text-destructive" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold">Acesso negado</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Você não tem permissão para acessar esta página.
+              </p>
+            </div>
+          </div>
         </div>
       </Layout>
     );

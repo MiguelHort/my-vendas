@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
         lotesProducao: true,
         planCommissions: true,
         funnelColumns: true,
-        consents: true,
       },
     });
 
@@ -33,14 +32,12 @@ export async function GET(req: NextRequest) {
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        subscriptionStatus: user.subscriptionStatus,
-        isActive: user.isActive,
+        role: user.role,
       },
       leads: user.leads,
       lotesProducao: user.lotesProducao,
       comissoes: user.planCommissions,
       colunasDoFunil: user.funnelColumns,
-      consentimentos: user.consents,
     };
 
     return new NextResponse(JSON.stringify(exportData, null, 2), {

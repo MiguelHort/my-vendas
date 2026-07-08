@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -37,39 +36,33 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 import {
-  Activity,
-  AlertCircle,
-  BarChart2,
+  CheckCircle2,
+  Clock,
   Lock,
   Pencil,
-  PieChartIcon,
   Save,
   Shield,
   Trash2,
+  UserCog,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip as RechartsTooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
-
-type TrialStatus = "paid" | "trial" | "blocked";
+type Role = "ADMIN" | "VENDEDOR";
 
 type AdminUser = {
   id: string;
@@ -78,55 +71,16 @@ type AdminUser = {
   name: string | null;
   createdAt: string;
   updatedAt: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  subscriptionStatus: string | null;
-  isActive: boolean;
-  admin: boolean;
-  trialStatus: TrialStatus;
-  trialEndsAt: string | null;
+  role: Role;
+  approved: boolean;
 };
 
 type EditForm = {
   email: string;
   name: string;
-  admin: boolean;
-  isActive: boolean;
-  subscriptionStatus: string;
-  stripeCustomerId: string;
-  stripeSubscriptionId: string;
+  role: Role;
+  approved: boolean;
 };
-
-const STATUS_COLORS: Record<TrialStatus, string> = {
-  paid: "#16a34a",
-  trial: "#2563eb",
-  blocked: "#b91c1c",
-};
-
-function StatusPill({ status }: { status: TrialStatus }) {
-  const map: Record<TrialStatus, { label: string; cls: string }> = {
-    paid: {
-      label: "Pagante",
-      cls: "ring-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    },
-    trial: {
-      label: "7 dias grátis",
-      cls: "ring-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    },
-    blocked: {
-      label: "Bloqueado",
-      cls: "ring-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-    },
-  };
-  const { label, cls } = map[status] ?? map.blocked;
-  return (
-    <span
-      className={`inline-flex items-center rounded-full ring-1 px-2.5 py-0.5 text-[11px] font-semibold ${cls}`}
-    >
-      {label}
-    </span>
-  );
-}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -144,33 +98,35 @@ export default function AdminDashboardPage() {
     if (!loadingAuth && !firebaseUser) router.replace("/login");
   }, [firebaseUser, loadingAuth, router]);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!firebaseUser) return;
-      try {
-        const token = await firebaseUser.getIdToken();
-        const res = await fetch("/api/admin/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  async function fetchUsers() {
+    if (!firebaseUser) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch("/api/admin/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (res.status === 403) {
-          setIsAdmin(false);
-          setLoadingPage(false);
-          return;
-        }
-        if (!res.ok) throw new Error("Erro ao buscar usuários");
-
-        const data = await res.json();
-        setIsAdmin(true);
-        setUsers(data.users as AdminUser[]);
-      } catch (err) {
-        console.error(err);
-        toast.error("Erro ao carregar usuários");
-      } finally {
+      if (res.status === 403) {
+        setIsAdmin(false);
         setLoadingPage(false);
+        return;
       }
-    };
+      if (!res.ok) throw new Error("Erro ao buscar usuários");
+
+      const data = await res.json();
+      setIsAdmin(true);
+      setUsers(data.users as AdminUser[]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar usuários");
+    } finally {
+      setLoadingPage(false);
+    }
+  }
+
+  useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser]);
 
   function formatDate(dateString: string | null) {
@@ -191,11 +147,8 @@ export default function AdminDashboardPage() {
     setEditForm({
       email: user.email,
       name: user.name ?? "",
-      admin: user.admin,
-      isActive: user.isActive,
-      subscriptionStatus: user.subscriptionStatus ?? "",
-      stripeCustomerId: user.stripeCustomerId ?? "",
-      stripeSubscriptionId: user.stripeSubscriptionId ?? "",
+      role: user.role,
+      approved: user.approved,
     });
   }
 
@@ -204,24 +157,40 @@ export default function AdminDashboardPage() {
     setEditForm(null);
   }
 
-  async function handleSaveEdit() {
-    if (!editingUser || !editForm || !firebaseUser) return;
+  async function updateUser(id: string, patch: Partial<EditForm>) {
+    if (!firebaseUser) return;
+    const token = await firebaseUser.getIdToken();
+    const res = await fetch(`/api/admin/users/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error("Erro ao atualizar usuário");
+    const data = await res.json();
+    const updatedUser = data.user as AdminUser;
+    setUsers((prev) =>
+      (prev ?? []).map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u))
+    );
+    return updatedUser;
+  }
+
+  async function handleApprove(user: AdminUser) {
     try {
-      const token = await firebaseUser.getIdToken();
-      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editForm),
-      });
-      if (!res.ok) throw new Error("Erro ao atualizar usuário");
-      const data = await res.json();
-      const updatedUser = data.user as AdminUser;
-      setUsers((prev) =>
-        (prev ?? []).map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u))
-      );
+      await updateUser(user.id, { approved: true });
+      toast.success(`${user.name || user.email} aprovado`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao aprovar usuário");
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!editingUser || !editForm) return;
+    try {
+      await updateUser(editingUser.id, editForm);
       toast.success("Usuário atualizado com sucesso");
       closeEdit();
     } catch (err) {
@@ -240,7 +209,7 @@ export default function AdminDashboardPage() {
       });
       if (!res.ok) throw new Error("Erro ao deletar usuário");
       setUsers((prev) => (prev ?? []).filter((u) => u.id !== deleteUser.id));
-      toast.success("Usuário deletado com sucesso (Supabase + Firebase)");
+      toast.success("Usuário deletado com sucesso");
       setDeleteUser(null);
     } catch (err) {
       console.error(err);
@@ -251,37 +220,9 @@ export default function AdminDashboardPage() {
   // Derived data
   const safeUsers: AdminUser[] = users ?? [];
   const totalUsers = safeUsers.length;
-  const paidCount = safeUsers.filter((u) => u.trialStatus === "paid").length;
-  const trialCount = safeUsers.filter((u) => u.trialStatus === "trial").length;
-  const blockedCount = safeUsers.filter((u) => u.trialStatus === "blocked").length;
-  const adminsCount = safeUsers.filter((u) => u.admin).length;
-  const activesCount = safeUsers.filter((u) => u.isActive).length;
-
-  const trialDistributionData = [
-    { name: "Pagantes", value: paidCount, key: "paid" as TrialStatus },
-    { name: "7 dias grátis", value: trialCount, key: "trial" as TrialStatus },
-    { name: "Bloqueados", value: blockedCount, key: "blocked" as TrialStatus },
-  ];
-
-  const monthlyUsersData = (() => {
-    const map = new Map<string, number>();
-    safeUsers.forEach((u) => {
-      const date = new Date(u.createdAt);
-      if (isNaN(date.getTime())) return;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      map.set(key, (map.get(key) || 0) + 1);
-    });
-    return Array.from(map.entries())
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([key, count]) => {
-        const [year, month] = key.split("-");
-        const labelDate = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(
-          "pt-BR",
-          { month: "2-digit", year: "2-digit" }
-        );
-        return { month: labelDate, count };
-      });
-  })();
+  const adminsCount = safeUsers.filter((u) => u.role === "ADMIN").length;
+  const vendedoresCount = safeUsers.filter((u) => u.role === "VENDEDOR").length;
+  const pending = safeUsers.filter((u) => !u.approved);
 
   // ---- loading / access states ----
   if (loadingAuth || loadingPage) {
@@ -292,14 +233,10 @@ export default function AdminDashboardPage() {
             <Skeleton className="h-10 w-80 rounded-xl" />
             <Skeleton className="h-4 w-96 rounded-lg" />
           </div>
-          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Skeleton className="h-72 rounded-2xl" />
-            <Skeleton className="h-72 rounded-2xl" />
           </div>
           <Skeleton className="h-64 rounded-2xl" />
         </div>
@@ -339,12 +276,12 @@ export default function AdminDashboardPage() {
             Administração
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie usuários, status de trial, pagamentos e permissões.
+            Gerencie usuários, cargos e aprovações de cadastro.
           </p>
         </div>
 
         {/* Metric cards */}
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
             {
               label: "Total",
@@ -356,33 +293,6 @@ export default function AdminDashboardPage() {
               valueColor: "",
             },
             {
-              label: "Pagantes",
-              value: paidCount,
-              icon: Activity,
-              iconBg: "bg-emerald-500/10",
-              iconRing: "ring-emerald-500/20",
-              iconColor: "text-emerald-600 dark:text-emerald-400",
-              valueColor: "text-emerald-600 dark:text-emerald-400",
-            },
-            {
-              label: "7 dias grátis",
-              value: trialCount,
-              icon: AlertCircle,
-              iconBg: "bg-blue-500/10",
-              iconRing: "ring-blue-500/20",
-              iconColor: "text-blue-600 dark:text-blue-400",
-              valueColor: "text-blue-600 dark:text-blue-400",
-            },
-            {
-              label: "Bloqueados",
-              value: blockedCount,
-              icon: Lock,
-              iconBg: "bg-red-500/10",
-              iconRing: "ring-red-500/20",
-              iconColor: "text-red-600 dark:text-red-400",
-              valueColor: "text-red-600 dark:text-red-400",
-            },
-            {
               label: "Admins",
               value: adminsCount,
               icon: Shield,
@@ -392,13 +302,22 @@ export default function AdminDashboardPage() {
               valueColor: "text-amber-600 dark:text-amber-400",
             },
             {
-              label: "Ativos",
-              value: activesCount,
-              icon: Activity,
-              iconBg: "bg-emerald-500/10",
-              iconRing: "ring-emerald-500/20",
-              iconColor: "text-emerald-600 dark:text-emerald-400",
-              valueColor: "text-emerald-700 dark:text-emerald-300",
+              label: "Vendedores",
+              value: vendedoresCount,
+              icon: UserCog,
+              iconBg: "bg-blue-500/10",
+              iconRing: "ring-blue-500/20",
+              iconColor: "text-blue-600 dark:text-blue-400",
+              valueColor: "text-blue-600 dark:text-blue-400",
+            },
+            {
+              label: "Pendentes de aprovação",
+              value: pending.length,
+              icon: Clock,
+              iconBg: "bg-red-500/10",
+              iconRing: "ring-red-500/20",
+              iconColor: "text-red-600 dark:text-red-400",
+              valueColor: "text-red-600 dark:text-red-400",
             },
           ].map(({ label, value, icon: Icon, iconBg, iconRing, iconColor, valueColor }) => (
             <Card
@@ -422,107 +341,40 @@ export default function AdminDashboardPage() {
           ))}
         </div>
 
-        {/* Charts */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-muted-foreground/10 shadow-sm">
+        {/* Pendentes de aprovação */}
+        {pending.length > 0 && (
+          <Card className="border-amber-500/20 shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
-                  <PieChartIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                <div className="h-9 w-9 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/20 flex items-center justify-center shrink-0">
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <CardTitle className="text-sm font-semibold">Distribuição por status</CardTitle>
-                  <CardDescription>Pagantes · Trial · Bloqueados</CardDescription>
+                  <CardTitle className="text-sm font-semibold">
+                    Cadastros aguardando aprovação
+                  </CardTitle>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="h-64">
-              {totalUsers === 0 ? (
-                <div className="flex flex-col h-full items-center justify-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <PieChartIcon className="h-5 w-5 text-muted-foreground" />
+            <CardContent className="space-y-3">
+              {pending.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-muted-foreground/10 p-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{user.name || "-"}</div>
+                    <div className="text-sm text-muted-foreground truncate">{user.email}</div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Ainda não há usuários suficientes.</p>
+                  <Button size="sm" onClick={() => handleApprove(user)}>
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                    Aprovar
+                  </Button>
                 </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={trialDistributionData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={45}
-                      outerRadius={70}
-                      paddingAngle={2}
-                    >
-                      {trialDistributionData.map((entry) => (
-                        <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      formatter={(value: any, _name: any, item: any) => [
-                        `${value} usuário(s)`,
-                        item?.payload?.name,
-                      ]}
-                      contentStyle={{
-                        borderRadius: "0.75rem",
-                        border: "1px solid hsl(var(--border))",
-                        fontSize: "0.75rem",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
+              ))}
             </CardContent>
           </Card>
-
-          <Card className="border-muted-foreground/10 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
-                  <BarChart2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-semibold">Novos usuários por mês</CardTitle>
-                  <CardDescription>Crescimento histórico de cadastros</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="h-64">
-              {monthlyUsersData.length === 0 ? (
-                <div className="flex flex-col h-full items-center justify-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <BarChart2 className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Ainda não há histórico suficiente.</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyUsersData}>
-                    <defs>
-                      <linearGradient id="adminBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0.4} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                    <RechartsTooltip
-                      formatter={(value: any) => [`${value} usuário(s)`, ""]}
-                      contentStyle={{
-                        borderRadius: "0.75rem",
-                        border: "1px solid hsl(var(--border))",
-                        fontSize: "0.75rem",
-                      }}
-                    />
-                    <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="url(#adminBarGrad)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        )}
 
         {/* User table */}
         <div className="rounded-xl border border-muted-foreground/10 bg-background overflow-hidden">
@@ -539,17 +391,16 @@ export default function AdminDashboardPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Cargo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Perfil</TableHead>
                   <TableHead>Criado em</TableHead>
-                  <TableHead>Trial até</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {totalUsers === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
                           <Users className="h-5 w-5 text-muted-foreground" />
@@ -571,19 +422,28 @@ export default function AdminDashboardPage() {
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      <StatusPill status={user.trialStatus} />
-                    </TableCell>
-                    <TableCell>
-                      {user.admin ? (
+                      {user.role === "ADMIN" ? (
                         <span className="inline-flex items-center rounded-full ring-1 ring-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                           Admin
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Usuário</span>
+                        <span className="inline-flex items-center rounded-full ring-1 ring-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                          Vendedor
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {user.approved ? (
+                        <span className="inline-flex items-center rounded-full ring-1 ring-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                          Aprovado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full ring-1 ring-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-700 dark:text-red-300">
+                          Pendente
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="tabular-nums text-sm">{formatDate(user.createdAt)}</TableCell>
-                    <TableCell className="tabular-nums text-sm">{formatDate(user.trialEndsAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button
@@ -645,73 +505,37 @@ export default function AdminDashboardPage() {
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Cargo</label>
+                  <Select
+                    value={editForm.role}
+                    onValueChange={(value: Role) =>
+                      setEditForm((prev) => (prev ? { ...prev, role: value } : prev))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="VENDEDOR">Vendedor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Assinatura ativa</label>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={editForm.isActive}
-                        onCheckedChange={(checked) =>
-                          setEditForm((prev) => (prev ? { ...prev, isActive: checked } : prev))
-                        }
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        Controla se o usuário está ativo
-                      </span>
-                    </div>
+                  <Label className="text-sm font-medium">Aprovado</Label>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={editForm.approved}
+                      onCheckedChange={(checked) =>
+                        setEditForm((prev) => (prev ? { ...prev, approved: checked } : prev))
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Controla se o usuário pode acessar o sistema
+                    </span>
                   </div>
-
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Admin</label>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={editForm.admin}
-                        onCheckedChange={(checked) =>
-                          setEditForm((prev) => (prev ? { ...prev, admin: checked } : prev))
-                        }
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        Acesso ao painel admin
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">subscriptionStatus</label>
-                  <Input
-                    value={editForm.subscriptionStatus}
-                    onChange={(e) =>
-                      setEditForm((prev) =>
-                        prev ? { ...prev, subscriptionStatus: e.target.value } : prev
-                      )
-                    }
-                    placeholder='Ex: "active", "trialing", "canceled"...'
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">stripeCustomerId</label>
-                  <Input
-                    value={editForm.stripeCustomerId}
-                    onChange={(e) =>
-                      setEditForm((prev) =>
-                        prev ? { ...prev, stripeCustomerId: e.target.value } : prev
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">stripeSubscriptionId</label>
-                  <Input
-                    value={editForm.stripeSubscriptionId}
-                    onChange={(e) =>
-                      setEditForm((prev) =>
-                        prev ? { ...prev, stripeSubscriptionId: e.target.value } : prev
-                      )
-                    }
-                  />
                 </div>
               </div>
             )}
@@ -738,7 +562,7 @@ export default function AdminDashboardPage() {
               <AlertDialogTitle>Deletar usuário?</AlertDialogTitle>
             </AlertDialogHeader>
             <p className="text-sm text-muted-foreground">
-              Esta ação removerá o usuário do banco (Supabase) e da autenticação Firebase. Não pode
+              Esta ação removerá o usuário do banco e da autenticação Firebase. Não pode
               ser desfeita.
             </p>
             <div className="mt-3 rounded-xl border border-muted-foreground/10 bg-muted/50 px-3 py-2.5 text-sm space-y-0.5">

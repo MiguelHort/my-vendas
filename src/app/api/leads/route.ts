@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
+import { sendAlertWhatsApp } from "@/lib/alerts";
 
 export const runtime = "nodejs";
 
@@ -172,6 +173,30 @@ export async function POST(req: NextRequest) {
         retornarEm: retornar_em ? new Date(retornar_em) : null,
       },
     });
+
+    // Alerta de novo lead via Zavu (fire-and-forget)
+    Promise.all([
+      prisma.userAlertConfig.findUnique({ where: { userId: user.id } }),
+      prisma.whatsappInstance.findUnique({ where: { userId: user.id } }),
+    ])
+      .then(([alertConfig, instance]) => {
+        if (
+          alertConfig?.alertNovoLead &&
+          alertConfig.whatsappNumber &&
+          instance?.senderId &&
+          instance.status === "connected"
+        ) {
+          const msg =
+            `🆕 *Novo lead cadastrado!*\n\n` +
+            `👤 ${nome}\n` +
+            `📍 ${cidade} - ${estado}\n` +
+            `📞 ${telefone || "Não informado"}\n` +
+            `🏷️ Origem: ${origem}\n\n` +
+            `📲 Acesse o WinLeads para atender.`;
+          return sendAlertWhatsApp(instance.senderId, alertConfig.whatsappNumber, msg);
+        }
+      })
+      .catch((err) => console.error("[leads POST] Erro ao enviar alerta:", err));
 
     if (origem === "Formulário (Landing)") {
       try {

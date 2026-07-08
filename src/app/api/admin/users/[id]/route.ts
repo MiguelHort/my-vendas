@@ -25,7 +25,7 @@ async function ensureAdmin(req: NextRequest) {
       return { error: "Usuário não encontrado", status: 404 as const };
     }
 
-    if (!user.admin) {
+    if (user.role !== "ADMIN") {
       return { error: "Não autorizado", status: 403 as const };
     }
 
@@ -51,15 +51,11 @@ export async function PUT(
   const { id } = await context.params;
   const body = await req.json();
 
-  const {
-    email,
-    name,
-    admin,
-    isActive,
-    subscriptionStatus,
-    stripeCustomerId,
-    stripeSubscriptionId,
-  } = body;
+  const { email, name, role, approved } = body;
+
+  if (role !== undefined && role !== "ADMIN" && role !== "VENDEDOR") {
+    return NextResponse.json({ error: "Cargo inválido" }, { status: 400 });
+  }
 
   try {
     const existing = await prisma.user.findUnique({
@@ -92,20 +88,8 @@ export async function PUT(
       data: {
         email: typeof email === "string" ? email : existing.email,
         name: typeof name === "string" ? name : existing.name,
-        admin: typeof admin === "boolean" ? admin : existing.admin,
-        isActive: typeof isActive === "boolean" ? isActive : existing.isActive,
-        subscriptionStatus:
-          typeof subscriptionStatus === "string"
-            ? subscriptionStatus
-            : existing.subscriptionStatus,
-        stripeCustomerId:
-          typeof stripeCustomerId === "string"
-            ? stripeCustomerId
-            : existing.stripeCustomerId,
-        stripeSubscriptionId:
-          typeof stripeSubscriptionId === "string"
-            ? stripeSubscriptionId
-            : existing.stripeSubscriptionId,
+        role: role ?? existing.role,
+        approved: typeof approved === "boolean" ? approved : existing.approved,
       },
     });
 

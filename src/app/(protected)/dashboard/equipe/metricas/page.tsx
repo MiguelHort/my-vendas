@@ -960,6 +960,8 @@ function BrokerTeamView({
 export default function DesempenhoTimePage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
   const [userRole, setUserRole] = useState<"supervisor" | "broker" | "none" | null>(null);
 
   const [brokers, setBrokers] = useState<Broker[]>([]);
@@ -1131,6 +1133,20 @@ export default function DesempenhoTimePage() {
 
   useEffect(() => {
     if (!firebaseUser || loadingAuth) return;
+    (async () => {
+      try {
+        const res = await authedFetch("/api/me");
+        const data = await res.json();
+        setIsAdmin(data?.user?.role === "ADMIN");
+      } catch {
+        setIsAdmin(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, loadingAuth]);
+
+  useEffect(() => {
+    if (!firebaseUser || loadingAuth || isAdmin !== true) return;
 
     const detectRole = async () => {
       const [supRes, brokerRes] = await Promise.allSettled([
@@ -1163,7 +1179,7 @@ export default function DesempenhoTimePage() {
 
     detectRole();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUser, loadingAuth]);
+  }, [firebaseUser, loadingAuth, isAdmin]);
 
   useEffect(() => {
     if (!firebaseUser || loadingAuth) return;
@@ -1266,7 +1282,7 @@ export default function DesempenhoTimePage() {
   }, [vendasPorEstado]);
 
   // ---- loading / auth states ----
-  if (loadingAuth || loading || userRole === null) {
+  if (loadingAuth || isAdmin === null || (isAdmin && (loading || userRole === null))) {
     return (
       <Layout>
         <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -1282,6 +1298,26 @@ export default function DesempenhoTimePage() {
             <div className="space-y-6">
               <Skeleton className="h-56 rounded-2xl" />
               <Skeleton className="h-56 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-destructive" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold">Acesso negado</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Você não tem permissão para acessar esta página.
+              </p>
             </div>
           </div>
         </div>

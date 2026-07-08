@@ -37,8 +37,7 @@ type Profile = {
   name: string | null;
   email: string;
   createdAt: string;
-  subscriptionStatus: string | null;
-  isActive: boolean;
+  role: "ADMIN" | "VENDEDOR";
 };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -327,11 +326,9 @@ function MyAccountTab({ token }: { token: string }) {
             </span>
           </div>
           <div className="grid grid-cols-[120px_1fr] items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Assinatura</span>
-            <span className="font-medium capitalize">
-              {profile.isActive
-                ? "Ativa"
-                : profile.subscriptionStatus ?? "Trial"}
+            <span className="text-muted-foreground">Cargo</span>
+            <span className="font-medium">
+              {profile.role === "ADMIN" ? "Admin" : "Vendedor"}
             </span>
           </div>
         </div>
