@@ -34,10 +34,6 @@ import {
   DropResult,
 } from "@hello-pangea/dnd";
 import {
-  Settings,
-  Plus,
-  Trash2,
-  GripVertical,
   Filter,
   XCircle,
   CheckCircle2,
@@ -314,75 +310,19 @@ function KanbanMinimap({
 }
 
 // ========================
-// COLUNAS PADRÃO
+// COLUNAS FIXAS
 // ========================
 
-const DEFAULT_COLUMNS: FunnelColumn[] = [
-  { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
-  { id: "SDR", title: "SDR / Triagem", color: "#6366f1" },
-  { id: "Abordagem", title: "Abordagem", color: "#3b82f6" },
+const FIXED_COLUMNS: FunnelColumn[] = [
+  { id: "Backlog", title: "Backlog", color: "#94a3b8" },
+  { id: "Triagem", title: "Triagem", color: "#6366f1" },
+  { id: "Cotação", title: "Cotação", color: "#3b82f6" },
   { id: "Avaliando", title: "Avaliando", color: "#eab308" },
   { id: "Fechamento", title: "Fechamento", color: "#8b5cf6" },
   { id: "Concluído", title: "Concluído", color: "#22c55e" },
+  { id: "Retornar", title: "Retornar Futuramente", color: "#f59e0b" },
+  { id: "Dispensado", title: "Dispensado", color: "#6b7280" },
 ];
-
-const SDR_COLUMN: FunnelColumn = { id: "SDR", title: "SDR / Triagem", color: "#6366f1" };
-
-function ensureSdrColumn(cols: FunnelColumn[]): FunnelColumn[] {
-  if (cols.some((c) => c.id === "SDR")) return cols;
-  const dispensadoIdx = cols.findIndex((c) => c.id === "Dispensado");
-  const insertAt = dispensadoIdx >= 0 ? dispensadoIdx + 1 : 0;
-  return [...cols.slice(0, insertAt), SDR_COLUMN, ...cols.slice(insertAt)];
-}
-
-const RETORNAR_COLUMN: FunnelColumn = {
-  id: "Retornar",
-  title: "Retornar Futuramente",
-  color: "#f59e0b",
-};
-
-const COLUMN_COLOR_OPTIONS = [
-  { label: "Cinza", value: "#6b7280" },
-  { label: "Azul", value: "#3b82f6" },
-  { label: "Amarelo", value: "#eab308" },
-  { label: "Roxo", value: "#8b5cf6" },
-  { label: "Verde", value: "#22c55e" },
-  { label: "Vermelho", value: "#ef4444" },
-  { label: "Laranja", value: "#f97316" },
-  { label: "Rosa", value: "#ec4899" },
-  { label: "Ciano", value: "#06b6d4" },
-];
-
-const STORAGE_KEY = "winleads_funnel_columns";
-
-function loadColumnsFromStorage(): FunnelColumn[] {
-  if (typeof window === "undefined") return DEFAULT_COLUMNS;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return ensureSdrColumn(JSON.parse(raw) as FunnelColumn[]);
-  } catch {}
-  return DEFAULT_COLUMNS;
-}
-
-function saveColumnsToStorage(cols: FunnelColumn[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
-}
-
-async function saveFunnelColumns(
-  user: { uid: string; email: string | null; displayName: string | null },
-  columns: FunnelColumn[]
-) {
-  const params = new URLSearchParams({
-    firebaseUid: user.uid,
-    email: user.email || "",
-    name: user.displayName || "",
-  });
-  await fetch(`/api/funnel-columns?${params.toString()}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ columns }),
-  });
-}
 
 // ========================
 // PAGE
@@ -402,47 +342,6 @@ const FunilPage = () => {
 
   // Scroll container para o minimapa
   const [scrollContainer, setScrollContainer] = React.useState<HTMLDivElement | null>(null);
-
-  // Colunas configuráveis (Feature 7)
-  const [columns, setColumns] = React.useState<FunnelColumn[]>(DEFAULT_COLUMNS);
-  const [showConfigModal, setShowConfigModal] = React.useState(false);
-  const [editingColumns, setEditingColumns] = React.useState<FunnelColumn[]>([]);
-  const editingColumnsRef = React.useRef<FunnelColumn[]>([]);
-  const [newColTitle, setNewColTitle] = React.useState("");
-  const [newColColor, setNewColColor] = React.useState("#3b82f6");
-
-  React.useEffect(() => {
-    editingColumnsRef.current = editingColumns;
-  }, [editingColumns]);
-
-  // Carrega do localStorage imediatamente (sem flash) e depois sincroniza com o banco
-  React.useEffect(() => {
-    setColumns(loadColumnsFromStorage());
-  }, []);
-
-  React.useEffect(() => {
-    if (!firebaseUser) return;
-    const params = new URLSearchParams({
-      firebaseUid: firebaseUser.uid,
-      email: firebaseUser.email || "",
-      name: firebaseUser.displayName || "",
-    });
-    fetch(`/api/funnel-columns?${params.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data) return;
-        // Se o banco ainda não tem colunas para este usuário, sobe as do localStorage
-        if (data.columns.length === 0) {
-          const local = loadColumnsFromStorage();
-          saveFunnelColumns(firebaseUser, local);
-          return;
-        }
-        const cols = ensureSdrColumn(data.columns as FunnelColumn[]);
-        setColumns(cols);
-        saveColumnsToStorage(cols);
-      })
-      .catch(() => {/* mantém localStorage */});
-  }, [firebaseUser]);
 
   // Modal de dispensa
   const [showDispensaModal, setShowDispensaModal] = React.useState(false);
@@ -907,61 +806,6 @@ const FunilPage = () => {
   };
 
   // ========================
-  // CONFIG DE COLUNAS (Feature 7)
-  // ========================
-
-  const openConfigModal = () => {
-    setEditingColumns(columns.map((c) => ({ ...c })));
-    setNewColTitle("");
-    setNewColColor("#3b82f6");
-    setShowConfigModal(true);
-  };
-
-  const handleSaveColumns = async () => {
-    const saved = editingColumnsRef.current.filter((c) => c.title.trim() !== "");
-    setColumns(saved);
-    saveColumnsToStorage(saved);
-    setShowConfigModal(false);
-    toast.success("Funil atualizado!");
-
-    if (firebaseUser) {
-      saveFunnelColumns(firebaseUser, saved).catch(() => {
-        // silencioso — colunas já salvas no localStorage
-      });
-    }
-  };
-
-  const handleAddColumn = () => {
-    if (!newColTitle.trim()) return;
-    const id = newColTitle.trim().replace(/\s+/g, "_") + "_" + Date.now();
-    const newCol = { id, title: newColTitle.trim(), color: newColColor };
-    setEditingColumns((prev) => [...prev, newCol]);
-    setNewColTitle("");
-    setNewColColor("#3b82f6");
-  };
-
-  const handleDeleteColumn = (index: number) => {
-    const col = editingColumnsRef.current[index];
-    if (!col) return;
-    const hasLeads = allLeads.some((l) => l.status === col.id);
-    if (hasLeads) {
-      toast.error(`Mova os leads da coluna "${col.title}" antes de excluí-la`);
-      return;
-    }
-    setEditingColumns((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleMoveColumn = (index: number, direction: -1 | 1) => {
-    setEditingColumns((prev) => {
-      const newArr = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= newArr.length) return prev;
-      [newArr[index], newArr[target]] = [newArr[target], newArr[index]];
-      return newArr;
-    });
-  };
-
-  // ========================
   // RENDER
   // ========================
 
@@ -1005,7 +849,7 @@ const FunilPage = () => {
     );
   }
 
-  const allColumns = [...columns, RETORNAR_COLUMN];
+  const allColumns = FIXED_COLUMNS;
 
   return (
     <Layout fullWidth>
@@ -1053,11 +897,6 @@ const FunilPage = () => {
               </SelectContent>
             </Select>
           </div>
-
-          <Button variant="outline" size="sm" onClick={openConfigModal} className="gap-2 py-6 rounded-xl">
-            <Settings className="h-4 w-4" />
-            Configurar Funil
-          </Button>
         </div>
       </header>
 
@@ -1330,168 +1169,6 @@ const FunilPage = () => {
             <Button onClick={handleConfirmRetornar} className="gap-2">
               <Clock className="h-4 w-4" />
               Confirmar Agendamento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── MODAL CONFIGURAR FUNIL (Feature 7) ── */}
-      <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-500/10 ring-1 ring-blue-500/20 flex items-center justify-center shrink-0">
-                <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <DialogTitle className="text-base font-semibold tracking-tight">Configurar Funil</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
-                  Renomeie, reordene, mude as cores ou adicione/remova etapas do seu funil.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            {editingColumns.map((col, i) => (
-              <div key={col.id} className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-
-                {/* Cor */}
-                <Select
-                  value={col.color}
-                  onValueChange={(v) => {
-                    setEditingColumns((prev) => {
-                      const updated = [...prev];
-                      updated[i] = { ...updated[i], color: v };
-                      return updated;
-                    });
-                  }}
-                >
-                  <SelectTrigger className="w-10 h-8 p-0 border-0">
-                    <div
-                      className="w-5 h-5 rounded-full mx-auto"
-                      style={{ backgroundColor: col.color }}
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    {COLUMN_COLOR_OPTIONS.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: c.value }}
-                          />
-                          {c.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Nome */}
-                <Input
-                  value={col.title}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setEditingColumns((prev) => {
-                      const updated = [...prev];
-                      updated[i] = { ...updated[i], title: value };
-                      return updated;
-                    });
-                  }}
-                  className="flex-1 h-8"
-                />
-
-                {/* Mover */}
-                <div className="flex gap-0.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleMoveColumn(i, -1)}
-                    disabled={i === 0}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleMoveColumn(i, 1)}
-                    disabled={i === editingColumns.length - 1}
-                  >
-                    ↓
-                  </Button>
-                </div>
-
-                {/* Excluir */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => handleDeleteColumn(i)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ))}
-
-            {/* Adicionar nova coluna */}
-            <div className="pt-3 border-t space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nova etapa</p>
-              <div className="flex gap-2">
-                <Select value={newColColor} onValueChange={setNewColColor}>
-                  <SelectTrigger className="w-10 h-8 p-0 border-0">
-                    <div
-                      className="w-5 h-5 rounded-full mx-auto"
-                      style={{ backgroundColor: newColColor }}
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    {COLUMN_COLOR_OPTIONS.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: c.value }}
-                          />
-                          {c.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Nome da etapa..."
-                  value={newColTitle}
-                  onChange={(e) => setNewColTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddColumn(); } }}
-                  className="flex-1 h-8"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-8 w-8 shrink-0"
-                  onClick={handleAddColumn}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveColumns} className="gap-2">
-              <Settings className="h-4 w-4" />
-              Salvar Configurações
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
         leads: true,
         lotesProducao: true,
         planCommissions: true,
-        funnelColumns: true,
       },
     });
 
@@ -37,7 +36,6 @@ export async function GET(req: NextRequest) {
       leads: user.leads,
       lotesProducao: user.lotesProducao,
       comissoes: user.planCommissions,
-      colunasDoFunil: user.funnelColumns,
     };
 
     return new NextResponse(JSON.stringify(exportData, null, 2), {

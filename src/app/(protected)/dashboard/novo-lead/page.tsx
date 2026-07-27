@@ -266,7 +266,7 @@ const NovoLeadPage = () => {
           valor_mensalidade: valorMensalidade ? parseFloat(valorMensalidade) : null,
           coparticipacao: coparticipacao || null,
           tipo_comissao: tipoComissao,
-          status: "Abordagem",
+          status: "Backlog",
           lote_producao_id: tipoLead === "antigo" ? null : loteId,
         }),
       });

@@ -33,4 +33,4 @@ export const GEMINI_COST_PER_TOKEN = {
 } as const;
 
 export const SDR_LEAD_ORIGEM = "WhatsApp SDR";
-export const SDR_LEAD_STATUS_INICIAL = "SDR";
+export const SDR_LEAD_STATUS_INICIAL = "Backlog";

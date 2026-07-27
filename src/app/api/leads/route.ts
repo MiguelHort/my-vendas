@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
             ? Number(valor_mensalidade)
             : null,
         coparticipacao: coparticipacao || null,
-        status: status || "Abordagem",
+        status: status || "Backlog",
         dataEntrada: new Date(),
         userId: user.id,
         loteProducaoId: lote_producao_id,

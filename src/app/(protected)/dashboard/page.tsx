@@ -196,7 +196,7 @@ const DashboardPage = () => {
   };
 
   const isLeadAtivo = (status: string) =>
-    ["Abordagem", "Avaliando", "Fechamento"].includes(status);
+    ["Cotação", "Avaliando", "Fechamento"].includes(status);
 
   const leadPrecisaRetorno = (lead: Lead) => {
     if (!isLeadAtivo(lead.status)) return false;
@@ -1301,7 +1301,7 @@ const DashboardPage = () => {
                     Dica: mantenha esse painel zerado retornando primeiro os
                     leads em{" "}
                     <span className="font-medium text-foreground">
-                      Abordagem
+                      Cotação
                     </span>{" "}
                     e{" "}
                     <span className="font-medium text-foreground">

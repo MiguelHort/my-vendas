@@ -96,7 +96,6 @@ model User {
 
   leads           Lead[]
   lotesProducao   LoteProducao[]
-  funnelColumns   FunnelColumn[]
   planCommissions PlanCommission[]
 
   // SDR de IA
@@ -132,24 +131,6 @@ model PlanCommission {
   @@unique([userId, operadora])
   @@index([userId])
   @@map("plan_commissions")
-  @@schema("public")
-}
-
-model FunnelColumn {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  colId     String   @map("col_id") @db.Text
-  title     String   @db.Text
-  color     String   @db.Text
-  position  Int
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, colId])
-  @@index([userId, position])
-  @@map("funnel_columns")
   @@schema("public")
 }
 
