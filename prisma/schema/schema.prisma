@@ -39,9 +39,6 @@ model Lead {
   coparticipacao     String?   @db.Text
   motivoDispensa     String?   @map("motivo_dispensa") @db.Text
   telefone           String?   @db.Text
-  cardColor          String?   @map("card_color") @db.Text
-  notas              String?   @db.Text
-  etiquetas          String?   @db.Text
   retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
   tipoComissao       String    @default("interno") @map("tipo_comissao") @db.Text
 

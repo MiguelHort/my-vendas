@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -32,16 +31,13 @@ import {
   CheckCheck,
   Clock3,
   MapPin,
-  Palette,
   Pencil,
   Phone,
-  Plus,
   Sparkles,
-  StickyNote,
-  Tag,
   Users,
   WalletCards,
   X,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -51,11 +47,6 @@ import WhatsappIcon from "@/components/icons/WhatsappIcon";
 // ========================
 // TIPOS
 // ========================
-
-export type Etiqueta = {
-  label: string;
-  color: string;
-};
 
 export type Lead = {
   id: string;
@@ -82,9 +73,6 @@ export type Lead = {
   valor_comissao: number | null;
   data_venda: string | null;
   last_chamado_at: string | null;
-  card_color: string | null;
-  notas: string | null;
-  etiquetas: string | null; // JSON string: Etiqueta[]
   retornar_em: string | null;
   tipo_comissao: string;
   sdr_categoria: string | null;
@@ -120,26 +108,6 @@ export const OPERADORAS = [
   { nome: "Clinipam", cor: "#0066cc", textoCor: "#ffffff", logo: "/imgs/planos/clinipam.png" },
 ];
 
-// Cores para personalização do card
-const CARD_PRESET_COLORS = [
-  { label: "Padrão", value: "" },
-  { label: "Azul", value: "#3b82f6" },
-  { label: "Roxo", value: "#8b5cf6" },
-  { label: "Rosa", value: "#ec4899" },
-];
-
-// Cores para etiquetas
-const ETIQUETA_PRESET_COLORS = [
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-];
-
 // ========================
 // HELPERS
 // ========================
@@ -161,7 +129,6 @@ const getLeadWaitTime = (lead: Lead) => {
 };
 
 const getLeadCardColor = (lead: Lead) => {
-  if (lead.card_color) return lead.card_color;
   if (["Dispensado", "Concluído", "Retornar"].includes(lead.status)) return "";
 
   if (!lead.last_chamado_at) return "#b91c1c";
@@ -175,15 +142,6 @@ const getLeadCardColor = (lead: Lead) => {
   if (diffHours <= 48) return "#f87171";
   if (diffHours <= 72) return "#ef4444";
   return "#b91c1c";
-};
-
-const parseEtiquetas = (raw: string | null): Etiqueta[] => {
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
 };
 
 const getOperadoraInfo = (nome: string | null) => {
@@ -239,11 +197,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
 
-  // estado local para gerenciar etiquetas no modal
-  const [novaEtiquetaLabel, setNovaEtiquetaLabel] = React.useState("");
-  const [novaEtiquetaCor, setNovaEtiquetaCor] = React.useState(
-    ETIQUETA_PRESET_COLORS[0],
-  );
   // estado para controlar se mostra input de operadora customizada
   const [operadoraCustom, setOperadoraCustom] = React.useState(false);
 
@@ -266,8 +219,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const handleOpenEditModal = () => {
     const opInfo = getOperadoraInfo(lead.operadora_ofertada);
     setOperadoraCustom(!opInfo && !!lead.operadora_ofertada);
-    setNovaEtiquetaLabel("");
-    setNovaEtiquetaCor(ETIQUETA_PRESET_COLORS[0]);
     setEditFormData({
       nome: lead.nome,
       origem: lead.origem,
@@ -291,9 +242,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
       last_chamado_at: lead.last_chamado_at,
       tipo_comissao: lead.tipo_comissao || "interno",
       status: lead.status,
-      card_color: lead.card_color,
-      notas: lead.notas,
-      etiquetas: lead.etiquetas,
     });
     // pré-calcula valor_comissao se ainda não definido
     const opNome = lead.operadora_ofertada;
@@ -307,23 +255,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
       }));
     }
     setShowEditModal(true);
-  };
-
-  const etiquetasAtuais = parseEtiquetas(editFormData.etiquetas ?? null);
-
-  const handleAddEtiqueta = () => {
-    if (!novaEtiquetaLabel.trim()) return;
-    const updated: Etiqueta[] = [
-      ...etiquetasAtuais,
-      { label: novaEtiquetaLabel.trim(), color: novaEtiquetaCor },
-    ];
-    setEditFormData({ ...editFormData, etiquetas: JSON.stringify(updated) });
-    setNovaEtiquetaLabel("");
-  };
-
-  const handleRemoveEtiqueta = (index: number) => {
-    const updated = etiquetasAtuais.filter((_, i) => i !== index);
-    setEditFormData({ ...editFormData, etiquetas: JSON.stringify(updated) });
   };
 
   const handleSaveEdit = async () => {
@@ -346,9 +277,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
           tipo_comissao: editFormData.tipo_comissao ?? "interno",
           data_venda: editFormData.data_venda ?? null,
           last_chamado_at: editFormData.last_chamado_at ?? null,
-          card_color: editFormData.card_color ?? null,
-          notas: editFormData.notas ?? null,
-          etiquetas: editFormData.etiquetas ?? null,
         }),
       });
 
@@ -404,7 +332,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
   };
 
   const cardBorderColor = getLeadCardColor(lead);
-  const etiquetasCard = parseEtiquetas(lead.etiquetas);
   const operadoraInfo = getOperadoraInfo(lead.operadora_ofertada);
 
   // Verifica se o lead "retornou" (retornar_em no passado)
@@ -440,11 +367,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
       {/* CARD VISUAL */}
       <Card
         className={`group relative cursor-move overflow-hidden rounded-xl border bg-card transition-all duration-200 hover:border-foreground/20 hover:shadow-md p-1 ${urgencyRingClass}`}
-        style={
-          lead.card_color
-            ? { backgroundColor: `${lead.card_color}08` }
-            : undefined
-        }
       >
         {/* Faixa lateral colorida (substitui o gradiente do topo) */}
         <div
@@ -466,14 +388,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
             </div>
 
             <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-0.5">
-              {lead.notas && (
-                <span
-                  title={lead.notas}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-amber-600 dark:text-amber-400"
-                >
-                  <StickyNote className="h-3.5 w-3.5" />
-                </span>
-              )}
               {lead.telefone && (
                 <Button
                   variant="ghost"
@@ -542,25 +456,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
               </Badge>
             )}
           </div>
-
-          {/* Etiquetas */}
-          {etiquetasCard.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {etiquetasCard.map((et, i) => (
-                <span
-                  key={i}
-                  className="inline-flex h-5 items-center gap-1 rounded-md px-1.5 py-0 text-[10px] font-medium"
-                  style={{
-                    color: et.color,
-                    backgroundColor: `${et.color}15`,
-                  }}
-                >
-                  <Tag className="h-2.5 w-2.5" />
-                  {et.label}
-                </span>
-              ))}
-            </div>
-          )}
 
           {/* Informações rápidas — linhas limpas em vez de pills */}
           <div className="flex flex-col gap-2 text-[11px] border p-2 rounded-md">
@@ -669,13 +564,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
             );
           })()}
 
-          {/* Notas — borda lateral em vez de bloco colorido */}
-          {lead.notas && (
-            <div className="line-clamp-2 border-l-2 border-amber-500/40 pl-2 text-[11px] leading-relaxed text-muted-foreground">
-              {lead.notas}
-            </div>
-          )}
-
           {/* Footer */}
           <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-2">
             <div className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
@@ -724,7 +612,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
               {/* Avatar */}
               <div
                 className="h-11 w-11 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                style={{ backgroundColor: lead.card_color || "var(--primary)" }}
+                style={{ backgroundColor: "var(--primary)" }}
               >
                 {getInitials(lead.nome)}
               </div>
@@ -816,119 +704,22 @@ const LeadCard: React.FC<LeadCardProps> = ({
               />
             </div>
 
-            {/* ── PERSONALIZAÇÃO DO CARD ── */}
-            <div className="space-y-4 rounded-xl border border-muted-foreground/10 bg-card p-4 shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
-                  <Palette className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            {/* ── MOTIVO DA DISPENSA ── */}
+            {lead.status === "Dispensado" && (
+              <div className="space-y-1.5 rounded-xl border border-red-500/20 bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-red-500/10 ring-1 ring-red-500/20 flex items-center justify-center shrink-0">
+                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <p className="text-sm font-semibold tracking-tight">
+                    Motivo da Dispensa
+                  </p>
                 </div>
-                <p className="text-sm font-semibold tracking-tight">
-                  Personalização do Card
+                <p className="text-sm text-muted-foreground pl-[42px]">
+                  {lead.motivo_dispensa || "Nenhum motivo informado."}
                 </p>
               </div>
-
-              {/* Cor do card */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Cor do card</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {CARD_PRESET_COLORS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      title={c.label}
-                      onClick={() =>
-                        setEditFormData({
-                          ...editFormData,
-                          card_color: c.value || null,
-                        })
-                      }
-                      className="w-6 h-6 rounded-full border-2 transition-all"
-                      style={{
-                        backgroundColor: c.value || "#e5e7eb",
-                        borderColor:
-                          (editFormData.card_color ?? "") === c.value
-                            ? "#000"
-                            : "transparent",
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Notas */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Notas internas</Label>
-                <Textarea
-                  placeholder="Anotações sobre este lead..."
-                  value={editFormData.notas || ""}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, notas: e.target.value })
-                  }
-                  className="min-h-[70px] text-sm"
-                />
-              </div>
-
-              {/* Etiquetas */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Etiquetas</Label>
-                <div className="flex gap-1.5 flex-wrap mb-2">
-                  {etiquetasAtuais.map((et, i) => (
-                    <span
-                      key={i}
-                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: et.color }}
-                    >
-                      {et.label}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEtiqueta(i)}
-                        className="hover:opacity-70"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Nova etiqueta..."
-                    value={novaEtiquetaLabel}
-                    onChange={(e) => setNovaEtiquetaLabel(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddEtiqueta();
-                      }
-                    }}
-                    className="h-8 text-sm flex-1"
-                  />
-                  <div className="flex gap-1">
-                    {ETIQUETA_PRESET_COLORS.map((cor) => (
-                      <button
-                        key={cor}
-                        type="button"
-                        onClick={() => setNovaEtiquetaCor(cor)}
-                        className="w-5 h-5 rounded-full border-2 transition-all"
-                        style={{
-                          backgroundColor: cor,
-                          borderColor:
-                            novaEtiquetaCor === cor ? "#000" : "transparent",
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="h-8 w-8 shrink-0"
-                    onClick={handleAddEtiqueta}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* ── DADOS BÁSICOS ── */}
             <div className="rounded-xl border border-muted-foreground/10 bg-card p-4 shadow-sm space-y-4">

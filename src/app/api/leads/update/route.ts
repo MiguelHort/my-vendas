@@ -49,9 +49,6 @@ export async function PUT(req: NextRequest) {
     data_entrada,
     data_venda,
     last_chamado_at,
-    card_color,
-    notas,
-    etiquetas,
     retornar_em,
   } = body;
 
@@ -97,9 +94,6 @@ export async function PUT(req: NextRequest) {
     if (data_venda !== undefined) data.dataVenda = data_venda;
     if (last_chamado_at !== undefined)
       data.lastChamadoAt = last_chamado_at;
-    if (card_color !== undefined) data.cardColor = card_color;
-    if (notas !== undefined) data.notas = notas;
-    if (etiquetas !== undefined) data.etiquetas = etiquetas;
     if (retornar_em !== undefined)
       data.retornarEm = retornar_em ? new Date(retornar_em) : null;
 

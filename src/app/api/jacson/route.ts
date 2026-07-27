@@ -32,7 +32,6 @@ type LeadRow = {
   valorComissao: number | null;
   operadoraOfertada: string | null;
   motivoDispensa: string | null;
-  notas: string | null;
   modalidade: string | null;
   acomodacao: string | null;
   qtdVidas: number;
@@ -55,7 +54,6 @@ function formatLeadLine(lead: LeadRow): string {
   if (lead.acomodacao) parts.push(`Acomodação: ${lead.acomodacao}`);
   if (lead.qtdVidas > 0) parts.push(`Vidas: ${lead.qtdVidas}`);
   if (lead.motivoDispensa) parts.push(`Motivo dispensa: ${lead.motivoDispensa}`);
-  if (lead.notas) parts.push(`Notas: ${lead.notas}`);
   return parts.join(" | ");
 }
 
@@ -225,7 +223,6 @@ export async function POST(req: NextRequest) {
           valorComissao: true,
           operadoraOfertada: true,
           motivoDispensa: true,
-          notas: true,
           modalidade: true,
           acomodacao: true,
           qtdVidas: true,
@@ -258,7 +255,6 @@ export async function POST(req: NextRequest) {
       valorComissao: r.valorComissao ? Number(r.valorComissao) : null,
       operadoraOfertada: r.operadoraOfertada,
       motivoDispensa: r.motivoDispensa,
-      notas: r.notas,
       modalidade: r.modalidade,
       acomodacao: r.acomodacao,
       qtdVidas: r.qtdVidas,
