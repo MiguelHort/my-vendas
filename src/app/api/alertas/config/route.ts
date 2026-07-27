@@ -65,6 +65,10 @@ export async function PUT(req: NextRequest) {
       name: name || undefined,
     });
 
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+    }
+
     const config = await prisma.userAlertConfig.upsert({
       where: { userId: user.id },
       create: {

@@ -94,18 +94,10 @@ model User {
   role     Role    @default(VENDEDOR)
   approved Boolean @default(false)
 
-  // ✅ NOVO: supervisor
-  isSupervisor   Boolean @default(false) @map("is_supervisor")
-  supervisorCode String? @unique @map("supervisor_code") @db.VarChar(16)
-
   leads           Lead[]
   lotesProducao   LoteProducao[]
   funnelColumns   FunnelColumn[]
   planCommissions PlanCommission[]
-
-  // Equipe
-  supervisingLinks SupervisorBrokerLink[] @relation("SupervisorLinks")
-  brokerLink       SupervisorBrokerLink?  @relation("BrokerLink")
 
   // SDR de IA
   whatsappInstance WhatsappInstance?
@@ -158,48 +150,6 @@ model FunnelColumn {
   @@unique([userId, colId])
   @@index([userId, position])
   @@map("funnel_columns")
-  @@schema("public")
-}
-
-model SupervisorBrokerLink {
-  id           String @id @default(uuid()) @db.Uuid
-
-  supervisorId String @map("supervisor_id") @db.Uuid
-  brokerId     String @unique @map("broker_id") @db.Uuid
-
-  status       SupervisorLinkStatus @default(PENDING)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  approvedAt   DateTime? @map("approved_at") @db.Timestamptz(6)
-  rejectedAt   DateTime? @map("rejected_at") @db.Timestamptz(6)
-  removedAt    DateTime? @map("removed_at") @db.Timestamptz(6)
-
-  supervisor User @relation("SupervisorLinks", fields: [supervisorId], references: [id])
-  broker     User @relation("BrokerLink", fields: [brokerId], references: [id])
-
-  @@index([supervisorId])
-  @@index([status])
-  @@map("supervisor_broker_links")
-  @@schema("public")
-}
-
-enum SupervisorLinkStatus {
-  PENDING
-  ACTIVE
-  REJECTED
-  @@schema("public")
-}
-
-model MemberGoal {
-  id           String   @id @default(uuid()) @db.Uuid
-  supervisorId String   @map("supervisor_id") @db.Uuid
-  brokerId     String   @map("broker_id") @db.Uuid
-  targetAmount Decimal  @map("target_amount")
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([supervisorId, brokerId])
-  @@map("member_goals")
   @@schema("public")
 }
 

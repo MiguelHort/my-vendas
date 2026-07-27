@@ -19,10 +19,13 @@
       "WebSearch",
       "WebFetch(domain:zavu.dev)",
       "WebFetch(domain:docs.zavu.dev)",
-      "Bash(xargs grep -l \"agenda\\\\|node-cron\\\\|cron-job\\\\|node-schedule\")"
+      "Bash(xargs grep -l \"agenda\\\\|node-cron\\\\|cron-job\\\\|node-schedule\")",
+      "Bash(xargs grep -l -i \"member_goal\")",
+      "Bash(rm -rf \"src/app/api/team\" \"src/app/api/supervisor\" \"src/app/\\(protected\\)/dashboard/equipe\" \"src/app/\\(protected\\)/dashboard/codigo\" \"src/lib/generateTeamReport.ts\")"
     ],
     "additionalDirectories": [
-      "c:\\Projects\\my-vendas\\src\\app\\(protected)\\dashboard\\cotacao"
+      "c:\\Projects\\my-vendas\\src\\app\\(protected)\\dashboard\\cotacao",
+      "c:\\Projects\\my-vendas\\src\\app\\api\\team"
     ]
   }
 }

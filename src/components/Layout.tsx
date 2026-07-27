@@ -11,8 +11,6 @@ import {
   Plus,
   MapPinned,
   UserStar,
-  Users,
-  ChartNoAxesCombined,
   LogOut,
   Settings,
   History,
@@ -20,7 +18,6 @@ import {
   Bot,
   Trophy,
   Medal,
-  Bell,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -98,12 +95,6 @@ const crmItems = [
 
 const assistentesItems = [
   { href: "/dashboard/will", label: "Chat", icon: Bot },
-  { href: "/dashboard/configuracoes/alertas", label: "Alertas", icon: Bell },
-];
-
-const equipeItems = [
-  { href: "/dashboard/equipe", label: "Equipe", icon: Users },
-  { href: "/dashboard/equipe/metricas", label: "Métricas", icon: ChartNoAxesCombined },
 ];
 
 /* ========================
@@ -115,12 +106,9 @@ const segmentLabels: Record<string, string> = {
   funil: "Funil",
   "minhas-vendas": "Minhas Vendas",
   "mapa-estados": "Mapa",
-  equipe: "Equipe",
-  metricas: "Métricas",
   cotacao: "Cotação",
   admin: "Admin",
   configuracoes: "Configurações",
-  alertas: "Alertas",
   "novo-lead": "Novo Lead",
   Will: "Will IA",
   conquistas: "Conquistas",
@@ -245,31 +233,6 @@ function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Equipe */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Equipe</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {equipeItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isRouteActive(pathname, item.href, true);
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                        <Link href={item.href}>
-                          <Icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
 
         {/* Admin */}
         {isAdmin && (
