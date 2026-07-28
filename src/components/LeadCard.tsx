@@ -353,7 +353,21 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const waitTime = getLeadWaitTime(lead);
   const leadInitials = getInitials(lead.nome);
   const monthlyValue = formatCurrency(lead.valor_mensalidade);
-  const commissionValue = formatCurrency(lead.valor_comissao);
+  const commissionInfo = lead.operadora_ofertada
+    ? commissionMap[lead.operadora_ofertada]
+    : undefined;
+  const commissionPct = commissionInfo
+    ? lead.tipo_comissao === "externo"
+      ? commissionInfo.externa
+      : commissionInfo.interna
+    : 100;
+  const estimatedCommission =
+    lead.valor_mensalidade != null
+      ? lead.valor_mensalidade * (commissionPct / 100)
+      : null;
+  const commissionValue = formatCurrency(
+    lead.valor_comissao ?? estimatedCommission,
+  );
   const locationText =
     [lead.cidade, lead.estado].filter(Boolean).join(" / ") || lead.estado;
   const primaryAccent = urgencyAccentColor || operadoraInfo?.cor || "#2563eb";

@@ -781,14 +781,37 @@ const DashboardPage = () => {
                     <div className="inline-flex items-center gap-2 rounded-full bg-background/10 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
                       <DollarSign className="h-3 w-3" />
                       Comissão acumulada
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 opacity-60 hover:opacity-100 transition-opacity cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">
+                            Soma do valor de comissão de todas as vendas com status
+                            Concluído cuja data de venda cai dentro do período e
+                            origem filtrados.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <p className="text-xs opacity-60">
                       No período selecionado
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider opacity-60">
+                    <p className="text-[10px] uppercase tracking-wider opacity-60 inline-flex items-center gap-1 justify-end">
                       Ticket médio
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 opacity-60 hover:opacity-100 transition-opacity cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">
+                            Comissão acumulada dividida pelo número de vendas
+                            fechadas no período.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </p>
                     {showSkeleton ? (
                       <Skeleton className="h-5 w-20 mt-1 bg-background/10" />
@@ -886,8 +909,19 @@ const DashboardPage = () => {
                     <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
                       <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
                       Convertido
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">
+                            Número de leads com status Concluído cuja data de venda
+                            cai dentro do período e origem filtrados.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </span>
                   </div>
                   {showSkeleton ? (
@@ -909,8 +943,19 @@ const DashboardPage = () => {
                     <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
                       <Activity className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
                       Pipeline
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">
+                            Leads com status Avaliando, Fechamento ou Concluído
+                            dentro do período e origem filtrados.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </span>
                   </div>
                   {showSkeleton ? (
@@ -1291,8 +1336,20 @@ const DashboardPage = () => {
                     <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <CardTitle className="text-base font-semibold tracking-tight">
+                    <CardTitle className="inline-flex items-center gap-1.5 text-base font-semibold tracking-tight">
                       Taxa de Fechamento por Estado
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">
+                            Para cada estado: vendas concluídas dividido por leads
+                            qualificados (Avaliando, Fechamento ou Concluído) no
+                            período filtrado, em %.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-1">
                       Conversão (vendas / qualificados) por UF.
