@@ -16,8 +16,6 @@ export async function GET(req: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { firebaseUid: decoded.uid },
       include: {
-        leads: true,
-        lotesProducao: true,
         planCommissions: true,
       },
     });
@@ -33,8 +31,6 @@ export async function GET(req: NextRequest) {
         createdAt: user.createdAt,
         role: user.role,
       },
-      leads: user.leads,
-      lotesProducao: user.lotesProducao,
       comissoes: user.planCommissions,
     };
 

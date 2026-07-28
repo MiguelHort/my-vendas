@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
 
     const agg = await prisma.lead.aggregate({
       where: {
-        userId: user.id,
         status: "Concluído",
         OR: [
           { dataVenda: { gte: firstDay, lte: lastDay } },

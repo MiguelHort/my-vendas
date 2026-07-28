@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
             qtdVidas: Number(l.qtd_vidas) || 1,
             idades: l.idades || "",
             status: "Concluído",
-            loteProducaoId: null,
             dataEntrada: l.data_venda ? new Date(l.data_venda) : new Date(),
             dataVenda: l.data_venda ? new Date(l.data_venda) : null,
             valorComissao:
@@ -69,7 +68,6 @@ export async function POST(req: NextRequest) {
             operadoraOfertada: l.operadora_ofertada || null,
             modalidade: l.modalidade || null,
             tipoComissao: l.tipo_comissao || "interno",
-            userId: user.id,
           },
         })
       )

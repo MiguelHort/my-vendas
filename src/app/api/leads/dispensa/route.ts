@@ -27,17 +27,14 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
     });
 
     const lead = await prisma.lead.update({
-      where: {
-        id: body.id,
-        userId: user.id,
-      },
+      where: { id: body.id },
       data: {
         status: "Dispensado",
         motivoDispensa: body.motivo_dispensa,

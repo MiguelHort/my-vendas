@@ -1,7 +1,7 @@
 // app/novo-lead/page.tsx
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -31,7 +30,6 @@ import { Layout } from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   UserPlus,
-  Package,
   ChevronRight,
   ChevronLeft,
   SkipForward,
@@ -41,30 +39,17 @@ import {
   FileText,
 } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/phoneMask";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Image from "next/image";
 import { OPERADORAS } from "@/components/LeadCard";
-
-// ========================
-// TIPOS
-// ========================
-
-type Lote = {
-  id: string;
-  data_acao: string;
-  estado_regiao: string;
-  volume_total_chamado: number;
-};
 
 // ========================
 // ETAPAS DO WIZARD
 // ========================
 
 const STEPS = [
-  { id: 1, title: "Lote de Produção", description: "Vincule o lead a uma ação", optional: false },
-  { id: 2, title: "Dados Básicos", description: "Nome, contato e localização", optional: false },
-  { id: 3, title: "Perfil do Lead", description: "Vidas, idades e plano atual", optional: false },
-  { id: 4, title: "Proposta Ofertada", description: "Operadora, modalidade e valores", optional: true },
+  { id: 1, title: "Dados Básicos", description: "Nome, contato e localização", optional: false },
+  { id: 2, title: "Perfil do Lead", description: "Vidas, idades e plano atual", optional: false },
+  { id: 3, title: "Proposta Ofertada", description: "Operadora, modalidade e valores", optional: true },
 ];
 
 const ESTADOS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
@@ -79,29 +64,15 @@ const NovoLeadPage = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [loadingLote, setLoadingLote] = useState(false);
-  const [lotes, setLotes] = useState<Lote[]>([]);
 
-  // Step 1 — Lote
-  const [tipoLead, setTipoLead] = useState<"atual" | "antigo">("atual");
-  const [loteId, setLoteId] = useState<string>("");
-  const [qtdLigacao, setQtdLigacao] = useState("0");
-  const [qtdLeadsNovos, setQtdLeadsNovos] = useState("0");
-  const [qtdRetrabalhos, setQtdRetrabalhos] = useState("0");
-  const [qtdIndicacao, setQtdIndicacao] = useState("0");
-  const [qtdPresencial, setQtdPresencial] = useState("0");
-  const [estadoRegiao, setEstadoRegiao] = useState("");
-  const [observacoes, setObservacoes] = useState("");
-  const [showCriarLote, setShowCriarLote] = useState(false);
-
-  // Step 2 — Dados básicos
+  // Step 1 — Dados básicos
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [origem, setOrigem] = useState("");
   const [estado, setEstado] = useState("");
   const [cidade, setCidade] = useState("");
 
-  // Step 3 — Perfil
+  // Step 2 — Perfil
   const [qtdVidas, setQtdVidas] = useState("");
   const [idades, setIdades] = useState("");
   const [possuiCNPJ, setPossuiCNPJ] = useState(false);
@@ -109,7 +80,7 @@ const NovoLeadPage = () => {
   const [operadoraAnterior, setOperadoraAnterior] = useState("");
   const [tempoPlanoAnterior, setTempoPlanoAnterior] = useState("");
 
-  // Step 4 — Proposta (opcional)
+  // Step 3 — Proposta (opcional)
   const [tipoComissao, setTipoComissao] = useState<"interno" | "externo">("interno");
   const [modalidade, setModalidade] = useState("");
   const [operadoraOfertada, setOperadoraOfertada] = useState("");
@@ -118,100 +89,16 @@ const NovoLeadPage = () => {
   const [valorMensalidade, setValorMensalidade] = useState("");
   const [coparticipacao, setCoparticipacao] = useState("");
 
-  const volumeTotal =
-    parseInt(qtdLigacao || "0") +
-    parseInt(qtdLeadsNovos || "0") +
-    parseInt(qtdRetrabalhos || "0") +
-    parseInt(qtdIndicacao || "0") +
-    parseInt(qtdPresencial || "0");
-
-  useEffect(() => {
-    if (!firebaseUser || loadingAuth) return;
-    fetchLotes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUser, loadingAuth]);
-
-  const fetchLotes = async () => {
-    if (!firebaseUser) return;
-    try {
-      const params = new URLSearchParams({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        name: firebaseUser.displayName || "",
-      });
-      const res = await fetch(`/api/lotes-producao?${params.toString()}`);
-      if (!res.ok) return;
-      const data: Lote[] = await res.json();
-      setLotes(data);
-      const hoje = new Date().toISOString().split("T")[0];
-      const loteHoje = data.find((l) => l.data_acao.startsWith(hoje));
-      if (loteHoje) setLoteId(loteHoje.id);
-    } catch (error) {
-      console.error("Erro ao carregar lotes:", error);
-    }
-  };
-
-  const handleCreateLote = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!firebaseUser) return;
-    setLoadingLote(true);
-    try {
-      const params = new URLSearchParams({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        name: firebaseUser.displayName || "",
-      });
-      const res = await fetch(`/api/lotes-producao?${params.toString()}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          volume_total_chamado: volumeTotal,
-          qtd_ligacao: parseInt(qtdLigacao || "0"),
-          qtd_leads_novos: parseInt(qtdLeadsNovos || "0"),
-          qtd_retrabalhos: parseInt(qtdRetrabalhos || "0"),
-          qtd_indicacao: parseInt(qtdIndicacao || "0"),
-          qtd_presencial: parseInt(qtdPresencial || "0"),
-          estado_regiao: estadoRegiao,
-          observacoes: observacoes || null,
-        }),
-      });
-      setLoadingLote(false);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error("Erro ao criar lote: " + (body.error || res.statusText));
-        return;
-      }
-      const data: Lote = await res.json();
-      setLoteId(data.id);
-      toast.success("Lote de produção criado!");
-      fetchLotes();
-      setQtdLigacao("0");
-      setQtdLeadsNovos("0");
-      setQtdRetrabalhos("0");
-      setQtdIndicacao("0");
-      setQtdPresencial("0");
-      setEstadoRegiao("");
-      setObservacoes("");
-      setShowCriarLote(false);
-    } catch (error) {
-      console.error(error);
-      setLoadingLote(false);
-      toast.error("Erro ao criar lote");
-    }
-  };
-
   // ========================
   // VALIDAÇÕES POR ETAPA
   // ========================
 
-  const canAdvanceStep1 = tipoLead === "antigo" || !!loteId;
-  const canAdvanceStep2 = !!nome.trim() && !!origem && !!estado && !!cidade.trim();
-  const canAdvanceStep3 = !!qtdVidas && !!idades.trim();
+  const canAdvanceStep1 = !!nome.trim() && !!origem && !!estado && !!cidade.trim();
+  const canAdvanceStep2 = !!qtdVidas && !!idades.trim();
 
   const canAdvance = () => {
     if (currentStep === 1) return canAdvanceStep1;
     if (currentStep === 2) return canAdvanceStep2;
-    if (currentStep === 3) return canAdvanceStep3;
     return true;
   };
 
@@ -267,7 +154,6 @@ const NovoLeadPage = () => {
           coparticipacao: coparticipacao || null,
           tipo_comissao: tipoComissao,
           status: "Backlog",
-          lote_producao_id: tipoLead === "antigo" ? null : loteId,
         }),
       });
 
@@ -328,16 +214,8 @@ const NovoLeadPage = () => {
   const currentStepInfo = STEPS[currentStep - 1];
   const isLastStep = currentStep === STEPS.length;
 
-  const loteSelecionado = lotes.find((l) => l.id === loteId);
-  const hoje = new Date().toISOString().split("T")[0];
-  const textoLote = loteSelecionado?.data_acao.startsWith(hoje)
-    ? `Lote de hoje — ${loteSelecionado.estado_regiao} (${loteSelecionado.volume_total_chamado} chamados)`
-    : loteSelecionado
-    ? `${new Date(loteSelecionado.data_acao).toLocaleDateString("pt-BR")} — ${loteSelecionado.estado_regiao}`
-    : "Nenhum lote selecionado";
-
-  const stepIcons = [Package, User, Users, FileText];
-  const StepIcon = stepIcons[currentStep - 1] || Package;
+  const stepIcons = [User, Users, FileText];
+  const StepIcon = stepIcons[currentStep - 1] || User;
 
   return (
     <Layout>
@@ -406,154 +284,8 @@ const NovoLeadPage = () => {
 
           <CardContent className="space-y-5">
 
-            {/* ── STEP 1: LOTE ── */}
+            {/* ── STEP 1: DADOS BÁSICOS ── */}
             {currentStep === 1 && (
-              <div className="space-y-5">
-                <RadioGroup
-                  value={tipoLead}
-                  onValueChange={(v) => setTipoLead(v as "atual" | "antigo")}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                >
-                  <div
-                    className={`rounded-xl p-4 flex items-start gap-3 cursor-pointer border transition-all duration-200 ${
-                      tipoLead === "atual"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <RadioGroupItem id="lead-atual" value="atual" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="lead-atual" className="font-medium cursor-pointer">
-                        Atual
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Vinculado a um lote de produção
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={`rounded-xl p-4 flex items-start gap-3 cursor-pointer border transition-all duration-200 ${
-                      tipoLead === "antigo"
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <RadioGroupItem id="lead-antigo" value="antigo" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="lead-antigo" className="font-medium cursor-pointer">
-                        Legado
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Antes de adquirir o sistema
-                      </p>
-                    </div>
-                  </div>
-                </RadioGroup>
-
-                {tipoLead === "atual" && (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Lote de Produção *</Label>
-                      <Select value={loteId} onValueChange={setLoteId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um lote" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover max-h-60">
-                          {lotes.map((lote) => (
-                            <SelectItem key={lote.id} value={lote.id}>
-                              {new Date(lote.data_acao).toLocaleDateString("pt-BR")} —{" "}
-                              {lote.estado_regiao} ({lote.volume_total_chamado} chamados)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {loteId && (
-                        <p className="text-xs text-muted-foreground">{textoLote}</p>
-                      )}
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setShowCriarLote(!showCriarLote)}
-                    >
-                      <Package className="h-4 w-4 mr-2" />
-                      {showCriarLote ? "Cancelar" : "Criar novo lote de produção"}
-                    </Button>
-
-                    {showCriarLote && (
-                      <form onSubmit={handleCreateLote} className="space-y-4 p-4 rounded-xl border bg-muted/20">
-                        <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20 flex items-center justify-center shrink-0">
-                            <Package className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-                          </div>
-                          <p className="text-sm font-semibold tracking-tight">Novo Lote de Produção</p>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {[
-                            { label: "Ligações", val: qtdLigacao, set: setQtdLigacao },
-                            { label: "Leads Novos", val: qtdLeadsNovos, set: setQtdLeadsNovos },
-                            { label: "Retrabalhos", val: qtdRetrabalhos, set: setQtdRetrabalhos },
-                            { label: "Indicações", val: qtdIndicacao, set: setQtdIndicacao },
-                            { label: "Presenciais", val: qtdPresencial, set: setQtdPresencial },
-                          ].map(({ label, val, set }) => (
-                            <div key={label} className="space-y-1">
-                              <Label className="text-xs">{label}</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={val}
-                                onChange={(e) => set(e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                          ))}
-                          <div className="space-y-1">
-                            <Label className="text-xs text-primary font-bold">Total</Label>
-                            <div className="text-xl font-bold text-primary tabular-nums pt-1">{volumeTotal}</div>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Estado/Região *</Label>
-                          <Select value={estadoRegiao} onValueChange={setEstadoRegiao} required>
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-popover max-h-60">
-                              {ESTADOS.map((uf) => (
-                                <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Observações</Label>
-                          <Textarea
-                            placeholder="Anotações sobre esta ação..."
-                            value={observacoes}
-                            onChange={(e) => setObservacoes(e.target.value)}
-                            className="min-h-[60px] text-sm"
-                          />
-                        </div>
-                        <Button
-                          type="submit"
-                          disabled={loadingLote || !estadoRegiao || volumeTotal === 0}
-                          className="w-full"
-                          size="sm"
-                        >
-                          {loadingLote ? "Criando..." : "Criar Lote"}
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── STEP 2: DADOS BÁSICOS ── */}
-            {currentStep === 2 && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Nome do Lead *</Label>
@@ -619,8 +351,8 @@ const NovoLeadPage = () => {
               </div>
             )}
 
-            {/* ── STEP 3: PERFIL ── */}
-            {currentStep === 3 && (
+            {/* ── STEP 2: PERFIL ── */}
+            {currentStep === 2 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -690,8 +422,8 @@ const NovoLeadPage = () => {
               </div>
             )}
 
-            {/* ── STEP 4: PROPOSTA (opcional) ── */}
-            {currentStep === 4 && (
+            {/* ── STEP 3: PROPOSTA (opcional) ── */}
+            {currentStep === 3 && (
               <div className="space-y-4">
 
                 {/* Tipo de comissão */}

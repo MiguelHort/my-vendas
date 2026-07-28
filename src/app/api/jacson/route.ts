@@ -11,10 +11,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const SYSTEM_PROMPT = `Você é Will, o assistente de IA do WinLeads, um CRM para corretores de planos de saúde.
-Seu papel é ajudar o corretor a entender sua performance e dados da conta de forma clara e direta.
+Seu papel é ajudar o corretor a entender a performance e os dados da equipe de forma clara e direta.
 
-Você receberá os dados reais da conta do corretor: estatísticas gerais E a lista completa dos leads.
-Use esses dados para responder perguntas tanto gerais ("quantas vendas tive?") quanto específicas ("por que o lead João foi dispensado?").
+Você receberá os dados reais da equipe: estatísticas gerais E a lista completa dos leads (compartilhados entre todos os corretores).
+Use esses dados para responder perguntas tanto gerais ("quantas vendas tivemos?") quanto específicas ("por que o lead João foi dispensado?").
 
 Seja amigável, direto e profissional. Responda sempre em português brasileiro.
 Quando mencionar valores monetários, formate como "R$ X.XXX,XX".
@@ -175,43 +175,39 @@ export async function POST(req: NextRequest) {
       leadsByStateRaw,
       allLeadsRaw,
     ] = await Promise.all([
-      prisma.lead.count({ where: { userId: user.id } }),
+      prisma.lead.count(),
       prisma.lead.groupBy({
         by: ["status"],
-        where: { userId: user.id },
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
       }),
       prisma.lead.count({
-        where: { userId: user.id, dataEntrada: { gte: startOfThisMonth } },
+        where: { dataEntrada: { gte: startOfThisMonth } },
       }),
       prisma.lead.count({
-        where: { userId: user.id, dataEntrada: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        where: { dataEntrada: { gte: startOfLastMonth, lte: endOfLastMonth } },
       }),
       prisma.lead.findMany({
-        where: { userId: user.id, dataVenda: { gte: startOfThisMonth } },
+        where: { dataVenda: { gte: startOfThisMonth } },
         select: { valorComissao: true, operadoraOfertada: true },
       }),
       prisma.lead.findMany({
-        where: { userId: user.id, dataVenda: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        where: { dataVenda: { gte: startOfLastMonth, lte: endOfLastMonth } },
         select: { valorComissao: true, operadoraOfertada: true },
       }),
       prisma.lead.groupBy({
         by: ["origem"],
-        where: { userId: user.id },
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
         take: 5,
       }),
       prisma.lead.groupBy({
         by: ["estado"],
-        where: { userId: user.id },
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
         take: 5,
       }),
       prisma.lead.findMany({
-        where: { userId: user.id },
         select: {
           nome: true,
           status: true,

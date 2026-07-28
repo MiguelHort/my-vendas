@@ -343,7 +343,7 @@ export default function MinhasVendasPage() {
         body: JSON.stringify({
           nome: nome.trim(), telefone: telefone || null, origem, estado,
           cidade: cidade.trim(), qtd_vidas: parseInt(qtdVidas), idades: idades.trim(),
-          status: "Concluído", lote_producao_id: null,
+          status: "Concluído",
           data_venda: dataVenda ? new Date(dataVenda + "T00:00:00").toISOString() : null,
           valor_comissao: valorComissao ? parseFloat(valorComissao) : null,
           tipo_comissao: tipoComissao,

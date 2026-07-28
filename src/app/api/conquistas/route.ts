@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
     });
 
     const agg = await prisma.lead.aggregate({
-      where: { userId: user.id, status: "Concluído" },
+      where: { status: "Concluído" },
       _count: { id: true },
       _sum: { valorMensalidade: true, valorComissao: true },
     });

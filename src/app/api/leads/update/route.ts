@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest) {
   } = body;
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
@@ -98,10 +98,7 @@ export async function PUT(req: NextRequest) {
       data.retornarEm = retornar_em ? new Date(retornar_em) : null;
 
     await prisma.lead.update({
-      where: {
-        id,
-        userId: user.id,
-      },
+      where: { id },
       data,
     });
 

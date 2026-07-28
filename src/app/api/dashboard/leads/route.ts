@@ -19,14 +19,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
     });
 
     const leads = await prisma.lead.findMany({
-      where: { userId: user.id },
       orderBy: { dataEntrada: "desc" },
     });
 

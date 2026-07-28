@@ -15,10 +15,8 @@ import {
   Users,
   DollarSign,
   Target,
-  ThumbsUp,
   CheckCircle2,
   MapPin,
-  Package,
   Clock,
   ArrowUpRight,
   Info,
@@ -81,15 +79,6 @@ import {
 
 type Lead = FunilLead;
 
-type LoteProducaoResumo = {
-  volume_total_chamado: number | null;
-  qtd_leads_novos: number | null;
-  qtd_retrabalhos: number | null;
-  qtd_ligacao: number | null;
-  qtd_indicacao: number | null;
-  qtd_presencial: number | null;
-};
-
 type SerieVendasMode = "semana" | "mes" | "ano";
 
 function useCountUp(target: number, duration = 800) {
@@ -145,13 +134,11 @@ const DashboardPage = () => {
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [nivelInfo, setNivelInfo] = useState<NivelInfo | null>(null);
-  const [volumeProducao, setVolumeProducao] = useState<number>(0);
   const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
   const [filtroDataFim, setFiltroDataFim] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [loadingVolume, setLoadingVolume] = useState(true);
 
   const [serieVendasMode, setSerieVendasMode] =
     useState<SerieVendasMode>("semana");
@@ -286,94 +273,6 @@ const DashboardPage = () => {
     }
   };
 
-  // ----------------- fetch Volume Produção -----------------
-  const fetchVolumeProducao = async () => {
-    if (!firebaseUser) return;
-
-    setLoadingVolume(true);
-    const { startDate, endDate } = getDateRange();
-
-    try {
-      const params = new URLSearchParams({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        name: firebaseUser.displayName || "",
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-      });
-
-      const res = await fetch(
-        `/api/dashboard/lotes-producao?${params.toString()}`
-      );
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error("Erro ao carregar volume de produção:", body);
-        setVolumeProducao(0);
-        return;
-      }
-
-      const data: LoteProducaoResumo[] = await res.json();
-
-      let total = 0;
-
-      if (!data || data.length === 0) {
-        total = 0;
-      } else {
-        switch (filtroOrigem) {
-          case "Todos":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.volume_total_chamado || 0),
-              0
-            );
-            break;
-          case "Lead Novo":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.qtd_leads_novos || 0),
-              0
-            );
-            break;
-          case "Retrabalho":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.qtd_retrabalhos || 0),
-              0
-            );
-            break;
-          case "Ligação":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.qtd_ligacao || 0),
-              0
-            );
-            break;
-          case "Indicação":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.qtd_indicacao || 0),
-              0
-            );
-            break;
-          case "Presencial":
-            total = data.reduce(
-              (sum, lote) => sum + (lote.qtd_presencial || 0),
-              0
-            );
-            break;
-          default:
-            total = data.reduce(
-              (sum, lote) => sum + (lote.volume_total_chamado || 0),
-              0
-            );
-        }
-      }
-
-      setVolumeProducao(total);
-    } catch (error) {
-      console.error("Erro ao carregar volume de produção:", error);
-      setVolumeProducao(0);
-    } finally {
-      setLoadingVolume(false);
-    }
-  };
-
   // ----------------- effects -----------------
   useEffect(() => {
     if (!firebaseUser || loadingAuth) return;
@@ -393,12 +292,6 @@ const DashboardPage = () => {
       .then((d) => setNivelInfo(getNivelInfo(d.lastMonthCommission ?? 0)))
       .catch(() => {});
   }, [firebaseUser, loadingAuth]);
-
-  useEffect(() => {
-    if (!firebaseUser || loadingAuth) return;
-    fetchVolumeProducao();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUser, loadingAuth, filtroPeriodo, filtroOrigem, filtroDataInicio, filtroDataFim]);
 
   // ----------------- métricas (filtradas) -----------------
   const filteredLeads = useMemo(() => {
@@ -442,13 +335,11 @@ const DashboardPage = () => {
     ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
   ).length;
 
-  const taxaResposta =
-    volumeProducao > 0 ? (totalLeads / volumeProducao) * 100 : 0;
   const taxaQualificacao =
     totalLeads > 0 ? (leadsQualificados / totalLeads) * 100 : 0;
 
   const taxaFechamento =
-    volumeProducao > 0 ? (vendasFechadas / volumeProducao) * 100 : 0;
+    totalLeads > 0 ? (vendasFechadas / totalLeads) * 100 : 0;
 
   const leadsParaRetorno = useMemo(() => {
     return filteredLeads.filter(leadPrecisaRetorno).sort((a, b) => {
@@ -558,14 +449,6 @@ const DashboardPage = () => {
   // ----------------- métricas (cards) -----------------
   const metrics = [
     {
-      title: "Volume de Produção",
-      value: volumeProducao,
-      icon: Package,
-      hint: "Total chamado no período",
-      accent: "violet",
-      info: "Número total de leads que foram chamados no período filtrado.",
-    },
-    {
       title: "Leads Abordados",
       value: totalLeads,
       icon: Users,
@@ -582,14 +465,6 @@ const DashboardPage = () => {
       info: "Número total de vendas concluídas no período filtrado.",
     },
     {
-      title: "Taxa de Resposta",
-      value: `${taxaResposta.toFixed(1)}%`,
-      icon: ThumbsUp,
-      hint: "Leads / Produção",
-      accent: "sky",
-      info: "Indica a eficiência na abordagem dos leads em relação ao volume produzido.",
-    },
-    {
       title: "Taxa de Qualificação",
       value: `${taxaQualificacao.toFixed(1)}%`,
       icon: Target,
@@ -601,9 +476,9 @@ const DashboardPage = () => {
       title: "Taxa de Fechamento",
       value: `${taxaFechamento.toFixed(1)}%`,
       icon: TrendingUp,
-      hint: "Vendas / Produção",
+      hint: "Vendas / Leads",
       accent: "emerald",
-      info: "Reflete a eficácia do processo de vendas em converter leads qualificados em vendas reais.",
+      info: "Reflete a eficácia do processo de vendas em converter leads abordados em vendas reais.",
     },
   ] as const;
 
@@ -733,7 +608,7 @@ const DashboardPage = () => {
     );
   }
 
-  const showSkeleton = loading || loadingVolume;
+  const showSkeleton = loading;
 
   return (
     <Layout>

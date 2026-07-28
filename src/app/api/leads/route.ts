@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
-import { sendAlertWhatsApp } from "@/lib/alerts";
 
 export const runtime = "nodejs";
 
@@ -23,7 +22,6 @@ export async function GET(req: NextRequest) {
     });
 
     const leads = await prisma.lead.findMany({
-      where: { userId: user.id },
       orderBy: { dataEntrada: "desc" },
     });
 
@@ -54,9 +52,6 @@ export async function GET(req: NextRequest) {
       last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
       tipo_comissao: l.tipoComissao,
-      sdr_categoria: l.sdrCategoria ?? null,
-      sdr_score: l.sdrScore ?? null,
-      sdr_qualification_data: l.sdrQualificationData ?? null,
     }));
 
     return NextResponse.json(payload);
@@ -102,7 +97,6 @@ export async function POST(req: NextRequest) {
     valor_mensalidade,
     coparticipacao,
     status,
-    lote_producao_id,
     tipo_comissao,
     valor_comissao,
     data_venda,
@@ -118,7 +112,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
@@ -152,8 +146,6 @@ export async function POST(req: NextRequest) {
         coparticipacao: coparticipacao || null,
         status: status || "Backlog",
         dataEntrada: new Date(),
-        userId: user.id,
-        loteProducaoId: lote_producao_id,
         valorComissao:
           valor_comissao !== null && valor_comissao !== undefined
             ? Number(valor_comissao)
@@ -164,30 +156,6 @@ export async function POST(req: NextRequest) {
         retornarEm: retornar_em ? new Date(retornar_em) : null,
       },
     });
-
-    // Alerta de novo lead via Zavu (fire-and-forget)
-    Promise.all([
-      prisma.userAlertConfig.findUnique({ where: { userId: user.id } }),
-      prisma.whatsappInstance.findUnique({ where: { userId: user.id } }),
-    ])
-      .then(([alertConfig, instance]) => {
-        if (
-          alertConfig?.alertNovoLead &&
-          alertConfig.whatsappNumber &&
-          instance?.senderId &&
-          instance.status === "connected"
-        ) {
-          const msg =
-            `🆕 *Novo lead cadastrado!*\n\n` +
-            `👤 ${nome}\n` +
-            `📍 ${cidade} - ${estado}\n` +
-            `📞 ${telefone || "Não informado"}\n` +
-            `🏷️ Origem: ${origem}\n\n` +
-            `📲 Acesse o WinLeads para atender.`;
-          return sendAlertWhatsApp(instance.senderId, alertConfig.whatsappNumber, msg);
-        }
-      })
-      .catch((err) => console.error("[leads POST] Erro ao enviar alerta:", err));
 
     if (origem === "Formulário (Landing)") {
       try {
