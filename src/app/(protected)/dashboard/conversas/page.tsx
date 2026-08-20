@@ -36,6 +36,10 @@ import {
   MoreVertical,
   Trash2,
   ShieldAlert,
+  Mic,
+  Paperclip,
+  Square,
+  X as XIcon,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 
@@ -128,6 +132,33 @@ function dayDividerLabel(date: Date) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+// WhatsApp só aceita áudio como aac/amr/mp3/mp4/ogg(opus) — o Chrome só grava em
+// webm, que a Cloud API rejeita, então detectamos o melhor formato que o navegador
+// consegue gravar nativamente e escondemos o microfone quando nenhum é suportado.
+const RECORDABLE_MIME_CANDIDATES = ["audio/ogg;codecs=opus", "audio/mp4", "audio/aac", "audio/mpeg"];
+
+function pickSupportedAudioMime(): string | null {
+  if (typeof MediaRecorder === "undefined") return null;
+  for (const candidate of RECORDABLE_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(candidate)) return candidate;
+  }
+  return null;
+}
+
+function extensionForMime(mime: string) {
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mp4")) return "m4a";
+  if (mime.includes("aac")) return "aac";
+  if (mime.includes("mpeg")) return "mp3";
+  return "audio";
+}
+
+function formatRecordingTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function ConversasPage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
@@ -148,9 +179,25 @@ export default function ConversasPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [micMime, setMicMime] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const discardRecordingRef = useRef(false);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // detecção de formato de gravação é client-only (MediaRecorder não existe no server)
+  useEffect(() => {
+    setMicMime(pickSupportedAudioMime());
+  }, []);
 
   const authHeader = useCallback(async () => {
     if (!firebaseUser) return null;
@@ -291,6 +338,95 @@ export default function ConversasPage() {
       e.preventDefault();
       handleSend();
     }
+  }
+
+  async function sendAudio(blob: Blob, filename: string) {
+    if (!selectedId || uploadingAudio) return;
+
+    setUploadingAudio(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const form = new FormData();
+      form.append("file", blob, filename);
+
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/audio`, {
+        method: "POST",
+        headers,
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao enviar áudio");
+
+      setMessages((prev) => [...prev, data.message]);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? { ...c, last_message_preview: "🎤 Áudio", last_message_at: data.message.timestamp }
+            : c
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível enviar o áudio");
+    } finally {
+      setUploadingAudio(false);
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error("Áudio muito grande (máx. 16MB)");
+      return;
+    }
+    void sendAudio(file, file.name);
+  }
+
+  async function startRecording() {
+    if (!micMime || recording) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: micMime });
+      audioChunksRef.current = [];
+      discardRecordingRef.current = false;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (!discardRecordingRef.current && audioChunksRef.current.length > 0) {
+          const blob = new Blob(audioChunksRef.current, { type: micMime });
+          void sendAudio(blob, `audio-${Date.now()}.${extensionForMime(micMime)}`);
+        }
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível acessar o microfone");
+    }
+  }
+
+  function stopRecordingAndSend() {
+    discardRecordingRef.current = false;
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+  }
+
+  function cancelRecording() {
+    discardRecordingRef.current = true;
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
   }
 
   function openDeleteDialog(c: Conversation) {
@@ -522,7 +658,7 @@ export default function ConversasPage() {
                       </div>
                       <div className="space-y-1">
                         {group.items.map((m) => (
-                          <MessageBubble key={m.id} message={m} />
+                          <MessageBubble key={m.id} message={m} getAuthHeader={authHeader} />
                         ))}
                       </div>
                     </div>
@@ -532,25 +668,83 @@ export default function ConversasPage() {
               </div>
 
               <div className="shrink-0 px-4 py-3 border-t border-border bg-[#f0f2f5] dark:bg-[#202c33]">
-                <div className="flex gap-2 items-end">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Digite uma mensagem"
-                    className="min-h-11 max-h-32 resize-none text-sm rounded-2xl bg-background"
-                    rows={1}
-                    disabled={sending}
-                  />
-                  <Button
-                    onClick={handleSend}
-                    disabled={!input.trim() || sending}
-                    size="icon"
-                    className="shrink-0 size-11 rounded-full bg-[#00a884] hover:bg-[#029074] text-white shadow-sm disabled:opacity-40"
-                  >
-                    {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  </Button>
-                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                {recording ? (
+                  <div className="flex items-center gap-3 h-11">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-9 text-destructive hover:text-destructive"
+                      title="Cancelar gravação"
+                      onClick={cancelRecording}
+                    >
+                      <XIcon className="size-4" />
+                    </Button>
+                    <div className="flex-1 flex items-center gap-2 text-sm text-foreground">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                      </span>
+                      Gravando {formatRecordingTime(recordingSeconds)}
+                    </div>
+                    <Button
+                      onClick={stopRecordingAndSend}
+                      size="icon"
+                      className="shrink-0 size-11 rounded-full bg-[#00a884] hover:bg-[#029074] text-white shadow-sm"
+                      title="Parar e enviar"
+                    >
+                      <Square className="size-4 fill-current" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-end">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-11 text-muted-foreground hover:text-foreground rounded-full"
+                      title="Anexar áudio"
+                      disabled={uploadingAudio}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Paperclip className="size-4" />
+                    </Button>
+                    <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Digite uma mensagem"
+                      className="min-h-11 max-h-32 resize-none text-sm rounded-2xl bg-background"
+                      rows={1}
+                      disabled={sending || uploadingAudio}
+                    />
+                    {input.trim() ? (
+                      <Button
+                        onClick={handleSend}
+                        disabled={sending}
+                        size="icon"
+                        className="shrink-0 size-11 rounded-full bg-[#00a884] hover:bg-[#029074] text-white shadow-sm disabled:opacity-40"
+                      >
+                        {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={startRecording}
+                        disabled={uploadingAudio || !micMime}
+                        size="icon"
+                        title={micMime ? "Gravar áudio" : "Seu navegador não grava áudio compatível — use o anexo"}
+                        className="shrink-0 size-11 rounded-full bg-[#00a884] hover:bg-[#029074] text-white shadow-sm disabled:opacity-40"
+                      >
+                        {uploadingAudio ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -626,8 +820,15 @@ export default function ConversasPage() {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message,
+  getAuthHeader,
+}: {
+  message: Message;
+  getAuthHeader: () => Promise<Record<string, string> | null>;
+}) {
   const isOutbound = message.direction === "OUTBOUND";
+  const isAudio = message.type === "audio";
   const time = new Date(message.timestamp).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -655,7 +856,11 @@ function MessageBubble({ message }: { message: Message }) {
             isOutbound ? "rounded-br-none" : "rounded-bl-none"
           )}
         >
-          <p className="whitespace-pre-wrap wrap-break-word pr-10">{message.body}</p>
+          {isAudio ? (
+            <AudioPlayer messageId={message.id} getAuthHeader={getAuthHeader} />
+          ) : (
+            <p className="whitespace-pre-wrap wrap-break-word pr-10">{message.body}</p>
+          )}
           <div
             className={cn(
               "flex items-center gap-1 float-right -mb-1 ml-2 mt-1 text-[10px] text-muted-foreground"
@@ -675,6 +880,69 @@ function MessageBubble({ message }: { message: Message }) {
         )}
       </div>
     </div>
+  );
+}
+
+function AudioPlayer({
+  messageId,
+  getAuthHeader,
+}: {
+  messageId: string;
+  getAuthHeader: () => Promise<Record<string, string> | null>;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError(false);
+      const headers = await getAuthHeader();
+      if (!headers) return;
+      try {
+        const res = await fetch(`/api/whatsapp/media/${messageId}`, { headers });
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [messageId, getAuthHeader]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-1.5 pr-10 text-xs text-muted-foreground">
+        <Loader2 className="size-3.5 animate-spin" />
+        Carregando áudio…
+      </div>
+    );
+  }
+
+  if (error || !src) {
+    return (
+      <div className="flex items-center gap-1.5 py-1.5 pr-10 text-xs text-destructive">
+        <AlertCircle className="size-3.5" />
+        Áudio indisponível
+      </div>
+    );
+  }
+
+  return (
+    <audio controls preload="metadata" src={src} className="h-10 max-w-60 align-middle" />
   );
 }
 

@@ -14,6 +14,7 @@ type WaMessage = {
   type: string;
   text?: { body?: string };
   caption?: string;
+  audio?: { id: string; mime_type: string };
 };
 
 type WaStatus = {
@@ -142,7 +143,9 @@ async function processChangeValue(value: WaChangeValue) {
         waMessageId: msg.id,
         direction: "INBOUND",
         type: msg.type,
-        body: msg.type === "text" ? msg.text?.body ?? "" : preview,
+        body: msg.type === "text" ? msg.text?.body ?? "" : msg.type === "audio" ? null : preview,
+        mediaId: msg.type === "audio" ? msg.audio?.id ?? null : null,
+        mimeType: msg.type === "audio" ? msg.audio?.mime_type ?? null : null,
         timestamp,
       },
       update: {},

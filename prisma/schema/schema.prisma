@@ -112,6 +112,8 @@ model WhatsAppMessage {
   direction    WhatsAppDirection
   type         String                 @default("text") @db.Text
   body         String?                @db.Text
+  mediaId      String?                @map("media_id") @db.Text
+  mimeType     String?                @map("mime_type") @db.Text
   status       WhatsAppMessageStatus  @default(SENT)
   errorMessage String?                @map("error_message") @db.Text
 
