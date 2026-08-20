@@ -56,6 +56,7 @@ model User {
   approved Boolean @default(false)
 
   planCommissions PlanCommission[]
+  whatsappMessagesSent WhatsAppMessage[]
 
   @@map("users")
   @@schema("public")
@@ -64,6 +65,64 @@ model User {
 enum Role {
   ADMIN
   VENDEDOR
+  @@schema("public")
+}
+
+// =====================
+// WhatsApp (Cloud API oficial) — inbox compartilhado
+// =====================
+
+enum WhatsAppDirection {
+  INBOUND
+  OUTBOUND
+  @@schema("public")
+}
+
+enum WhatsAppMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  @@schema("public")
+}
+
+model WhatsAppConversation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  waId               String    @unique @map("wa_id") @db.Text
+  contactName        String?   @map("contact_name") @db.Text
+  lastMessageAt      DateTime? @map("last_message_at") @db.Timestamptz(6)
+  lastMessagePreview String?   @map("last_message_preview") @db.Text
+  unreadCount        Int       @default(0) @map("unread_count")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  messages WhatsAppMessage[]
+
+  @@map("whatsapp_conversations")
+  @@schema("public")
+}
+
+model WhatsAppMessage {
+  id             String                @id @default(uuid()) @db.Uuid
+  conversationId String                @map("conversation_id") @db.Uuid
+  conversation   WhatsAppConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  waMessageId  String?                @unique @map("wa_message_id") @db.Text
+  direction    WhatsAppDirection
+  type         String                 @default("text") @db.Text
+  body         String?                @db.Text
+  status       WhatsAppMessageStatus  @default(SENT)
+  errorMessage String?                @map("error_message") @db.Text
+
+  sentByUserId String? @map("sent_by_user_id") @db.Uuid
+  sentByUser   User?   @relation(fields: [sentByUserId], references: [id])
+
+  timestamp DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([conversationId, timestamp])
+  @@map("whatsapp_messages")
   @@schema("public")
 }
 

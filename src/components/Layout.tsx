@@ -18,6 +18,7 @@ import {
   Bot,
   Trophy,
   Medal,
+  MessageCircle,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -87,6 +88,7 @@ type MeUser = {
 const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
   { href: "/dashboard/conquistas", label: "Conquistas", icon: Trophy },
@@ -104,6 +106,7 @@ const assistentesItems = [
 const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   funil: "Funil",
+  conversas: "Conversas",
   "minhas-vendas": "Minhas Vendas",
   "mapa-estados": "Mapa",
   cotacao: "Cotação",
