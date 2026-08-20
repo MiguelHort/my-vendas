@@ -59,6 +59,13 @@ type Conversation = {
   unread_count: number;
 };
 
+type LeadInfo = {
+  id: string;
+  status: string;
+  operadora_ofertada: string | null;
+  valor_mensalidade: number | null;
+};
+
 type Message = {
   id: string;
   direction: "INBOUND" | "OUTBOUND";
@@ -174,6 +181,10 @@ function formatRecordingTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function formatCurrency(value: number) {
+  return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+}
+
 export default function ConversasPage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
@@ -185,6 +196,7 @@ export default function ConversasPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [contactHeader, setContactHeader] = useState<{ name: string | null; wa_id: string } | null>(null);
+  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -258,6 +270,25 @@ export default function ConversasPage() {
     [authHeader]
   );
 
+  const fetchLeadInfo = useCallback(
+    async (conversationId: string) => {
+      const headers = await authHeader();
+      if (!headers) return;
+      try {
+        const res = await fetch(`/api/whatsapp/conversations/${conversationId}/lead`, {
+          headers,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (selectedIdRef.current !== conversationId) return;
+        setLeadInfo(data.lead ?? null);
+      } catch {
+        setLeadInfo(null);
+      }
+    },
+    [authHeader]
+  );
+
   // Lista de conversas: carga inicial + polling
   useEffect(() => {
     if (!firebaseUser) return;
@@ -272,10 +303,12 @@ export default function ConversasPage() {
     if (!selectedId) {
       setMessages([]);
       setContactHeader(null);
+      setLeadInfo(null);
       return;
     }
     setLoadingMessages(true);
     fetchMessages(selectedId).finally(() => setLoadingMessages(false));
+    fetchLeadInfo(selectedId); // só na abertura — não precisa de polling
 
     // zera badge de não lidas localmente pra resposta imediata
     setConversations((prev) =>
@@ -284,7 +317,7 @@ export default function ConversasPage() {
 
     const interval = setInterval(() => fetchMessages(selectedId), MESSAGES_POLL_MS);
     return () => clearInterval(interval);
-  }, [selectedId, fetchMessages]);
+  }, [selectedId, fetchMessages, fetchLeadInfo]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -732,9 +765,21 @@ export default function ConversasPage() {
                   <p className="text-sm font-medium truncate">
                     {contactHeader?.name || formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")}
                   </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {contactHeader?.wa_id}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {contactHeader?.wa_id}
+                    </p>
+                    {leadInfo?.operadora_ofertada && (
+                      <span className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium truncate max-w-40">
+                        {leadInfo.operadora_ofertada}
+                      </span>
+                    )}
+                    {leadInfo?.valor_mensalidade != null && (
+                      <span className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-foreground/70 font-medium">
+                        {formatCurrency(leadInfo.valor_mensalidade)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button
                   variant="ghost"

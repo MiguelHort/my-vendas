@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeWaId, verifyMetaSignature } from "@/lib/whatsapp";
+import { formatPhoneNumber } from "@/lib/phoneMask";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -151,22 +152,44 @@ async function processChangeValue(value: WaChangeValue) {
     const preview = previewFor(msg);
     const contactName = nameByWaId.get(waId);
 
-    const conversation = await prisma.whatsAppConversation.upsert({
+    const existingConversation = await prisma.whatsAppConversation.findUnique({
       where: { waId },
-      create: {
-        waId,
-        contactName: contactName ?? null,
-        lastMessageAt: timestamp,
-        lastMessagePreview: preview,
-        unreadCount: 1,
-      },
-      update: {
-        ...(contactName ? { contactName } : {}),
-        lastMessageAt: timestamp,
-        lastMessagePreview: preview,
-        unreadCount: { increment: 1 },
-      },
     });
+
+    const conversation = existingConversation
+      ? await prisma.whatsAppConversation.update({
+          where: { waId },
+          data: {
+            ...(contactName ? { contactName } : {}),
+            lastMessageAt: timestamp,
+            lastMessagePreview: preview,
+            unreadCount: { increment: 1 },
+          },
+        })
+      : await prisma.whatsAppConversation.create({
+          data: {
+            waId,
+            contactName: contactName ?? null,
+            lastMessageAt: timestamp,
+            lastMessagePreview: preview,
+            unreadCount: 1,
+          },
+        });
+
+    // Todo contato que manda a primeira mensagem no WhatsApp já vira um lead
+    // em Triagem — assim ninguém que chama no WhatsApp fica de fora do funil.
+    if (!existingConversation) {
+      await prisma.lead.create({
+        data: {
+          nome: contactName || formatPhoneNumber(waId.replace(/^55/, "")) || waId,
+          telefone: waId,
+          origem: "WhatsApp",
+          status: "Triagem",
+          dataEntrada: timestamp,
+          qtdVidas: 1,
+        },
+      });
+    }
 
     const content = extractContent(msg);
 
