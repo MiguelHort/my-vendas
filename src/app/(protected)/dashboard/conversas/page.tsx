@@ -44,6 +44,9 @@ import {
   Pause,
   FileText,
   ChevronLeft,
+  ImageIcon,
+  Download,
+  ZoomIn,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 
@@ -64,6 +67,7 @@ type Message = {
   status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
   error_message?: string | null;
   transcription?: string | null;
+  filename?: string | null;
   timestamp: string;
 };
 
@@ -137,14 +141,16 @@ function dayDividerLabel(date: Date) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-// Só ogg/opus é seguro pra gravar com o MediaRecorder: é o único formato em que o
-// navegador escreve um arquivo completo e válido de uma vez (no stop()). "audio/mp4"
-// e "audio/aac" às vezes retornam true em isTypeSupported, mas o blob gerado é um
-// container incompleto (sem moov/duration fechado) — a Meta aceita o upload mas
-// falha depois ao tentar entregar ("Media upload error"). Chrome/Safari não suportam
-// gravar em ogg/opus, então nesses navegadores o microfone fica desabilitado e só
-// o anexo de arquivo funciona.
-const RECORDABLE_MIME_CANDIDATES = ["audio/ogg;codecs=opus"];
+// O servidor transcodifica qualquer gravação pra ogg/opus antes de mandar pra Meta
+// (ver api/whatsapp/conversations/[id]/audio), então aqui é só pegar o que o
+// navegador consegue gravar nativamente — qualquer um funciona.
+const RECORDABLE_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/ogg;codecs=opus",
+  "audio/mp4",
+  "audio/aac",
+  "audio/webm",
+];
 
 function pickSupportedAudioMime(): string | null {
   if (typeof MediaRecorder === "undefined") return null;
@@ -191,13 +197,15 @@ export default function ConversasPage() {
   const [micMime, setMicMime] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
@@ -367,9 +375,9 @@ export default function ConversasPage() {
   }
 
   async function sendAudio(blob: Blob, filename: string) {
-    if (!selectedId || uploadingAudio) return;
+    if (!selectedId || uploadingAttachment) return;
 
-    setUploadingAudio(true);
+    setUploadingAttachment(true);
     try {
       const headers = await authHeader();
       if (!headers) return;
@@ -396,11 +404,11 @@ export default function ConversasPage() {
       console.error(err);
       toast.error("Não foi possível enviar o áudio");
     } finally {
-      setUploadingAudio(false);
+      setUploadingAttachment(false);
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAudioFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -409,6 +417,67 @@ export default function ConversasPage() {
       return;
     }
     void sendAudio(file, file.name);
+  }
+
+  async function sendMedia(file: File) {
+    if (!selectedId || uploadingAttachment) return;
+
+    setUploadingAttachment(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const form = new FormData();
+      form.append("file", file, file.name);
+
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/media`, {
+        method: "POST",
+        headers,
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao enviar arquivo");
+
+      const isImage = file.type.startsWith("image/");
+      setMessages((prev) => [...prev, data.message]);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? {
+                ...c,
+                last_message_preview: isImage ? "📷 Foto" : `📎 ${file.name}`,
+                last_message_at: data.message.timestamp,
+              }
+            : c
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível enviar o arquivo");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx. 4MB)");
+      return;
+    }
+    void sendMedia(file);
+  }
+
+  function handleDocFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx. 4MB)");
+      return;
+    }
+    void sendMedia(file);
   }
 
   async function startRecording() {
@@ -722,11 +791,24 @@ export default function ConversasPage() {
 
               <div className="shrink-0 px-4 py-3 border-t border-border bg-[#f0f2f5] dark:bg-[#202c33]">
                 <input
-                  ref={fileInputRef}
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFileChange}
+                />
+                <input
+                  ref={docFileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleDocFileChange}
+                />
+                <input
+                  ref={audioFileInputRef}
                   type="file"
                   accept="audio/*"
                   className="hidden"
-                  onChange={handleFileChange}
+                  onChange={handleAudioFileChange}
                 />
                 {recording ? (
                   <div className="flex items-center gap-3 h-11">
@@ -757,16 +839,37 @@ export default function ConversasPage() {
                   </div>
                 ) : (
                   <div className="flex gap-2 items-end">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 size-11 text-muted-foreground hover:text-foreground rounded-full"
-                      title="Anexar áudio"
-                      disabled={uploadingAudio}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Paperclip className="size-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 size-11 text-muted-foreground hover:text-foreground rounded-full"
+                          title="Anexar"
+                          disabled={uploadingAttachment}
+                        >
+                          {uploadingAttachment ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Paperclip className="size-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" side="top">
+                        <DropdownMenuItem onClick={() => imageFileInputRef.current?.click()}>
+                          <ImageIcon className="size-3.5" />
+                          Foto
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => docFileInputRef.current?.click()}>
+                          <FileText className="size-3.5" />
+                          Documento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => audioFileInputRef.current?.click()}>
+                          <Mic className="size-3.5" />
+                          Áudio
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
@@ -774,7 +877,7 @@ export default function ConversasPage() {
                       placeholder="Digite uma mensagem"
                       className="min-h-11 max-h-32 resize-none text-sm rounded-2xl bg-background"
                       rows={1}
-                      disabled={sending || uploadingAudio}
+                      disabled={sending || uploadingAttachment}
                     />
                     {input.trim() ? (
                       <Button
@@ -788,12 +891,12 @@ export default function ConversasPage() {
                     ) : (
                       <Button
                         onClick={startRecording}
-                        disabled={uploadingAudio || !micMime}
+                        disabled={uploadingAttachment || !micMime}
                         size="icon"
                         title={micMime ? "Gravar áudio" : "Seu navegador não grava áudio compatível — use o anexo"}
                         className="shrink-0 size-11 rounded-full bg-[#00a884] hover:bg-[#029074] text-white shadow-sm disabled:opacity-40"
                       >
-                        {uploadingAudio ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
+                        {uploadingAttachment ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
                       </Button>
                     )}
                   </div>
@@ -949,6 +1052,9 @@ function MessageBubble({
 }) {
   const isOutbound = message.direction === "OUTBOUND";
   const isAudio = message.type === "audio";
+  const isImage = message.type === "image";
+  const isDocument = message.type === "document";
+  const isFixedWidth = isAudio || isImage || isDocument;
   const time = new Date(message.timestamp).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -968,12 +1074,13 @@ function MessageBubble({
     >
       {isAudio && !isOutbound && <VoiceAvatar initials={contactInitials} color={contactColor} />}
 
-      <div className={cn("relative", isAudio ? "w-64 sm:w-72" : "max-w-[70%]")}>
+      <div className={cn("relative", isFixedWidth ? "w-64 sm:w-72" : "max-w-[70%]")}>
         {!isOutbound && <BubbleTail side="left" bubbleBg={bubbleBg} />}
         <div
           className={cn(
-            "relative rounded-lg px-2.5 py-1.5 text-sm leading-relaxed shadow-sm text-foreground",
+            "relative rounded-lg text-sm leading-relaxed shadow-sm text-foreground",
             bubbleBg,
+            isImage ? "p-1" : "px-2.5 py-1.5",
             isOutbound ? "rounded-br-none" : "rounded-bl-none"
           )}
         >
@@ -985,6 +1092,31 @@ function MessageBubble({
                 isOutbound={isOutbound}
                 transcription={message.transcription}
                 onTranscribed={onTranscribed}
+              />
+              <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-muted-foreground">
+                {time}
+                {isOutbound && <StatusIcon status={message.status} />}
+              </div>
+            </>
+          ) : isImage ? (
+            <>
+              <ImageMessage messageId={message.id} getAuthHeader={getAuthHeader} />
+              {message.body && (
+                <p className="whitespace-pre-wrap wrap-break-word px-1.5 pt-1.5 pr-10">
+                  {message.body}
+                </p>
+              )}
+              <div className="flex items-center justify-end gap-1 px-1.5 pb-0.5 pt-1 text-[10px] text-muted-foreground">
+                {time}
+                {isOutbound && <StatusIcon status={message.status} />}
+              </div>
+            </>
+          ) : isDocument ? (
+            <>
+              <DocumentMessage
+                messageId={message.id}
+                filename={message.filename || "arquivo"}
+                getAuthHeader={getAuthHeader}
               />
               <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-muted-foreground">
                 {time}
@@ -1225,6 +1357,150 @@ function AudioPlayer({
         </p>
       )}
     </div>
+  );
+}
+
+function ImageMessage({
+  messageId,
+  getAuthHeader,
+}: {
+  messageId: string;
+  getAuthHeader: () => Promise<Record<string, string> | null>;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError(false);
+      const headers = await getAuthHeader();
+      if (!headers) return;
+      try {
+        const res = await fetch(`/api/whatsapp/media/${messageId}`, { headers });
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [messageId, getAuthHeader]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-40 w-full rounded-md bg-black/5 dark:bg-white/5 text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !src) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-1.5 h-40 w-full rounded-md bg-black/5 dark:bg-white/5 text-muted-foreground">
+        <ImageIcon className="size-6" />
+        <span className="text-xs">Imagem indisponível</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setLightboxOpen(true)}
+        className="group relative block w-full overflow-hidden rounded-md"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="Imagem" className="w-full max-h-72 object-cover" />
+        <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors">
+          <ZoomIn className="size-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+        </span>
+      </button>
+
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent
+          showCloseButton
+          className="max-w-[95vw] sm:max-w-3xl p-0 bg-transparent border-0 shadow-none"
+        >
+          <DialogTitle className="sr-only">Imagem</DialogTitle>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="Imagem" className="w-full max-h-[85vh] object-contain rounded-lg" />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function DocumentMessage({
+  messageId,
+  filename,
+  getAuthHeader,
+}: {
+  messageId: string;
+  filename: string;
+  getAuthHeader: () => Promise<Record<string, string> | null>;
+}) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const headers = await getAuthHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/whatsapp/media/${messageId}`, { headers });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Não foi possível baixar o arquivo");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={downloading}
+      className="flex items-center gap-2.5 w-full text-left disabled:opacity-60"
+    >
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-black/10 dark:bg-white/10">
+        {downloading ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <FileText className="size-4" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{filename}</p>
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <Download className="size-3" />
+          Toque para baixar
+        </p>
+      </div>
+    </button>
   );
 }
 

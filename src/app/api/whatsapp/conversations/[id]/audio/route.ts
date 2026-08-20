@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppAudio, uploadWhatsAppMedia } from "@/lib/whatsapp";
+import { transcodeToOggOpus } from "@/lib/audioTranscode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,11 +34,16 @@ export async function POST(
     return NextResponse.json({ error: "Áudio muito grande (máx. 16MB)" }, { status: 400 });
   }
 
-  const mimeType = file.type || "audio/ogg";
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const mediaId = await uploadWhatsAppMedia(buffer, mimeType, file.name || "audio");
+    // Sempre transcodifica pra ogg/opus no servidor — é o único formato que a
+    // Cloud API aceita de forma confiável vindo de qualquer navegador (ver
+    // audioTranscode.ts pro motivo). Assim o mic funciona em qualquer browser.
+    const buffer = await transcodeToOggOpus(rawBuffer);
+    const mimeType = "audio/ogg";
+
+    const mediaId = await uploadWhatsAppMedia(buffer, mimeType, "audio.ogg");
     const result = await sendWhatsAppAudio(conversation.waId, mediaId);
     const waMessageId = result.messages?.[0]?.id;
     const timestamp = new Date();

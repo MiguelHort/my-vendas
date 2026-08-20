@@ -6,7 +6,7 @@ export function normalizeWaId(phone: string) {
   return (phone || "").replace(/[^\d]/g, "");
 }
 
-export async function sendWhatsAppText(to: string, text: string) {
+async function sendWhatsAppMessage(payload: Record<string, unknown>) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_TOKEN;
   if (!phoneNumberId || !token) {
@@ -21,12 +21,7 @@ export async function sendWhatsAppText(to: string, text: string) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body: text, preview_url: false },
-      }),
+      body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
     }
   );
 
@@ -38,36 +33,33 @@ export async function sendWhatsAppText(to: string, text: string) {
   return data as { messages?: { id: string }[] };
 }
 
-export async function sendWhatsAppAudio(to: string, mediaId: string) {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_TOKEN;
-  if (!phoneNumberId || !token) {
-    throw new Error("WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_TOKEN não configurados");
-  }
+export function sendWhatsAppText(to: string, text: string) {
+  return sendWhatsAppMessage({ to, type: "text", text: { body: text, preview_url: false } });
+}
 
-  const res = await fetch(
-    `https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "audio",
-        audio: { id: mediaId },
-      }),
-    }
-  );
+export function sendWhatsAppAudio(to: string, mediaId: string) {
+  return sendWhatsAppMessage({ to, type: "audio", audio: { id: mediaId } });
+}
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(`Erro ao enviar áudio WhatsApp (${res.status}): ${JSON.stringify(data)}`);
-  }
+export function sendWhatsAppImage(to: string, mediaId: string, caption?: string) {
+  return sendWhatsAppMessage({
+    to,
+    type: "image",
+    image: { id: mediaId, ...(caption ? { caption } : {}) },
+  });
+}
 
-  return data as { messages?: { id: string }[] };
+export function sendWhatsAppDocument(
+  to: string,
+  mediaId: string,
+  filename: string,
+  caption?: string
+) {
+  return sendWhatsAppMessage({
+    to,
+    type: "document",
+    document: { id: mediaId, filename, ...(caption ? { caption } : {}) },
+  });
 }
 
 /**

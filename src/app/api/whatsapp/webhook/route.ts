@@ -13,8 +13,9 @@ type WaMessage = {
   timestamp: string;
   type: string;
   text?: { body?: string };
-  caption?: string;
   audio?: { id: string; mime_type: string };
+  image?: { id: string; mime_type: string; caption?: string };
+  document?: { id: string; mime_type: string; filename?: string; caption?: string };
 };
 
 type WaStatus = {
@@ -43,7 +44,38 @@ const TYPE_LABELS: Record<string, string> = {
 
 function previewFor(msg: WaMessage) {
   if (msg.type === "text") return msg.text?.body ?? "";
-  return msg.caption || TYPE_LABELS[msg.type] || `[${msg.type}]`;
+  const caption = msg.image?.caption || msg.document?.caption;
+  return caption || TYPE_LABELS[msg.type] || `[${msg.type}]`;
+}
+
+function extractContent(msg: WaMessage) {
+  switch (msg.type) {
+    case "text":
+      return { body: msg.text?.body ?? "", mediaId: null, mimeType: null, filename: null };
+    case "audio":
+      return {
+        body: null,
+        mediaId: msg.audio?.id ?? null,
+        mimeType: msg.audio?.mime_type ?? null,
+        filename: null,
+      };
+    case "image":
+      return {
+        body: msg.image?.caption ?? null,
+        mediaId: msg.image?.id ?? null,
+        mimeType: msg.image?.mime_type ?? null,
+        filename: null,
+      };
+    case "document":
+      return {
+        body: msg.document?.caption ?? null,
+        mediaId: msg.document?.id ?? null,
+        mimeType: msg.document?.mime_type ?? null,
+        filename: msg.document?.filename ?? null,
+      };
+    default:
+      return { body: previewFor(msg), mediaId: null, mimeType: null, filename: null };
+  }
 }
 
 /**
@@ -136,6 +168,8 @@ async function processChangeValue(value: WaChangeValue) {
       },
     });
 
+    const content = extractContent(msg);
+
     await prisma.whatsAppMessage.upsert({
       where: { waMessageId: msg.id },
       create: {
@@ -143,9 +177,10 @@ async function processChangeValue(value: WaChangeValue) {
         waMessageId: msg.id,
         direction: "INBOUND",
         type: msg.type,
-        body: msg.type === "text" ? msg.text?.body ?? "" : msg.type === "audio" ? null : preview,
-        mediaId: msg.type === "audio" ? msg.audio?.id ?? null : null,
-        mimeType: msg.type === "audio" ? msg.audio?.mime_type ?? null : null,
+        body: content.body,
+        mediaId: content.mediaId,
+        mimeType: content.mimeType,
+        filename: content.filename,
         timestamp,
       },
       update: {},

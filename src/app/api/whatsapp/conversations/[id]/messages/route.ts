@@ -51,6 +51,7 @@ export async function GET(
       status: m.status,
       error_message: m.errorMessage,
       transcription: m.transcription,
+      filename: m.filename,
       timestamp: m.timestamp.toISOString(),
     })),
   });
