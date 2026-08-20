@@ -43,6 +43,7 @@ import {
   Play,
   Pause,
   FileText,
+  ChevronLeft,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 
@@ -136,10 +137,14 @@ function dayDividerLabel(date: Date) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-// WhatsApp só aceita áudio como aac/amr/mp3/mp4/ogg(opus) — o Chrome só grava em
-// webm, que a Cloud API rejeita, então detectamos o melhor formato que o navegador
-// consegue gravar nativamente e escondemos o microfone quando nenhum é suportado.
-const RECORDABLE_MIME_CANDIDATES = ["audio/ogg;codecs=opus", "audio/mp4", "audio/aac", "audio/mpeg"];
+// Só ogg/opus é seguro pra gravar com o MediaRecorder: é o único formato em que o
+// navegador escreve um arquivo completo e válido de uma vez (no stop()). "audio/mp4"
+// e "audio/aac" às vezes retornam true em isTypeSupported, mas o blob gerado é um
+// container incompleto (sem moov/duration fechado) — a Meta aceita o upload mas
+// falha depois ao tentar entregar ("Media upload error"). Chrome/Safari não suportam
+// gravar em ogg/opus, então nesses navegadores o microfone fica desabilitado e só
+// o anexo de arquivo funciona.
+const RECORDABLE_MIME_CANDIDATES = ["audio/ogg;codecs=opus"];
 
 function pickSupportedAudioMime(): string | null {
   if (typeof MediaRecorder === "undefined") return null;
@@ -498,7 +503,12 @@ export default function ConversasPage() {
     <Layout fullWidth>
       <div className="flex h-[calc(100svh-5.5rem)] rounded-xl border border-border overflow-hidden shadow-sm">
         {/* ── Lista de conversas ─────────────────────────────── */}
-        <div className="w-[340px] shrink-0 border-r border-border flex flex-col bg-background">
+        <div
+          className={cn(
+            "w-full md:w-[340px] shrink-0 md:border-r border-border flex-col bg-background",
+            selectedId ? "hidden md:flex" : "flex"
+          )}
+        >
           <div className="shrink-0 px-4 py-3 border-b border-border flex items-center gap-2 bg-[#f0f2f5] dark:bg-[#202c33]">
             <div className="h-9 w-9 rounded-full bg-[#00a884] flex items-center justify-center">
               <WhatsAppIcon className="size-4 text-white" />
@@ -616,7 +626,12 @@ export default function ConversasPage() {
         </div>
 
         {/* ── Thread ─────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#efeae2] dark:bg-[#0b141a]">
+        <div
+          className={cn(
+            "flex-1 flex-col min-w-0 bg-[#efeae2] dark:bg-[#0b141a]",
+            selectedId ? "flex" : "hidden md:flex"
+          )}
+        >
           {!selectedId ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
               <WhatsAppIcon className="size-12 opacity-20" />
@@ -624,7 +639,16 @@ export default function ConversasPage() {
             </div>
           ) : (
             <>
-              <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-[#f0f2f5] dark:bg-[#202c33]">
+              <div className="shrink-0 flex items-center gap-2 px-2 md:px-4 py-2.5 border-b border-border bg-[#f0f2f5] dark:bg-[#202c33]">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden size-9 shrink-0 text-foreground"
+                  onClick={() => setSelectedId(null)}
+                  aria-label="Voltar pra lista de conversas"
+                >
+                  <ChevronLeft className="size-5" />
+                </Button>
                 <div
                   className={cn(
                     "flex size-9 shrink-0 items-center justify-center rounded-full text-white text-xs font-semibold",
@@ -944,7 +968,7 @@ function MessageBubble({
     >
       {isAudio && !isOutbound && <VoiceAvatar initials={contactInitials} color={contactColor} />}
 
-      <div className={cn("relative", isAudio ? "w-72" : "max-w-[70%]")}>
+      <div className={cn("relative", isAudio ? "w-64 sm:w-72" : "max-w-[70%]")}>
         {!isOutbound && <BubbleTail side="left" bubbleBg={bubbleBg} />}
         <div
           className={cn(
@@ -1092,7 +1116,7 @@ function AudioPlayer({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground w-64">
+      <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground w-full">
         <Loader2 className="size-3.5 animate-spin" />
         Carregando áudio…
       </div>
@@ -1101,7 +1125,7 @@ function AudioPlayer({
 
   if (error || !src) {
     return (
-      <div className="flex items-center gap-1.5 py-1.5 text-xs text-destructive w-64">
+      <div className="flex items-center gap-1.5 py-1.5 text-xs text-destructive w-full">
         <AlertCircle className="size-3.5" />
         Áudio indisponível
       </div>
@@ -1115,7 +1139,7 @@ function AudioPlayer({
   const displaySeconds = currentTime > 0 ? currentTime : duration;
 
   return (
-    <div className="w-64">
+    <div className="w-full">
       <audio
         ref={audioRef}
         src={src}
