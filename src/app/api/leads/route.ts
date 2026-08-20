@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     retornar_em,
   } = body;
 
-  if (!nome || !origem || !estado || !cidade || !qtd_vidas || !idades) {
+  if (!nome || !telefone) {
     return NextResponse.json(
       { error: "Campos obrigatórios não preenchidos" },
       { status: 400 },
@@ -122,11 +122,11 @@ export async function POST(req: NextRequest) {
       data: {
         nome,
         telefone: telefone || null,
-        origem,
-        estado,
-        cidade,
-        qtdVidas: Number(qtd_vidas),
-        idades,
+        origem: origem || "Lead Novo",
+        estado: estado || null,
+        cidade: cidade || null,
+        qtdVidas: qtd_vidas ? Number(qtd_vidas) : 1,
+        idades: idades || null,
         possuiCnpj: possui_cnpj !== null ? !!possui_cnpj : null,
         temPlanoAnterior:
           tem_plano_anterior !== null ? !!tem_plano_anterior : null,

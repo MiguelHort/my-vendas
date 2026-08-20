@@ -48,7 +48,7 @@ import { OPERADORAS } from "@/components/LeadCard";
 
 const STEPS = [
   { id: 1, title: "Dados Básicos", description: "Nome, contato e localização", optional: false },
-  { id: 2, title: "Perfil do Lead", description: "Vidas, idades e plano atual", optional: false },
+  { id: 2, title: "Perfil do Lead", description: "Vidas, idades e plano atual", optional: true },
   { id: 3, title: "Proposta Ofertada", description: "Operadora, modalidade e valores", optional: true },
 ];
 
@@ -93,12 +93,10 @@ const NovoLeadPage = () => {
   // VALIDAÇÕES POR ETAPA
   // ========================
 
-  const canAdvanceStep1 = !!nome.trim() && !!origem && !!estado && !!cidade.trim();
-  const canAdvanceStep2 = !!qtdVidas && !!idades.trim();
+  const canAdvanceStep1 = !!nome.trim() && !!telefone.trim();
 
   const canAdvance = () => {
     if (currentStep === 1) return canAdvanceStep1;
-    if (currentStep === 2) return canAdvanceStep2;
     return true;
   };
 
@@ -138,11 +136,11 @@ const NovoLeadPage = () => {
         body: JSON.stringify({
           nome,
           telefone: telefone || null,
-          origem,
-          estado,
-          cidade,
-          qtd_vidas: parseInt(qtdVidas),
-          idades,
+          origem: origem || null,
+          estado: estado || null,
+          cidade: cidade || null,
+          qtd_vidas: qtdVidas ? parseInt(qtdVidas) : null,
+          idades: idades || null,
           possui_cnpj: possuiCNPJ || null,
           tem_plano_anterior: temPlanoAnterior || null,
           operadora_anterior: temPlanoAnterior ? operadoraAnterior || null : null,
@@ -298,7 +296,7 @@ const NovoLeadPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Telefone/WhatsApp</Label>
+                  <Label>Telefone/WhatsApp *</Label>
                   <Input
                     type="tel"
                     placeholder="(11) 98765-4321"
@@ -310,7 +308,7 @@ const NovoLeadPage = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Origem do Lead *</Label>
+                    <Label>Origem do Lead</Label>
                     <Select value={origem} onValueChange={setOrigem}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
@@ -326,7 +324,7 @@ const NovoLeadPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Estado *</Label>
+                    <Label>Estado</Label>
                     <Select value={estado} onValueChange={setEstado}>
                       <SelectTrigger>
                         <SelectValue placeholder="Estado" />
@@ -341,7 +339,7 @@ const NovoLeadPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Cidade *</Label>
+                  <Label>Cidade</Label>
                   <Input
                     placeholder="Ex: São Paulo"
                     value={cidade}
@@ -356,7 +354,7 @@ const NovoLeadPage = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Quantidade de Vidas *</Label>
+                    <Label>Quantidade de Vidas</Label>
                     <Input
                       type="number"
                       min="1"
@@ -367,7 +365,7 @@ const NovoLeadPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Idades *</Label>
+                    <Label>Idades</Label>
                     <Input
                       placeholder="Ex: 34, 30, 5"
                       value={idades}
