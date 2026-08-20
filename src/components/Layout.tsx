@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
-import { WillWidget } from "@/components/WillWidget";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -497,8 +496,6 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
             )}
           </main>
         </div>
-
-        {pathname !== "/dashboard/Will" && <WillWidget />}
       </SidebarInset>
     </SidebarProvider>
   );
