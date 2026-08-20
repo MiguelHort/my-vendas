@@ -40,6 +40,9 @@ import {
   Paperclip,
   Square,
   X as XIcon,
+  Play,
+  Pause,
+  FileText,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 
@@ -59,6 +62,7 @@ type Message = {
   body: string | null;
   status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
   error_message?: string | null;
+  transcription?: string | null;
   timestamp: string;
 };
 
@@ -298,6 +302,23 @@ export default function ConversasPage() {
     }
     return groups;
   }, [messages]);
+
+  const selfInitials = useMemo(
+    () => initialsFor(firebaseUser?.displayName || firebaseUser?.email || "Eu"),
+    [firebaseUser]
+  );
+
+  const contactInitials = useMemo(
+    () =>
+      initialsFor(
+        contactHeader?.name || formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")
+      ),
+    [contactHeader]
+  );
+
+  const handleTranscribed = useCallback((messageId: string, transcription: string) => {
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, transcription } : m)));
+  }, []);
 
   async function handleSend() {
     const text = input.trim();
@@ -658,7 +679,15 @@ export default function ConversasPage() {
                       </div>
                       <div className="space-y-1">
                         {group.items.map((m) => (
-                          <MessageBubble key={m.id} message={m} getAuthHeader={authHeader} />
+                          <MessageBubble
+                            key={m.id}
+                            message={m}
+                            getAuthHeader={authHeader}
+                            selfInitials={selfInitials}
+                            contactInitials={contactInitials}
+                            contactColor={colorForSeed(selectedId ?? "")}
+                            onTranscribed={handleTranscribed}
+                          />
                         ))}
                       </div>
                     </div>
@@ -820,12 +849,79 @@ export default function ConversasPage() {
   );
 }
 
+const WAVEFORM_BARS = 42;
+
+function extractPeaksFromAudioBuffer(buffer: AudioBuffer, bucketCount: number) {
+  const channel = buffer.getChannelData(0);
+  const blockSize = Math.max(1, Math.floor(channel.length / bucketCount));
+  const peaks: number[] = [];
+  for (let i = 0; i < bucketCount; i++) {
+    const start = i * blockSize;
+    let sum = 0;
+    for (let j = 0; j < blockSize; j++) sum += Math.abs(channel[start + j] || 0);
+    peaks.push(sum / blockSize);
+  }
+  const max = Math.max(...peaks, 0.0001);
+  return peaks.map((p) => 0.18 + (p / max) * 0.82);
+}
+
+// Waveform "de mentira", determinística por mensagem — só usada quando o
+// navegador não consegue decodificar o áudio (formato não suportado pelo Web Audio API).
+function fallbackPeaks(seed: string, count: number) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const peaks: number[] = [];
+  for (let i = 0; i < count; i++) {
+    h = (h * 1103515245 + 12345) & 0x7fffffff;
+    peaks.push(0.25 + ((h % 1000) / 1000) * 0.7);
+  }
+  return peaks;
+}
+
+function VoiceAvatar({ initials, color }: { initials: string; color: string }) {
+  return (
+    <div
+      className={cn(
+        "relative shrink-0 flex size-8 items-center justify-center rounded-full text-white text-[10px] font-semibold",
+        color
+      )}
+    >
+      {initials}
+      <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#00a884] ring-2 ring-[#efeae2] dark:ring-[#0b141a]">
+        <Mic className="size-2.5 text-white" />
+      </span>
+    </div>
+  );
+}
+
+function BubbleTail({ side, bubbleBg }: { side: "left" | "right"; bubbleBg: string }) {
+  return (
+    <span
+      className={cn(
+        "absolute bottom-0 h-3 w-3",
+        side === "left"
+          ? "-left-1.5 [clip-path:polygon(100%_0,100%_100%,0_100%)]"
+          : "-right-1.5 [clip-path:polygon(0_0,100%_100%,0_100%)]",
+        bubbleBg
+      )}
+    />
+  );
+}
+
 function MessageBubble({
   message,
   getAuthHeader,
+  selfInitials,
+  contactInitials,
+  contactColor,
+  onTranscribed,
 }: {
   message: Message;
   getAuthHeader: () => Promise<Record<string, string> | null>;
+  selfInitials: string;
+  contactInitials: string;
+  contactColor: string;
+  onTranscribed: (messageId: string, transcription: string) => void;
 }) {
   const isOutbound = message.direction === "OUTBOUND";
   const isAudio = message.type === "audio";
@@ -839,16 +935,17 @@ function MessageBubble({
     : "bg-white dark:bg-[#1f2c34]";
 
   return (
-    <div className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
-      <div className="relative max-w-[70%]">
-        {!isOutbound && (
-          <span
-            className={cn(
-              "absolute -left-[6px] bottom-0 h-3 w-3 [clip-path:polygon(100%_0,100%_100%,0_100%)]",
-              bubbleBg
-            )}
-          />
-        )}
+    <div
+      className={cn(
+        "flex",
+        isAudio ? "items-start gap-1.5" : "",
+        isOutbound ? "justify-end" : "justify-start"
+      )}
+    >
+      {isAudio && !isOutbound && <VoiceAvatar initials={contactInitials} color={contactColor} />}
+
+      <div className={cn("relative", isAudio ? "w-72" : "max-w-[70%]")}>
+        {!isOutbound && <BubbleTail side="left" bubbleBg={bubbleBg} />}
         <div
           className={cn(
             "relative rounded-lg px-2.5 py-1.5 text-sm leading-relaxed shadow-sm text-foreground",
@@ -857,28 +954,33 @@ function MessageBubble({
           )}
         >
           {isAudio ? (
-            <AudioPlayer messageId={message.id} getAuthHeader={getAuthHeader} />
+            <>
+              <AudioPlayer
+                messageId={message.id}
+                getAuthHeader={getAuthHeader}
+                isOutbound={isOutbound}
+                transcription={message.transcription}
+                onTranscribed={onTranscribed}
+              />
+              <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-muted-foreground">
+                {time}
+                {isOutbound && <StatusIcon status={message.status} />}
+              </div>
+            </>
           ) : (
-            <p className="whitespace-pre-wrap wrap-break-word pr-10">{message.body}</p>
+            <>
+              <p className="whitespace-pre-wrap wrap-break-word pr-10">{message.body}</p>
+              <div className="flex items-center gap-1 float-right -mb-1 ml-2 mt-1 text-[10px] text-muted-foreground">
+                {time}
+                {isOutbound && <StatusIcon status={message.status} />}
+              </div>
+            </>
           )}
-          <div
-            className={cn(
-              "flex items-center gap-1 float-right -mb-1 ml-2 mt-1 text-[10px] text-muted-foreground"
-            )}
-          >
-            {time}
-            {isOutbound && <StatusIcon status={message.status} />}
-          </div>
         </div>
-        {isOutbound && (
-          <span
-            className={cn(
-              "absolute -right-[6px] bottom-0 h-3 w-3 [clip-path:polygon(0_0,100%_100%,0_100%)]",
-              bubbleBg
-            )}
-          />
-        )}
+        {isOutbound && <BubbleTail side="right" bubbleBg={bubbleBg} />}
       </div>
+
+      {isAudio && isOutbound && <VoiceAvatar initials={selfInitials} color="bg-[#00a884]" />}
     </div>
   );
 }
@@ -886,13 +988,28 @@ function MessageBubble({
 function AudioPlayer({
   messageId,
   getAuthHeader,
+  isOutbound,
+  transcription,
+  onTranscribed,
 }: {
   messageId: string;
   getAuthHeader: () => Promise<Record<string, string> | null>;
+  isOutbound: boolean;
+  transcription?: string | null;
+  onTranscribed: (messageId: string, transcription: string) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [peaks, setPeaks] = useState<number[] | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const waveRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let objectUrl: string | null = null;
@@ -906,10 +1023,21 @@ function AudioPlayer({
       try {
         const res = await fetch(`/api/whatsapp/media/${messageId}`, { headers });
         if (!res.ok) throw new Error();
-        const blob = await res.blob();
+        const arrayBuffer = await res.arrayBuffer();
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
+
+        objectUrl = URL.createObjectURL(new Blob([arrayBuffer]));
         setSrc(objectUrl);
+
+        try {
+          const AudioCtx = window.AudioContext;
+          const ctx = new AudioCtx();
+          const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
+          if (!cancelled) setPeaks(extractPeaksFromAudioBuffer(decoded, WAVEFORM_BARS));
+          void ctx.close();
+        } catch {
+          if (!cancelled) setPeaks(fallbackPeaks(messageId, WAVEFORM_BARS));
+        }
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -923,9 +1051,48 @@ function AudioPlayer({
     };
   }, [messageId, getAuthHeader]);
 
+  function togglePlay() {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) el.pause();
+    else void el.play();
+  }
+
+  function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
+    const el = audioRef.current;
+    const wave = waveRef.current;
+    if (!el || !wave || !duration) return;
+    const rect = wave.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    el.currentTime = ratio * duration;
+    setCurrentTime(el.currentTime);
+  }
+
+  async function handleTranscribe() {
+    if (transcribing) return;
+    setTranscribing(true);
+    try {
+      const headers = await getAuthHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/whatsapp/messages/${messageId}/transcribe`, {
+        method: "POST",
+        headers,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao transcrever");
+      onTranscribed(messageId, data.transcription);
+      setShowTranscript(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível transcrever o áudio");
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-1.5 pr-10 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground w-64">
         <Loader2 className="size-3.5 animate-spin" />
         Carregando áudio…
       </div>
@@ -934,15 +1101,106 @@ function AudioPlayer({
 
   if (error || !src) {
     return (
-      <div className="flex items-center gap-1.5 py-1.5 pr-10 text-xs text-destructive">
+      <div className="flex items-center gap-1.5 py-1.5 text-xs text-destructive w-64">
         <AlertCircle className="size-3.5" />
         Áudio indisponível
       </div>
     );
   }
 
+  const progressRatio = duration ? currentTime / duration : 0;
+  const bars = peaks ?? fallbackPeaks(messageId, WAVEFORM_BARS);
+  const playedColor = isOutbound ? "bg-[#0a6a55]" : "bg-[#00a884]";
+  const unplayedColor = isOutbound ? "bg-[#0a6a55]/30" : "bg-black/15 dark:bg-white/25";
+  const displaySeconds = currentTime > 0 ? currentTime : duration;
+
   return (
-    <audio controls preload="metadata" src={src} className="h-10 max-w-60 align-middle" />
+    <div className="w-64">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setCurrentTime(0);
+        }}
+        className="hidden"
+      />
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={togglePlay}
+          className={cn(
+            "shrink-0 flex items-center justify-center size-8 rounded-full text-white shadow-sm",
+            isOutbound ? "bg-[#0a6a55]" : "bg-[#00a884]"
+          )}
+          aria-label={playing ? "Pausar áudio" : "Tocar áudio"}
+        >
+          {playing ? (
+            <Pause className="size-3.5 fill-current" />
+          ) : (
+            <Play className="size-3.5 fill-current ml-0.5" />
+          )}
+        </button>
+
+        <div
+          ref={waveRef}
+          onClick={handleSeek}
+          className="relative flex items-center gap-0.5 h-8 flex-1 cursor-pointer select-none"
+        >
+          {bars.map((h, i) => {
+            const barRatio = (i + 0.5) / bars.length;
+            const played = barRatio <= progressRatio;
+            return (
+              <span
+                key={i}
+                className={cn("w-[3px] rounded-full", played ? playedColor : unplayedColor)}
+                style={{ height: `${Math.round(h * 100)}%` }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-0.5 pl-10">
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          {formatRecordingTime(Math.floor(displaySeconds))}
+        </span>
+
+        {transcription ? (
+          <button
+            onClick={() => setShowTranscript((v) => !v)}
+            className="flex items-center gap-1 text-[10px] font-medium text-foreground/70 hover:text-foreground underline decoration-dotted underline-offset-2"
+          >
+            <FileText className="size-3" />
+            {showTranscript ? "Ocultar transcrição" : "Ver transcrição"}
+          </button>
+        ) : (
+          <button
+            onClick={handleTranscribe}
+            disabled={transcribing}
+            className="flex items-center gap-1 text-[10px] font-medium text-foreground/70 hover:text-foreground underline decoration-dotted underline-offset-2 disabled:opacity-50"
+          >
+            {transcribing ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <FileText className="size-3" />
+            )}
+            {transcribing ? "Transcrevendo…" : "Ver transcrição"}
+          </button>
+        )}
+      </div>
+
+      {showTranscript && transcription && (
+        <p className="mt-1.5 pl-2 text-xs italic text-foreground/80 border-l-2 border-foreground/20">
+          {transcription}
+        </p>
+      )}
+    </div>
   );
 }
 

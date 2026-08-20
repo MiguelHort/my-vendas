@@ -50,6 +50,7 @@ export async function GET(
       body: m.body,
       status: m.status,
       error_message: m.errorMessage,
+      transcription: m.transcription,
       timestamp: m.timestamp.toISOString(),
     })),
   });
