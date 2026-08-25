@@ -19,6 +19,7 @@ import {
   Trophy,
   Medal,
   MessageCircle,
+  InstagramIcon,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -88,6 +89,7 @@ const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
+  { href: "/dashboard/instagram", label: "Instagram", icon: InstagramIcon },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
   { href: "/dashboard/conquistas", label: "Conquistas", icon: Trophy },
@@ -106,6 +108,7 @@ const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   funil: "Funil",
   conversas: "Conversas",
+  instagram: "Instagram",
   "minhas-vendas": "Minhas Vendas",
   "mapa-estados": "Mapa",
   cotacao: "Cotação",

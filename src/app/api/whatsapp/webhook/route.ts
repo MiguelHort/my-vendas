@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { normalizeWaId, verifyMetaSignature } from "@/lib/whatsapp";
+import { normalizeWaId } from "@/lib/whatsapp";
+import { verifyMetaSignature } from "@/lib/metaSignature";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 
 export const runtime = "nodejs";
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
   const signature = req.headers.get("x-hub-signature-256");
-  if (!verifyMetaSignature(rawBody, signature)) {
+  if (!verifyMetaSignature(rawBody, signature, process.env.WHATSAPP_APP_SECRET)) {
     console.error("WhatsApp webhook: assinatura inválida");
     return new NextResponse("Invalid signature", { status: 403 });
   }

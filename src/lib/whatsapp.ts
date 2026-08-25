@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 const GRAPH_VERSION = "v24.0";
 
 export function normalizeWaId(phone: string) {
@@ -118,24 +116,4 @@ export async function downloadWhatsAppMedia(mediaId: string) {
 
   const arrayBuffer = await fileRes.arrayBuffer();
   return { buffer: Buffer.from(arrayBuffer), mimeType: meta.mime_type };
-}
-
-/**
- * Verifica X-Hub-Signature-256 contra o corpo bruto da requisição.
- * A Meta assina o payload com o App Secret do app conectado ao número.
- * Sem WHATSAPP_APP_SECRET configurado, a validação é pulada (não recomendado em produção).
- */
-export function verifyMetaSignature(rawBody: string, signatureHeader: string | null) {
-  const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (!appSecret) return true;
-  if (!signatureHeader) return false;
-
-  const expected =
-    "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
-
-  const sigBuf = Buffer.from(signatureHeader);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
-
-  return crypto.timingSafeEqual(sigBuf, expBuf);
 }

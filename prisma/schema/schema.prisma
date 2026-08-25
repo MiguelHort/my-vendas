@@ -40,6 +40,8 @@ model Lead {
   retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
   tipoComissao       String    @default("interno") @map("tipo_comissao") @db.Text
 
+  instagramConversations InstagramConversation[]
+
   @@map("leads")
   @@schema("public")
 }
@@ -57,6 +59,7 @@ model User {
 
   planCommissions PlanCommission[]
   whatsappMessagesSent WhatsAppMessage[]
+  instagramMessagesSent InstagramMessage[]
 
   @@map("users")
   @@schema("public")
@@ -127,6 +130,72 @@ model WhatsAppMessage {
 
   @@index([conversationId, timestamp])
   @@map("whatsapp_messages")
+  @@schema("public")
+}
+
+// =====================
+// Instagram (Messenger Platform / conta comercial vinculada a uma Página) — inbox compartilhado
+// =====================
+
+enum InstagramDirection {
+  INBOUND
+  OUTBOUND
+  @@schema("public")
+}
+
+enum InstagramMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  @@schema("public")
+}
+
+model InstagramConversation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  igsid              String    @unique @map("igsid") @db.Text
+  username           String?   @map("username") @db.Text
+  lastMessageAt      DateTime? @map("last_message_at") @db.Timestamptz(6)
+  lastMessagePreview String?   @map("last_message_preview") @db.Text
+  unreadCount        Int       @default(0) @map("unread_count")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  leadId String? @map("lead_id") @db.Uuid
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  messages InstagramMessage[]
+
+  @@map("instagram_conversations")
+  @@schema("public")
+}
+
+model InstagramMessage {
+  id             String                  @id @default(uuid()) @db.Uuid
+  conversationId String                  @map("conversation_id") @db.Uuid
+  conversation   InstagramConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  igMessageId  String?                  @unique @map("ig_message_id") @db.Text
+  direction    InstagramDirection
+  type         String                   @default("text") @db.Text
+  body         String?                  @db.Text
+  mediaUrl     String?                  @map("media_url") @db.Text
+  mediaId      String?                  @map("media_id") @db.Text
+  mimeType     String?                  @map("mime_type") @db.Text
+  filename     String?                  @db.Text
+  transcription String?                 @db.Text
+  status       InstagramMessageStatus   @default(SENT)
+  errorMessage String?                  @map("error_message") @db.Text
+
+  sentByUserId String? @map("sent_by_user_id") @db.Uuid
+  sentByUser   User?   @relation(fields: [sentByUserId], references: [id])
+
+  timestamp DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([conversationId, timestamp])
+  @@map("instagram_messages")
   @@schema("public")
 }
 
