@@ -2,8 +2,7 @@ import crypto from "crypto";
 
 /**
  * Verifica X-Hub-Signature-256 contra o corpo bruto da requisição.
- * A Meta assina o payload com o App Secret do app conectado ao webhook
- * (mesmo mecanismo pros webhooks de WhatsApp e de Instagram/Messenger).
+ * A Meta assina o payload com o App Secret do app conectado ao webhook.
  * Sem appSecret configurado, a validação é pulada (não recomendado em produção).
  */
 export function verifyMetaSignature(

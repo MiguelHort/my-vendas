@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
+import { phoneSuffix } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function onlyDigits(phone: string) {
-  return (phone || "").replace(/\D/g, "");
-}
-
-// Remove o código do país (55) quando presente, pra comparar só DDD+número —
-// leads cadastrados manualmente às vezes têm o telefone sem o "55" na frente.
-function localNumber(digits: string) {
-  return digits.length > 11 && digits.startsWith("55") ? digits.slice(2) : digits;
-}
-
 /**
  * Acha o lead cujo telefone bate com o número da conversa, pra mostrar
- * operadora ofertada / valor da mensalidade no cabeçalho do chat.
+ * operadora ofertada / valor da mensalidade / etiquetas no cabeçalho do chat.
  */
 export async function GET(
   req: NextRequest,
@@ -35,7 +26,7 @@ export async function GET(
     return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
   }
 
-  const waLocal = localNumber(onlyDigits(conversation.waId));
+  const waSuffix = phoneSuffix(conversation.waId);
 
   const candidates = await prisma.lead.findMany({
     where: { telefone: { not: null } },
@@ -45,14 +36,14 @@ export async function GET(
       operadoraOfertada: true,
       valorMensalidade: true,
       telefone: true,
+      tags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const match = candidates.find((l) => {
-    const leadLocal = localNumber(onlyDigits(l.telefone || ""));
-    return leadLocal.length >= 8 && waLocal.length >= 8 && leadLocal.slice(-8) === waLocal.slice(-8);
-  });
+  const match = waSuffix
+    ? candidates.find((l) => phoneSuffix(l.telefone) === waSuffix)
+    : undefined;
 
   if (!match) {
     return NextResponse.json({ lead: null });
@@ -64,6 +55,7 @@ export async function GET(
       status: match.status,
       operadora_ofertada: match.operadoraOfertada,
       valor_mensalidade: match.valorMensalidade != null ? Number(match.valorMensalidade) : null,
+      tags: match.tags.map((r) => ({ id: r.tag.id, name: r.tag.name, color: r.tag.color })),
     },
   });
 }

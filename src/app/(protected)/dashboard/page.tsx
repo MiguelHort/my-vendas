@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 
-import Link from "next/link";
 import { Layout } from "@/components/Layout";
 import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
 
@@ -23,12 +22,6 @@ import {
   Activity,
   Filter,
   AlertCircle,
-  Medal,
-  Award,
-  Star,
-  Trophy,
-  Crown,
-  type LucideIcon,
 } from "lucide-react";
 
 // shadcn ui
@@ -115,25 +108,10 @@ function useCountUp(target: number, duration = 800) {
   return displayed;
 }
 
-/* ─── nivel helpers (inline — evita import circular) ─── */
-type NivelInfo = { number: number; name: string; color: string; glow: string; Icon: LucideIcon };
-
-const NIVEL_COLOR = "var(--primary)";
-const NIVEL_GLOW  = "color-mix(in srgb, var(--primary) 35%, transparent)";
-
-function getNivelInfo(commission: number): NivelInfo {
-  if (commission >= 30_000) return { number: 5, name: "Elite",        color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Crown  };
-  if (commission >= 15_000) return { number: 4, name: "Especialista", color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Trophy };
-  if (commission >= 6_000)  return { number: 3, name: "Consultor",    color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Star   };
-  if (commission >= 2_000)  return { number: 2, name: "Corretor",     color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Award  };
-  return                           { number: 1, name: "Aspirante",    color: NIVEL_COLOR, glow: NIVEL_GLOW, Icon: Medal  };
-}
-
 const DashboardPage = () => {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
 
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [nivelInfo, setNivelInfo] = useState<NivelInfo | null>(null);
   const [filtroOrigem, setFiltroOrigem] = useState<string>("Todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("este-mes");
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
@@ -278,19 +256,6 @@ const DashboardPage = () => {
     if (!firebaseUser || loadingAuth) return;
     fetchLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firebaseUser, loadingAuth]);
-
-  useEffect(() => {
-    if (!firebaseUser || loadingAuth) return;
-    const params = new URLSearchParams({
-      firebaseUid: firebaseUser.uid,
-      email: firebaseUser.email || "",
-      name: firebaseUser.displayName || "",
-    });
-    fetch(`/api/nivel?${params}`)
-      .then((r) => r.json())
-      .then((d) => setNivelInfo(getNivelInfo(d.lastMonthCommission ?? 0)))
-      .catch(() => {});
   }, [firebaseUser, loadingAuth]);
 
   // ----------------- métricas (filtradas) -----------------
@@ -662,29 +627,6 @@ const DashboardPage = () => {
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Tudo em dia</span>
                 </div>
-              )}
-              {/* Nível badge */}
-              {nivelInfo && (
-                <Link href="/dashboard/nivel">
-                  <div
-                    className="inline-flex items-center gap-3 rounded-2xl px-4 py-2.5 font-bold transition-all duration-200 hover:scale-105 hover:brightness-110 cursor-pointer relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(135deg, color-mix(in srgb, ${nivelInfo.color} 18%, transparent), color-mix(in srgb, ${nivelInfo.color} 8%, transparent))`,
-                      border: `1.5px solid color-mix(in srgb, ${nivelInfo.color} 55%, transparent)`,
-                      color: nivelInfo.color,
-                      boxShadow: `0 0 18px color-mix(in srgb, var(--primary) 35%, transparent), 0 0 40px color-mix(in srgb, var(--primary) 12%, transparent), inset 0 1px 0 color-mix(in srgb, var(--primary) 25%, transparent)`,
-                    }}
-                  >
-                    <nivelInfo.Icon className="h-5 w-5 shrink-0" />
-                    <div className="flex flex-col leading-none gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest opacity-70">
-                        Nível {nivelInfo.number}
-                      </span>
-                      <span className="text-sm">{nivelInfo.name}</span>
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 opacity-50 shrink-0" />
-                  </div>
-                </Link>
               )}
             </div>
           </header>

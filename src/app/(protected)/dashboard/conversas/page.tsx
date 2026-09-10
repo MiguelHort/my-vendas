@@ -21,6 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { toast } from "sonner";
@@ -47,8 +49,12 @@ import {
   ImageIcon,
   Download,
   ZoomIn,
+  Tag as TagIcon,
+  ListFilter,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
+
+type Tag = { id: string; name: string; color: string };
 
 type Conversation = {
   id: string;
@@ -57,6 +63,7 @@ type Conversation = {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  tags: Tag[];
 };
 
 type LeadInfo = {
@@ -64,6 +71,7 @@ type LeadInfo = {
   status: string;
   operadora_ofertada: string | null;
   valor_mensalidade: number | null;
+  tags: Tag[];
 };
 
 type Message = {
@@ -198,6 +206,11 @@ export default function ConversasPage() {
   const [contactHeader, setContactHeader] = useState<{ name: string | null; wa_id: string } | null>(null);
   const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
 
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [savingTags, setSavingTags] = useState(false);
+
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -289,6 +302,60 @@ export default function ConversasPage() {
     [authHeader]
   );
 
+  const fetchTags = useCallback(async () => {
+    const headers = await authHeader();
+    if (!headers) return;
+    try {
+      const res = await fetch("/api/tags", { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      setAllTags(data.tags ?? []);
+    } catch {
+      // silencioso
+    }
+  }, [authHeader]);
+
+  // Etiquetas cadastradas: carga inicial (recarrega ao abrir o modal também)
+  useEffect(() => {
+    if (!firebaseUser) return;
+    fetchTags();
+  }, [firebaseUser, fetchTags]);
+
+  async function handleSaveLeadTags(tagIds: string[]) {
+    if (!leadInfo || savingTags) return;
+    setSavingTags(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/leads/${leadInfo.id}/tags`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ tagIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar etiquetas");
+
+      const newTags: Tag[] = data.tags ?? [];
+      setLeadInfo((prev) => (prev ? { ...prev, tags: newTags } : prev));
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, tags: newTags } : c))
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível salvar as etiquetas");
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
+  function toggleLeadTag(tagId: string) {
+    if (!leadInfo) return;
+    const current = new Set(leadInfo.tags.map((t) => t.id));
+    if (current.has(tagId)) current.delete(tagId);
+    else current.add(tagId);
+    void handleSaveLeadTags([...current]);
+  }
+
   // Lista de conversas: carga inicial + polling
   useEffect(() => {
     if (!firebaseUser) return;
@@ -304,6 +371,7 @@ export default function ConversasPage() {
       setMessages([]);
       setContactHeader(null);
       setLeadInfo(null);
+      setTagModalOpen(false);
       return;
     }
     setLoadingMessages(true);
@@ -325,15 +393,19 @@ export default function ConversasPage() {
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return conversations;
     const qDigits = q.replace(/\D/g, "");
     return conversations.filter((c) => {
+      if (tagFilter.size > 0) {
+        const has = c.tags.some((t) => tagFilter.has(t.id));
+        if (!has) return false;
+      }
+      if (!q) return true;
       const name = (c.contact_name || "").toLowerCase();
       if (name.includes(q)) return true;
       if (qDigits && c.wa_id.includes(qDigits)) return true;
       return false;
     });
-  }, [conversations, search]);
+  }, [conversations, search, tagFilter]);
 
   const groupedMessages = useMemo(() => {
     const groups: { label: string; items: Message[] }[] = [];
@@ -621,7 +693,7 @@ export default function ConversasPage() {
             </div>
           </div>
 
-          <div className="shrink-0 px-3 py-2 border-b border-border bg-background">
+          <div className="shrink-0 px-3 py-2 border-b border-border bg-background space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <Input
@@ -630,6 +702,94 @@ export default function ConversasPage() {
                 placeholder="Pesquisar conversa"
                 className="h-9 pl-9 rounded-full bg-muted/60 border-transparent text-sm"
               />
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-7 rounded-full gap-1.5 text-xs",
+                      tagFilter.size > 0 && "border-[#00a884] text-[#00a884]"
+                    )}
+                  >
+                    <ListFilter className="size-3.5" />
+                    {tagFilter.size > 0 ? `${tagFilter.size} etiqueta${tagFilter.size > 1 ? "s" : ""}` : "Filtrar por etiqueta"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-1.5">
+                  {allTags.length === 0 ? (
+                    <p className="text-xs text-muted-foreground px-2 py-3 text-center">
+                      Nenhuma etiqueta cadastrada.
+                    </p>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto">
+                      {allTags.map((t) => {
+                        const checked = tagFilter.has(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() =>
+                              setTagFilter((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(t.id)) next.delete(t.id);
+                                else next.add(t.id);
+                                return next;
+                              })
+                            }
+                            className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-left"
+                          >
+                            <Checkbox checked={checked} className="pointer-events-none" />
+                            <span
+                              className="size-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: t.color }}
+                            />
+                            <span className="truncate">{t.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              {[...tagFilter].map((id) => {
+                const t = allTags.find((x) => x.id === id);
+                if (!t) return null;
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full pl-2 pr-1 py-0.5 text-[10px] font-medium text-white"
+                    style={{ backgroundColor: t.color }}
+                  >
+                    {t.name}
+                    <button
+                      onClick={() =>
+                        setTagFilter((prev) => {
+                          const next = new Set(prev);
+                          next.delete(id);
+                          return next;
+                        })
+                      }
+                      className="rounded-full hover:bg-black/20 p-0.5"
+                      aria-label={`Remover filtro ${t.name}`}
+                    >
+                      <XIcon className="size-2.5" />
+                    </button>
+                  </span>
+                );
+              })}
+
+              {tagFilter.size > 0 && (
+                <button
+                  onClick={() => setTagFilter(new Set())}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                >
+                  limpar
+                </button>
+              )}
             </div>
           </div>
 
@@ -673,7 +833,17 @@ export default function ConversasPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium truncate">{name}</p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-medium truncate">{name}</p>
+                          {c.tags.slice(0, 3).map((t) => (
+                            <span
+                              key={t.id}
+                              className="size-2 rounded-full shrink-0"
+                              style={{ backgroundColor: t.color }}
+                              title={t.name}
+                            />
+                          ))}
+                        </div>
                         {c.last_message_at && (
                           <span
                             className={cn(
@@ -779,8 +949,41 @@ export default function ConversasPage() {
                         {formatCurrency(leadInfo.valor_mensalidade)}
                       </span>
                     )}
+                    {leadInfo?.tags.slice(0, 3).map((t) => (
+                      <span
+                        key={t.id}
+                        className="text-[10px] leading-none px-1.5 py-0.5 rounded-full font-medium text-white"
+                        style={{ backgroundColor: t.color }}
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                    {leadInfo && leadInfo.tags.length > 3 && (
+                      <button
+                        onClick={() => {
+                          void fetchTags();
+                          setTagModalOpen(true);
+                        }}
+                        className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-foreground/70 font-medium hover:bg-black/10 dark:hover:bg-white/20"
+                        title="Ver todas as etiquetas"
+                      >
+                        +{leadInfo.tags.length - 3}
+                      </button>
+                    )}
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  title="Adicionar etiqueta"
+                  onClick={() => {
+                    void fetchTags();
+                    setTagModalOpen(true);
+                  }}
+                >
+                  <TagIcon className="size-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1013,6 +1216,69 @@ export default function ConversasPage() {
             <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleting}>
               {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               Excluir conversa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal de etiquetas do contato ──────────────────── */}
+      <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <TagIcon className="size-5" />
+              <DialogTitle>Etiquetas do contato</DialogTitle>
+            </div>
+            <DialogDescription>
+              {contactHeader?.name ||
+                formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!leadInfo ? (
+            <p className="text-sm text-muted-foreground py-2">
+              Essa conversa não tem um lead vinculado, então não dá pra aplicar etiquetas.
+            </p>
+          ) : allTags.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              Nenhuma etiqueta cadastrada ainda. Crie etiquetas na tela{" "}
+              <strong>Etiquetas</strong> do menu.
+            </p>
+          ) : (
+            <div className="space-y-1 max-h-72 overflow-y-auto -mx-1 px-1">
+              {allTags.map((t) => {
+                const checked = leadInfo.tags.some((x) => x.id === t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleLeadTag(t.id)}
+                    disabled={savingTags}
+                    className="w-full flex items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-muted text-left disabled:opacity-60"
+                  >
+                    <Checkbox checked={checked} className="pointer-events-none" />
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                      style={{ backgroundColor: t.color }}
+                    >
+                      <TagIcon className="size-3" />
+                      {t.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {savingTags && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              Salvando…
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTagModalOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
