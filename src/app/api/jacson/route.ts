@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth as firebaseAdmin } from "@/lib/firebaseAdmin";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { phoneSuffix } from "@/lib/leadMatch";
+import { NECESSIDADE_PRINCIPAL_LABEL, rotuloPergunta } from "@/lib/quiz/definition";
+import type { QuizAnswer } from "@/lib/quiz/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +16,8 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 const SYSTEM_PROMPT = `Você é Will, o assistente de IA do WinLeads, um CRM para corretores de planos de saúde.
 Seu papel é ajudar o corretor a entender a performance e os dados da equipe de forma clara e direta.
 
-Você receberá os dados reais da equipe: estatísticas gerais E a lista completa dos leads (compartilhados entre todos os corretores).
-Use esses dados para responder perguntas tanto gerais ("quantas vendas tivemos?") quanto específicas ("por que o lead João foi dispensado?").
+Você receberá os dados reais da equipe: estatísticas gerais E a lista completa dos leads (compartilhados entre todos os corretores), incluindo etiquetas e, quando o lead tiver conversa pelo WhatsApp, o estado da conversa e o resultado do quiz de qualificação (respostas dadas pelo contato).
+Use esses dados para responder perguntas gerais ("quantas vendas tivemos?"), específicas sobre um lead ("por que o lead João foi dispensado?") e sobre conversas/qualificação ("o que a Maria respondeu no quiz?", "quais leads têm conversa não lida?").
 
 Seja amigável, direto e profissional. Responda sempre em português brasileiro.
 Quando mencionar valores monetários, formate como "R$ X.XXX,XX".
@@ -36,9 +39,24 @@ type LeadRow = {
   acomodacao: string | null;
   qtdVidas: number;
   tipoComissao: string;
+  telefone: string | null;
+  tags: string[];
 };
 
-function formatLeadLine(lead: LeadRow): string {
+/** Estado da conversa de WhatsApp + resultado do quiz, indexado por lead (via telefone). */
+type ConversaInfo = {
+  unreadCount: number;
+  lastMessagePreview: string | null;
+  lastMessageAt: Date | null;
+  quiz: {
+    status: "EM_ANDAMENTO" | "CONCLUIDO" | "INTERROMPIDO";
+    temPlanoAtual: boolean | null;
+    necessidadePrincipal: string | null;
+    answers: { question: string; answer: string }[];
+  } | null;
+};
+
+function formatLeadLine(lead: LeadRow, conversa?: ConversaInfo): string {
   const parts: string[] = [`[${lead.nome}]`];
   parts.push(`Status: ${lead.status}`);
   parts.push(`Origem: ${lead.origem}`);
@@ -54,7 +72,44 @@ function formatLeadLine(lead: LeadRow): string {
   if (lead.acomodacao) parts.push(`Acomodação: ${lead.acomodacao}`);
   if (lead.qtdVidas > 0) parts.push(`Vidas: ${lead.qtdVidas}`);
   if (lead.motivoDispensa) parts.push(`Motivo dispensa: ${lead.motivoDispensa}`);
-  return parts.join(" | ");
+  if (lead.tags.length > 0) parts.push(`Etiquetas: ${lead.tags.join(", ")}`);
+
+  let line = parts.join(" | ");
+
+  if (conversa) {
+    const convParts: string[] = [];
+    convParts.push(`não lidas: ${conversa.unreadCount}`);
+    if (conversa.lastMessagePreview) {
+      convParts.push(
+        `última msg: "${conversa.lastMessagePreview}"${
+          conversa.lastMessageAt ? ` (${conversa.lastMessageAt.toLocaleDateString("pt-BR")})` : ""
+        }`
+      );
+    }
+    if (conversa.quiz) {
+      convParts.push(`quiz: ${conversa.quiz.status}`);
+      if (conversa.quiz.temPlanoAtual != null) {
+        convParts.push(`já tem plano: ${conversa.quiz.temPlanoAtual ? "sim" : "não"}`);
+      }
+      if (conversa.quiz.necessidadePrincipal) {
+        convParts.push(
+          `necessidade: ${
+            NECESSIDADE_PRINCIPAL_LABEL[
+              conversa.quiz.necessidadePrincipal as "prevencao" | "tratamento"
+            ] ?? conversa.quiz.necessidadePrincipal
+          }`
+        );
+      }
+      if (conversa.quiz.answers.length > 0) {
+        convParts.push(
+          `respostas do quiz: ${conversa.quiz.answers.map((a) => `${a.question} → ${a.answer}`).join("; ")}`
+        );
+      }
+    }
+    line += `\n  Conversa WhatsApp: ${convParts.join(" | ")}`;
+  }
+
+  return line;
 }
 
 function buildAccountContext(
@@ -68,6 +123,7 @@ function buildAccountContext(
   leadsByOrigin: { origem: string; count: number }[],
   leadsByState: { estado: string | null; count: number }[],
   allLeads: LeadRow[],
+  conversasByPhoneSuffix: Map<string, ConversaInfo>,
   today: Date
 ): string {
   const monthNames = [
@@ -104,7 +160,13 @@ function buildAccountContext(
   const leadsSection =
     allLeads.length > 0
       ? `\n=== LISTA COMPLETA DE LEADS (${allLeads.length} leads, mais recentes primeiro) ===\n` +
-      allLeads.map(formatLeadLine).join("\n") +
+      allLeads
+        .map((lead) => {
+          const suffix = phoneSuffix(lead.telefone);
+          const conversa = suffix ? conversasByPhoneSuffix.get(suffix) : undefined;
+          return formatLeadLine(lead, conversa);
+        })
+        .join("\n") +
       "\n=== FIM DOS LEADS ==="
       : "";
 
@@ -174,6 +236,7 @@ export async function POST(req: NextRequest) {
       leadsByOriginRaw,
       leadsByStateRaw,
       allLeadsRaw,
+      conversationsRaw,
     ] = await Promise.all([
       prisma.lead.count(),
       prisma.lead.groupBy({
@@ -223,9 +286,27 @@ export async function POST(req: NextRequest) {
           acomodacao: true,
           qtdVidas: true,
           tipoComissao: true,
+          telefone: true,
+          tags: { select: { tag: { select: { name: true } } } },
         },
         orderBy: { dataEntrada: "desc" },
         take: 400,
+      }),
+      prisma.whatsAppConversation.findMany({
+        select: {
+          waId: true,
+          unreadCount: true,
+          lastMessagePreview: true,
+          lastMessageAt: true,
+          quizState: {
+            select: {
+              status: true,
+              temPlanoAtual: true,
+              necessidadePrincipal: true,
+              answers: true,
+            },
+          },
+        },
       }),
     ]);
 
@@ -255,7 +336,34 @@ export async function POST(req: NextRequest) {
       acomodacao: r.acomodacao,
       qtdVidas: r.qtdVidas,
       tipoComissao: r.tipoComissao,
+      telefone: r.telefone,
+      tags: r.tags.map((t) => t.tag.name),
     }));
+
+    // Conversas de WhatsApp, indexadas pelo sufixo do telefone (mesmo critério
+    // usado no inbox pra casar conversa com lead — ver lib/leadMatch).
+    const conversasByPhoneSuffix = new Map<string, ConversaInfo>();
+    for (const c of conversationsRaw) {
+      const suffix = phoneSuffix(c.waId);
+      if (!suffix) continue;
+      const quizState = c.quizState;
+      conversasByPhoneSuffix.set(suffix, {
+        unreadCount: c.unreadCount,
+        lastMessagePreview: c.lastMessagePreview,
+        lastMessageAt: c.lastMessageAt,
+        quiz: quizState
+          ? {
+              status: quizState.status,
+              temPlanoAtual: quizState.temPlanoAtual,
+              necessidadePrincipal: quizState.necessidadePrincipal,
+              answers: (Array.isArray(quizState.answers) ? quizState.answers : []).map((raw) => {
+                const a = raw as unknown as QuizAnswer;
+                return { question: rotuloPergunta(a.step), answer: a.optionTitle };
+              }),
+            }
+          : null,
+      });
+    }
 
     const accountContext = buildAccountContext(
       user.name ?? "Corretor",
@@ -268,6 +376,7 @@ export async function POST(req: NextRequest) {
       leadsByOrigin,
       leadsByState,
       allLeads,
+      conversasByPhoneSuffix,
       today
     );
 

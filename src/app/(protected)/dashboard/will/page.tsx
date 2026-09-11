@@ -33,14 +33,14 @@ type Message = {
 const SUGGESTED_QUESTIONS = [
   { q: "Quantos leads fechei mês passado?", icon: TrendingUp },
   { q: "Qual minha comissão este mês?", icon: DollarSign },
-  { q: "Quais são minhas principais origens de leads?", icon: BarChart2 },
+  { q: "Quais leads têm conversa no WhatsApp sem resposta?", icon: BarChart2 },
   { q: "Compare minha performance deste mês com o mês passado.", icon: GitCompare },
 ];
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
   content:
-    "Olá! Sou o **Will**, seu assistente de IA no WinLeads. Tenho acesso aos dados da sua conta e posso te ajudar a entender sua performance, leads, vendas e comissões. O que você quer saber?",
+    "Olá! Sou o **Will**, seu assistente de IA no WinLeads. Tenho acesso aos dados da sua conta — leads, etiquetas, conversas do WhatsApp e respostas do quiz de qualificação — e posso te ajudar a entender sua performance, vendas e comissões. O que você quer saber?",
 };
 
 export default function WillPage() {

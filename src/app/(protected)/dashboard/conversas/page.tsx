@@ -55,6 +55,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
+import { NECESSIDADE_PRINCIPAL_LABEL } from "@/lib/quiz/definition";
 
 type Tag = { id: string; name: string; color: string };
 
@@ -104,11 +105,6 @@ const QUIZ_STATUS_LABEL: Record<QuizInfo["status"], string> = {
   EM_ANDAMENTO: "Em andamento",
   CONCLUIDO: "Concluído",
   INTERROMPIDO: "Interrompido",
-};
-
-const NECESSIDADE_LABEL: Record<string, string> = {
-  prevencao: "Segurança / prevenção",
-  tratamento: "Tratar uma condição",
 };
 
 const CONVERSATIONS_POLL_MS = 5000;
@@ -1390,7 +1386,9 @@ export default function ConversasPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Necessidade principal</span>
                       <span className="font-medium">
-                        {NECESSIDADE_LABEL[quizInfo.necessidade_principal] ??
+                        {NECESSIDADE_PRINCIPAL_LABEL[
+                          quizInfo.necessidade_principal as "prevencao" | "tratamento"
+                        ] ??
                           quizInfo.necessidade_principal}
                       </span>
                     </div>

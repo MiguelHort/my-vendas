@@ -102,6 +102,12 @@ export const Q1_QTD_VIDAS: Record<string, number> = {
   q1_5_mais: 5,
 };
 
+/** Rótulo legível de `necessidadePrincipal`, usado em qualquer exibição (UI, Will). */
+export const NECESSIDADE_PRINCIPAL_LABEL: Record<NecessidadePrincipal, string> = {
+  prevencao: "Segurança/prevenção",
+  tratamento: "Tratar uma condição",
+};
+
 /**
  * Rótulo curto de uma pergunta pra exibição (modal de respostas do contato).
  * Usa o primeiro trecho em *negrito* do corpo; se não houver, a 1ª linha.
