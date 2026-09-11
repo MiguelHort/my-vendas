@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
 
     const fullPrompt = `${SYSTEM_PROMPT}\n\n${accountContext}${historyText}\n\nCorretor: ${message}\nWill:`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
     const result = await model.generateContent(fullPrompt);
     const reply = result.response.text().trim();
 
