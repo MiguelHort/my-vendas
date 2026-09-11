@@ -16,8 +16,8 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 const SYSTEM_PROMPT = `Você é Will, o assistente de IA do WinLeads, um CRM para corretores de planos de saúde.
 Seu papel é ajudar o corretor a entender a performance e os dados da equipe de forma clara e direta.
 
-Você receberá os dados reais da equipe: estatísticas gerais E a lista completa dos leads (compartilhados entre todos os corretores), incluindo etiquetas e, quando o lead tiver conversa pelo WhatsApp, o estado da conversa e o resultado do quiz de qualificação (respostas dadas pelo contato).
-Use esses dados para responder perguntas gerais ("quantas vendas tivemos?"), específicas sobre um lead ("por que o lead João foi dispensado?") e sobre conversas/qualificação ("o que a Maria respondeu no quiz?", "quais leads têm conversa não lida?").
+Você receberá os dados reais da equipe: estatísticas gerais E a lista completa dos leads (compartilhados entre todos os corretores), incluindo etiquetas e, quando o lead tiver conversa pelo WhatsApp, o estado da conversa, o resultado do quiz de qualificação (respostas dadas pelo contato) e a TRANSCRIÇÃO da conversa (mensagens do corretor e do contato, na ordem em que aconteceram).
+Use esses dados para responder perguntas gerais ("quantas vendas tivemos?"), específicas sobre um lead ("por que o lead João foi dispensado?"), sobre qualificação ("o que a Maria respondeu no quiz?") e sobre o conteúdo real da conversa ("quanto ficou o plano que mandei pro Victor Hugo?", "o que o Victor Hugo respondeu sobre a cotação?") — nesses casos, procure na transcrição da conversa daquele lead e cite o que foi de fato dito.
 
 Seja amigável, direto e profissional. Responda sempre em português brasileiro.
 Quando mencionar valores monetários, formate como "R$ X.XXX,XX".
@@ -43,6 +43,15 @@ type LeadRow = {
   tags: string[];
 };
 
+type ConversaMessage = {
+  direction: "INBOUND" | "OUTBOUND";
+  type: string;
+  body: string | null;
+  transcription: string | null;
+  filename: string | null;
+  timestamp: Date;
+};
+
 /** Estado da conversa de WhatsApp + resultado do quiz, indexado por lead (via telefone). */
 type ConversaInfo = {
   unreadCount: number;
@@ -54,7 +63,40 @@ type ConversaInfo = {
     necessidadePrincipal: string | null;
     answers: { question: string; answer: string }[];
   } | null;
+  messages: ConversaMessage[];
 };
+
+/** Conteúdo legível de uma mensagem, cobrindo os tipos que a Meta manda. */
+function messageContent(m: ConversaMessage): string {
+  switch (m.type) {
+    case "audio":
+      return m.transcription ? `[Áudio transcrito] ${m.transcription}` : "[Áudio]";
+    case "image":
+      return m.body ? `[Imagem] ${m.body}` : "[Imagem]";
+    case "document":
+      return `[Documento${m.filename ? `: ${m.filename}` : ""}]${m.body ? ` ${m.body}` : ""}`;
+    default:
+      // texto normal e respostas de botão (interactive/button) já vêm com o
+      // conteúdo certo em `body` — ver webhook `previewFor`/`extractContent`.
+      return m.body ?? `[${m.type}]`;
+  }
+}
+
+/** Transcrição da conversa em ordem cronológica, uma linha por mensagem. */
+function formatTranscript(messages: ConversaMessage[]): string {
+  return messages
+    .map((m) => {
+      const who = m.direction === "OUTBOUND" ? "Corretor" : "Contato";
+      const time = m.timestamp.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return `    ${time} ${who}: ${messageContent(m)}`;
+    })
+    .join("\n");
+}
 
 function formatLeadLine(lead: LeadRow, conversa?: ConversaInfo): string {
   const parts: string[] = [`[${lead.nome}]`];
@@ -107,6 +149,10 @@ function formatLeadLine(lead: LeadRow, conversa?: ConversaInfo): string {
       }
     }
     line += `\n  Conversa WhatsApp: ${convParts.join(" | ")}`;
+
+    if (conversa.messages.length > 0) {
+      line += `\n  Transcrição da conversa (${conversa.messages.length} mensagens, cronológica):\n${formatTranscript(conversa.messages)}`;
+    }
   }
 
   return line;
@@ -306,6 +352,20 @@ export async function POST(req: NextRequest) {
               answers: true,
             },
           },
+          // as mais recentes primeiro (invertidas abaixo pra ordem cronológica) —
+          // limite pra não estourar o prompt em conversas muito longas.
+          messages: {
+            select: {
+              direction: true,
+              type: true,
+              body: true,
+              transcription: true,
+              filename: true,
+              timestamp: true,
+            },
+            orderBy: { timestamp: "desc" },
+            take: 150,
+          },
         },
       }),
     ]);
@@ -362,6 +422,8 @@ export async function POST(req: NextRequest) {
               }),
             }
           : null,
+        // veio do banco mais recente → mais antiga; inverte pra ordem de leitura.
+        messages: [...c.messages].reverse(),
       });
     }
 
