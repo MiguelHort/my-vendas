@@ -4,6 +4,26 @@ export function normalizeWaId(phone: string) {
   return (phone || "").replace(/[^\d]/g, "");
 }
 
+/**
+ * Erro de envio pela Cloud API, com os campos estruturados da Meta expostos
+ * (código, subcódigo) além da mensagem legível. Callers antigos continuam
+ * funcionando via `.message`.
+ */
+export class WhatsAppSendError extends Error {
+  readonly status: number;
+  readonly metaCode: number | null;
+  readonly metaSubcode: number | null;
+
+  constructor(status: number, data: unknown) {
+    super(`Erro ao enviar WhatsApp (${status}): ${JSON.stringify(data)}`);
+    this.name = "WhatsAppSendError";
+    this.status = status;
+    const err = (data as { error?: { code?: number; error_subcode?: number } })?.error;
+    this.metaCode = typeof err?.code === "number" ? err.code : null;
+    this.metaSubcode = typeof err?.error_subcode === "number" ? err.error_subcode : null;
+  }
+}
+
 async function sendWhatsAppMessage(payload: Record<string, unknown>) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_TOKEN;
@@ -25,10 +45,37 @@ async function sendWhatsAppMessage(payload: Record<string, unknown>) {
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(`Erro ao enviar WhatsApp (${res.status}): ${JSON.stringify(data)}`);
+    throw new WhatsAppSendError(res.status, data);
   }
 
   return data as { messages?: { id: string }[] };
+}
+
+export type WhatsAppReplyButton = { id: string; title: string };
+
+/**
+ * Mensagem `interactive` do tipo `button` (até 3 botões).
+ * A validação de limites vive em `lib/quiz/validate.ts` (roda na inicialização).
+ */
+export function sendWhatsAppInteractiveButtons(
+  to: string,
+  bodyText: string,
+  buttons: WhatsAppReplyButton[]
+) {
+  return sendWhatsAppMessage({
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: bodyText },
+      action: {
+        buttons: buttons.map((b) => ({
+          type: "reply",
+          reply: { id: b.id, title: b.title },
+        })),
+      },
+    },
+  });
 }
 
 export function sendWhatsAppText(to: string, text: string) {

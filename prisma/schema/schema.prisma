@@ -40,7 +40,8 @@ model Lead {
   retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
   tipoComissao       String    @default("interno") @map("tipo_comissao") @db.Text
 
-  tags LeadTag[]
+  tags       LeadTag[]
+  quizStates WhatsAppQuizState[]
 
   @@map("leads")
   @@schema("public")
@@ -88,7 +89,7 @@ model User {
   role     Role    @default(VENDEDOR)
   approved Boolean @default(false)
 
-  planCommissions PlanCommission[]
+  planCommissions      PlanCommission[]
   whatsappMessagesSent WhatsAppMessage[]
 
   @@map("users")
@@ -98,6 +99,7 @@ model User {
 enum Role {
   ADMIN
   VENDEDOR
+
   @@schema("public")
 }
 
@@ -108,6 +110,7 @@ enum Role {
 enum WhatsAppDirection {
   INBOUND
   OUTBOUND
+
   @@schema("public")
 }
 
@@ -117,6 +120,7 @@ enum WhatsAppMessageStatus {
   DELIVERED
   READ
   FAILED
+
   @@schema("public")
 }
 
@@ -130,27 +134,64 @@ model WhatsAppConversation {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  messages WhatsAppMessage[]
+  messages  WhatsAppMessage[]
+  quizState WhatsAppQuizState?
 
   @@map("whatsapp_conversations")
   @@schema("public")
 }
 
-model WhatsAppMessage {
-  id             String                @id @default(uuid()) @db.Uuid
-  conversationId String                @map("conversation_id") @db.Uuid
-  conversation   WhatsAppConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+enum WhatsAppQuizStatus {
+  EM_ANDAMENTO
+  CONCLUIDO
+  INTERROMPIDO
 
-  waMessageId  String?                @unique @map("wa_message_id") @db.Text
-  direction    WhatsAppDirection
-  type         String                 @default("text") @db.Text
-  body         String?                @db.Text
-  mediaId      String?                @map("media_id") @db.Text
-  mimeType     String?                @map("mime_type") @db.Text
-  filename     String?                @db.Text
+  @@schema("public")
+}
+
+/// Estado do quiz de qualificação disparado no primeiro contato pelo WhatsApp.
+/// `answers` guarda [{ step, optionId, optionTitle, at }] — dado de saúde (LGPD):
+/// nunca logar, só ler por quem já tem acesso ao inbox.
+model WhatsAppQuizState {
+  id             String               @id @default(uuid()) @db.Uuid
+  conversationId String               @unique @map("conversation_id") @db.Uuid
+  conversation   WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  leadId String? @map("lead_id") @db.Uuid
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  status               WhatsAppQuizStatus @default(EM_ANDAMENTO)
+  currentStep          String?            @map("current_step") @db.Text
+  lastQuestionWamid    String?            @map("last_question_wamid") @db.Text
+  lastInboundWamid     String?            @map("last_inbound_wamid") @db.Text
+  invalidCount         Int                @default(0) @map("invalid_count")
+  answers              Json               @default("[]")
+  temPlanoAtual        Boolean?           @map("tem_plano_atual")
+  necessidadePrincipal String?            @map("necessidade_principal") @db.Text
+
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("whatsapp_quiz_states")
+  @@schema("public")
+}
+
+model WhatsAppMessage {
+  id             String               @id @default(uuid()) @db.Uuid
+  conversationId String               @map("conversation_id") @db.Uuid
+  conversation   WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  waMessageId   String?               @unique @map("wa_message_id") @db.Text
+  direction     WhatsAppDirection
+  type          String                @default("text") @db.Text
+  body          String?               @db.Text
+  mediaId       String?               @map("media_id") @db.Text
+  mimeType      String?               @map("mime_type") @db.Text
+  filename      String?               @db.Text
   transcription String?               @db.Text
-  status       WhatsAppMessageStatus  @default(SENT)
-  errorMessage String?                @map("error_message") @db.Text
+  status        WhatsAppMessageStatus @default(SENT)
+  errorMessage  String?               @map("error_message") @db.Text
 
   sentByUserId String? @map("sent_by_user_id") @db.Uuid
   sentByUser   User?   @relation(fields: [sentByUserId], references: [id])
@@ -164,13 +205,13 @@ model WhatsAppMessage {
 }
 
 model PlanCommission {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @map("user_id") @db.Uuid
-  operadora        String   @db.Text
-  comissaoInterna  Decimal  @default(100) @map("comissao_interna")
-  comissaoExterna  Decimal  @default(100) @map("comissao_externa")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  operadora       String   @db.Text
+  comissaoInterna Decimal  @default(100) @map("comissao_interna")
+  comissaoExterna Decimal  @default(100) @map("comissao_externa")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -188,25 +229,28 @@ enum SegmentType {
   PF
   PME
   ADESAO
+
   @@schema("cotacao")
 }
 
 enum AccommodationType {
   ENFERMARIA
   APARTAMENTO
+
   @@schema("cotacao")
 }
 
 enum PmeAdhesionType {
   LIVRE_ADESAO
   COMPULSORIO
+
   @@schema("cotacao")
 }
 
 model Operator {
   id        String  @id @default(cuid())
   name      String
-  ansNumber String? @db.VarChar(32) @map("ansNumber")
+  ansNumber String? @map("ansNumber") @db.VarChar(32)
   active    Boolean @default(true)
 
   colorHex String?
@@ -218,8 +262,8 @@ model Operator {
   updatedAt DateTime @updatedAt
 
   @@index([name])
-  @@schema("cotacao")
   @@map("operators")
+  @@schema("cotacao")
 }
 
 model Product {
@@ -240,8 +284,8 @@ model Product {
 
   @@index([operatorId])
   @@index([commercialName])
-  @@schema("cotacao")
   @@map("products")
+  @@schema("cotacao")
 }
 
 model PlanVariant {
@@ -259,8 +303,8 @@ model PlanVariant {
   rateCards RateCard[]
 
   @@index([productId, planName])
-  @@schema("cotacao")
   @@map("plan_variants")
+  @@schema("cotacao")
 }
 
 model Area {
@@ -274,8 +318,8 @@ model Area {
   updatedAt DateTime @updatedAt
 
   @@index([name])
-  @@schema("cotacao")
   @@map("areas")
+  @@schema("cotacao")
 }
 
 model City {
@@ -291,24 +335,24 @@ model City {
 
   @@index([name, uf])
   @@index([areaId])
-  @@schema("cotacao")
   @@map("cities")
+  @@schema("cotacao")
 }
 
 model RateCard {
   id String @id @default(cuid())
 
-  operatorId    String
-  operator      Operator @relation(fields: [operatorId], references: [id])
+  operatorId String
+  operator   Operator @relation(fields: [operatorId], references: [id])
 
-  productId     String
-  product       Product  @relation(fields: [productId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
 
   planVariantId String
   planVariant   PlanVariant @relation(fields: [planVariantId], references: [id])
 
-  areaId        String
-  area          Area @relation(fields: [areaId], references: [id])
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id])
 
   segment       SegmentType
   accommodation AccommodationType
@@ -329,8 +373,8 @@ model RateCard {
   @@index([areaId, segment, accommodation])
   @@index([operatorId, productId, planVariantId, areaId])
   @@index([validFrom, validTo])
-  @@schema("cotacao")
   @@map("rate_cards")
+  @@schema("cotacao")
 }
 
 model CoparticipationRule {
@@ -352,6 +396,6 @@ model CoparticipationRule {
   @@index([productId])
   @@index([planVariantId])
   @@index([areaId])
-  @@schema("cotacao")
   @@map("coparticipation_rules")
+  @@schema("cotacao")
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppText } from "@/lib/whatsapp";
+import { interruptQuizIfActive } from "@/lib/quiz/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,6 +104,9 @@ export async function POST(
       where: { id },
       data: { lastMessageAt: timestamp, lastMessagePreview: text },
     });
+
+    // Atendente humano respondeu → interrompe o quiz, se estiver rolando.
+    await interruptQuizIfActive(id);
 
     return NextResponse.json({
       message: {

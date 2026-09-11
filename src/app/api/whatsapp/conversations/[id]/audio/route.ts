@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppAudio, uploadWhatsAppMedia } from "@/lib/whatsapp";
 import { transcodeToOggOpus } from "@/lib/audioTranscode";
+import { interruptQuizIfActive } from "@/lib/quiz/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +67,8 @@ export async function POST(
       where: { id },
       data: { lastMessageAt: timestamp, lastMessagePreview: "🎤 Áudio" },
     });
+
+    await interruptQuizIfActive(id);
 
     return NextResponse.json({
       message: {

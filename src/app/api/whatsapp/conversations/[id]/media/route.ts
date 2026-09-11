@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppDocument, sendWhatsAppImage, uploadWhatsAppMedia } from "@/lib/whatsapp";
+import { interruptQuizIfActive } from "@/lib/quiz/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,8 @@ export async function POST(
         lastMessagePreview: isImage ? "📷 Foto" : `📎 ${filename}`,
       },
     });
+
+    await interruptQuizIfActive(id);
 
     return NextResponse.json({
       message: {

@@ -1,11 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeWaId } from "@/lib/whatsapp";
 import { verifyMetaSignature } from "@/lib/metaSignature";
 import { formatPhoneNumber } from "@/lib/phoneMask";
+import { QUIZ_DEFINITION } from "@/lib/quiz/definition";
+import { runQuizForInbound, type QuizInboundMessage } from "@/lib/quiz/orchestrator";
+import { realQuizDeps } from "@/lib/quiz/deps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Kill-switch/rollout opcional: se setado, o quiz só começa pra contatos cuja
+// primeira mensagem for a partir dessa data (ISO). Sem a var = quiz ligado.
+// Data inválida é ignorada (quiz segue ligado) com aviso no log.
+function parseQuizStartDate(): Date | null {
+  const raw = process.env.QUIZ_START_DATE;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) {
+    console.warn(`QUIZ_START_DATE inválida ("${raw}") — ignorando, quiz segue ligado.`);
+    return null;
+  }
+  return d;
+}
+const QUIZ_START_DATE = parseQuizStartDate();
 
 type WaContact = { wa_id: string; profile?: { name?: string } };
 
@@ -18,6 +37,13 @@ type WaMessage = {
   audio?: { id: string; mime_type: string };
   image?: { id: string; mime_type: string; caption?: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
+  interactive?: {
+    type?: string;
+    button_reply?: { id?: string; title?: string };
+    list_reply?: { id?: string; title?: string };
+  };
+  button?: { text?: string; payload?: string };
+  context?: { id?: string };
 };
 
 type WaStatus = {
@@ -124,8 +150,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  // Responde 200 rápido é o requisito da Meta — o processamento abaixo é só
-  // upserts simples no banco (sem chamadas externas), então roda inline mesmo.
+  // Responde 200 rápido: o registro da mensagem roda inline (só banco), e o quiz
+  // (que chama a Cloud API) é agendado com `after()` — sai da rota antes de enviar.
   try {
     const changes = body?.entry?.flatMap((e) => e.changes ?? []) ?? [];
 
@@ -141,6 +167,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** Normaliza a mensagem recebida no formato que o orquestrador do quiz espera. */
+function toQuizInbound(msg: WaMessage): QuizInboundMessage {
+  const br =
+    msg.type === "interactive" && msg.interactive?.type === "button_reply"
+      ? msg.interactive.button_reply
+      : undefined;
+  return {
+    wamid: msg.id,
+    buttonReply: br?.id ? { id: br.id, title: br.title ?? "" } : null,
+    contextId: msg.context?.id ?? null,
+  };
+}
+
 async function processChangeValue(value: WaChangeValue) {
   const nameByWaId = new Map<string, string>();
   for (const c of value.contacts ?? []) {
@@ -152,6 +191,14 @@ async function processChangeValue(value: WaChangeValue) {
     const timestamp = new Date(Number(msg.timestamp) * 1000);
     const preview = previewFor(msg);
     const contactName = nameByWaId.get(waId);
+
+    // Idempotência: a Meta pode reentregar o mesmo webhook. Se essa mensagem já
+    // foi registrada, não faz nada de novo (nem o incremento de não-lidas, nem o quiz).
+    const already = await prisma.whatsAppMessage.findUnique({
+      where: { waMessageId: msg.id },
+      select: { id: true },
+    });
+    if (already) continue;
 
     const existingConversation = await prisma.whatsAppConversation.findUnique({
       where: { waId },
@@ -180,7 +227,7 @@ async function processChangeValue(value: WaChangeValue) {
     // Todo contato que manda a primeira mensagem no WhatsApp já vira um lead
     // em Triagem — assim ninguém que chama no WhatsApp fica de fora do funil.
     if (!existingConversation) {
-      await prisma.lead.create({
+      const lead = await prisma.lead.create({
         data: {
           nome: contactName || formatPhoneNumber(waId.replace(/^55/, "")) || waId,
           telefone: waId,
@@ -190,25 +237,60 @@ async function processChangeValue(value: WaChangeValue) {
           qtdVidas: 1,
         },
       });
+
+      // Primeiro contato → cria o estado do quiz (a menos que o kill-switch
+      // QUIZ_START_DATE esteja no futuro). `skipDuplicates` protege contra
+      // duas primeiras mensagens simultâneas do mesmo número.
+      const quizEnabled = !QUIZ_START_DATE || timestamp >= QUIZ_START_DATE;
+      if (quizEnabled) {
+        await prisma.whatsAppQuizState.createMany({
+          data: [
+            {
+              conversationId: conversation.id,
+              leadId: lead.id,
+              currentStep: QUIZ_DEFINITION.primeiraPergunta,
+            },
+          ],
+          skipDuplicates: true,
+        });
+      }
     }
 
     const content = extractContent(msg);
 
-    await prisma.whatsAppMessage.upsert({
-      where: { waMessageId: msg.id },
-      create: {
-        conversationId: conversation.id,
-        waMessageId: msg.id,
-        direction: "INBOUND",
-        type: msg.type,
-        body: content.body,
-        mediaId: content.mediaId,
-        mimeType: content.mimeType,
-        filename: content.filename,
-        timestamp,
-      },
-      update: {},
-    });
+    try {
+      await prisma.whatsAppMessage.create({
+        data: {
+          conversationId: conversation.id,
+          waMessageId: msg.id,
+          direction: "INBOUND",
+          type: msg.type,
+          body: content.body,
+          mediaId: content.mediaId,
+          mimeType: content.mimeType,
+          filename: content.filename,
+          timestamp,
+        },
+      });
+    } catch (err) {
+      // Corrida de reentrega: outra requisição gravou essa mensagem primeiro.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        continue;
+      }
+      throw err;
+    }
+
+    // Quiz: responde 200 primeiro; o processamento (que faz chamada à Cloud API)
+    // roda depois. O orquestrador não faz nada se não houver quiz ativo.
+    const quizInput = toQuizInbound(msg);
+    after(() =>
+      runQuizForInbound({ waId, message: quizInput }, realQuizDeps).catch((err) => {
+        console.error(
+          "[quiz] erro no processamento pós-resposta:",
+          err instanceof Error ? err.message : err
+        );
+      })
+    );
   }
 
   for (const status of value.statuses ?? []) {
@@ -220,6 +302,11 @@ async function processChangeValue(value: WaChangeValue) {
           : status.status === "read"
             ? "READ"
             : "FAILED";
+
+    // statuses não entram na lógica do quiz; só atualizamos a mensagem.
+    if (status.status === "failed") {
+      console.warn(`WhatsApp status failed p/ ${status.id}: ${status.errors?.[0]?.title ?? "sem detalhe"}`);
+    }
 
     await prisma.whatsAppMessage.updateMany({
       where: { waMessageId: status.id },
