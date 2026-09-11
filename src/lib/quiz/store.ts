@@ -22,6 +22,8 @@ export type OutboundRecord = {
   wamid: string | null;
   type: "interactive" | "text";
   body: string;
+  /** botões oferecidos na pergunta — só p/ exibir no inbox. */
+  buttons?: { id: string; title: string }[] | null;
 };
 
 export interface QuizStore {
@@ -134,6 +136,9 @@ export const realQuizStore: QuizStore = {
         direction: "OUTBOUND",
         type: rec.type,
         body: rec.body,
+        buttons: rec.buttons?.length
+          ? (rec.buttons as unknown as Prisma.InputJsonValue)
+          : undefined,
         status: "SENT",
         timestamp,
       },

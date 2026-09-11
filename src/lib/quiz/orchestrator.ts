@@ -89,6 +89,7 @@ export async function runQuizForInbound(
         wamid: sent.wamid,
         type: "interactive",
         body: action.body,
+        buttons: action.buttons,
       });
     } else {
       await deps.store.recordOutbound(conversationId, {

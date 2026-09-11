@@ -70,8 +70,23 @@ const TYPE_LABELS: Record<string, string> = {
   interactive: "[Resposta interativa]",
 };
 
+/** Texto que o contato "disse" ao tocar num botão (resposta interativa ou quick reply). */
+function buttonReplyText(msg: WaMessage): string | null {
+  if (msg.type === "interactive") {
+    return (
+      msg.interactive?.button_reply?.title ??
+      msg.interactive?.list_reply?.title ??
+      null
+    );
+  }
+  if (msg.type === "button") return msg.button?.text ?? null;
+  return null;
+}
+
 function previewFor(msg: WaMessage) {
   if (msg.type === "text") return msg.text?.body ?? "";
+  const buttonText = buttonReplyText(msg);
+  if (buttonText) return buttonText;
   const caption = msg.image?.caption || msg.document?.caption;
   return caption || TYPE_LABELS[msg.type] || `[${msg.type}]`;
 }

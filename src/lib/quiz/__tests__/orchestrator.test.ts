@@ -119,6 +119,11 @@ describe("runQuizForInbound", () => {
     expect(store.quiz?.currentStep).toBe("q2");
     expect(store.quiz?.lastInboundWamid).toBe("m1");
     expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["q1_1_pessoa"]);
+
+    // a pergunta enviada é registrada no inbox com os botões, pra exibição
+    const q2Record = store.outbound.at(-1)!;
+    expect(q2Record.type).toBe("interactive");
+    expect(q2Record.buttons?.map((b) => b.id)).toEqual(["q2_sim", "q2_nao"]);
   });
 
   it("falha no envio da próxima pergunta não perde a resposta e permite reenvio depois", async () => {

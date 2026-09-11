@@ -51,6 +51,8 @@ import {
   ZoomIn,
   Tag as TagIcon,
   ListFilter,
+  ClipboardList,
+  CircleDot,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 
@@ -74,16 +76,39 @@ type LeadInfo = {
   tags: Tag[];
 };
 
+type QuizAnswer = { step: string; question: string; answer: string; at: string };
+
+type QuizInfo = {
+  status: "EM_ANDAMENTO" | "CONCLUIDO" | "INTERROMPIDO";
+  tem_plano_atual: boolean | null;
+  necessidade_principal: string | null;
+  answers: QuizAnswer[];
+};
+
+type MessageButton = { id: string; title: string };
+
 type Message = {
   id: string;
   direction: "INBOUND" | "OUTBOUND";
   type: string;
   body: string | null;
+  buttons?: MessageButton[] | null;
   status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
   error_message?: string | null;
   transcription?: string | null;
   filename?: string | null;
   timestamp: string;
+};
+
+const QUIZ_STATUS_LABEL: Record<QuizInfo["status"], string> = {
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDO: "Concluído",
+  INTERROMPIDO: "Interrompido",
+};
+
+const NECESSIDADE_LABEL: Record<string, string> = {
+  prevencao: "Segurança / prevenção",
+  tratamento: "Tratar uma condição",
 };
 
 const CONVERSATIONS_POLL_MS = 5000;
@@ -205,6 +230,8 @@ export default function ConversasPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [contactHeader, setContactHeader] = useState<{ name: string | null; wa_id: string } | null>(null);
   const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
+  const [quizInfo, setQuizInfo] = useState<QuizInfo | null>(null);
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
 
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
@@ -295,8 +322,10 @@ export default function ConversasPage() {
         const data = await res.json();
         if (selectedIdRef.current !== conversationId) return;
         setLeadInfo(data.lead ?? null);
+        setQuizInfo(data.quiz ?? null);
       } catch {
         setLeadInfo(null);
+        setQuizInfo(null);
       }
     },
     [authHeader]
@@ -371,7 +400,9 @@ export default function ConversasPage() {
       setMessages([]);
       setContactHeader(null);
       setLeadInfo(null);
+      setQuizInfo(null);
       setTagModalOpen(false);
+      setQuizModalOpen(false);
       return;
     }
     setLoadingMessages(true);
@@ -972,6 +1003,17 @@ export default function ConversasPage() {
                     )}
                   </div>
                 </div>
+                {quizInfo && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-foreground"
+                    title="Respostas do quiz"
+                    onClick={() => setQuizModalOpen(true)}
+                  >
+                    <ClipboardList className="size-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1283,6 +1325,88 @@ export default function ConversasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Modal de respostas do quiz ─────────────────────── */}
+      <Dialog open={quizModalOpen} onOpenChange={setQuizModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <ClipboardList className="size-5" />
+              <DialogTitle>Respostas do quiz</DialogTitle>
+            </div>
+            <DialogDescription>
+              {contactHeader?.name ||
+                formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!quizInfo ? (
+            <p className="text-sm text-muted-foreground py-2">
+              Esse contato não passou pelo quiz de qualificação.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                  quizInfo.status === "CONCLUIDO"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    : quizInfo.status === "EM_ANDAMENTO"
+                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      : "bg-muted text-muted-foreground"
+                )}
+              >
+                <CircleDot className="size-3" />
+                {QUIZ_STATUS_LABEL[quizInfo.status]}
+              </span>
+
+              {quizInfo.answers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma resposta registrada ainda.
+                </p>
+              ) : (
+                <ol className="space-y-3">
+                  {quizInfo.answers.map((a, i) => (
+                    <li key={`${a.step}-${i}`} className="space-y-1">
+                      <p className="text-xs text-muted-foreground">{a.question}</p>
+                      <p className="text-sm font-medium">{a.answer}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {(quizInfo.tem_plano_atual != null ||
+                quizInfo.necessidade_principal != null) && (
+                <div className="border-t border-border pt-3 space-y-1.5">
+                  {quizInfo.tem_plano_atual != null && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Já tem plano</span>
+                      <span className="font-medium">
+                        {quizInfo.tem_plano_atual ? "Sim" : "Não"}
+                      </span>
+                    </div>
+                  )}
+                  {quizInfo.necessidade_principal != null && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Necessidade principal</span>
+                      <span className="font-medium">
+                        {NECESSIDADE_LABEL[quizInfo.necessidade_principal] ??
+                          quizInfo.necessidade_principal}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuizModalOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
@@ -1437,6 +1561,18 @@ function MessageBubble({
           ) : (
             <>
               <p className="whitespace-pre-wrap wrap-break-word pr-10">{message.body}</p>
+              {message.buttons && message.buttons.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-1 border-t border-black/10 dark:border-white/10 pt-1.5">
+                  {message.buttons.map((b) => (
+                    <span
+                      key={b.id}
+                      className="rounded-md bg-black/5 dark:bg-white/10 px-2 py-1 text-center text-xs font-medium text-[#00a884] dark:text-[#7ee0c8]"
+                    >
+                      {b.title}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-1 float-right -mb-1 ml-2 mt-1 text-[10px] text-muted-foreground">
                 {time}
                 {isOutbound && <StatusIcon status={message.status} />}

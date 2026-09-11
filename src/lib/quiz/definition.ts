@@ -102,6 +102,18 @@ export const Q1_QTD_VIDAS: Record<string, number> = {
   q1_5_mais: 5,
 };
 
+/**
+ * Rótulo curto de uma pergunta pra exibição (modal de respostas do contato).
+ * Usa o primeiro trecho em *negrito* do corpo; se não houver, a 1ª linha.
+ */
+export function rotuloPergunta(step: string): string {
+  const corpo = QUIZ_DEFINITION.perguntas[step]?.corpo;
+  if (!corpo) return step;
+  const bold = corpo.match(/\*([^*]+)\*/);
+  if (bold) return bold[1].trim();
+  return corpo.split("\n")[0]?.trim() || step;
+}
+
 // Checagem na inicialização: se a definição violar os limites da Meta ou o grafo
 // ficar inconsistente, o app não sobe.
 validateQuizDefinition(QUIZ_DEFINITION);

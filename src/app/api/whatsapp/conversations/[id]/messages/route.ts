@@ -49,6 +49,7 @@ export async function GET(
       direction: m.direction,
       type: m.type,
       body: m.body,
+      buttons: m.buttons ?? null,
       status: m.status,
       error_message: m.errorMessage,
       transcription: m.transcription,

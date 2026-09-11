@@ -186,6 +186,8 @@ model WhatsAppMessage {
   direction     WhatsAppDirection
   type          String                @default("text") @db.Text
   body          String?               @db.Text
+  /// Botões oferecidos numa mensagem interativa: [{ id, title }]. Só p/ exibição no inbox.
+  buttons       Json?
   mediaId       String?               @map("media_id") @db.Text
   mimeType      String?               @map("mime_type") @db.Text
   filename      String?               @db.Text
