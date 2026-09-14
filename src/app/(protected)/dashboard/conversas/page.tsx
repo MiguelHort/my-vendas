@@ -168,6 +168,18 @@ function listTimestamp(iso: string) {
   return d.toLocaleDateString("pt-BR");
 }
 
+/** Tempo decorrido desde a última mensagem — minutos, depois horas, depois dias. */
+function timeSince(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "agora";
+  if (diffMin < 60) return `${diffMin}min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d`;
+}
+
 function dayDividerLabel(date: Date) {
   const now = new Date();
   if (isSameDay(date, now)) return "Hoje";
@@ -888,7 +900,15 @@ export default function ConversasPage() {
                         <p className="text-xs text-muted-foreground truncate">
                           {c.last_message_preview || "—"}
                         </p>
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {c.last_message_at && (
+                            <span
+                              className="text-[10px] text-muted-foreground border-blue-400 border-2 p-1 rounded tabular-nums"
+                              title="Tempo desde a última mensagem"
+                            >
+                              {timeSince(c.last_message_at)}
+                            </span>
+                          )}
                           {c.unread_count > 0 && (
                             <span className="h-5 min-w-5 flex items-center justify-center rounded-full bg-[#00a884] text-white text-[10px] font-semibold px-1.5">
                               {c.unread_count}
