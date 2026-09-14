@@ -6,63 +6,66 @@ import { validateQuizDefinition } from "./validate";
  * Edite textos e ramificações AQUI; o motor (`engine.ts`) não conhece nenhuma
  * pergunta específica, só percorre este grafo.
  *
- * Os títulos de botão já respeitam o limite de 20 caracteres da Meta.
+ * Os títulos de botão respeitam o limite de 20 caracteres da Meta — quando o texto
+ * pedido não coube, o título do botão foi abreviado (comentado em cada opção);
+ * o corpo da mensagem em si não foi alterado.
  * NÃO altere os textos sem alinhar com o produto.
  */
 export const QUIZ_DEFINITION: QuizDefinition = {
-  primeiraPergunta: "q1",
+  primeiraPergunta: "motivo",
+
+  mensagemAbertura: [
+    "Opa! Fico feliz que tenha interesse em planos de saúde",
+    "",
+    "Para direcionar o atendimento, vou precisar de algumas informações 👇🏼",
+  ].join("\n"),
 
   perguntas: {
-    q1: {
-      corpo: [
-        "Olá! 👋 Para te indicar os melhores planos de saúde, vou fazer algumas perguntas rápidas.",
-        "",
-        "*Para quantas pessoas seria o plano?*",
-      ].join("\n"),
+    motivo: {
+      corpo: "Por qual motivo estaria procurando um novo plano de saúde?",
       opcoes: [
-        { id: "q1_1_pessoa", titulo: "Somente 1 pessoa", proxima: "q2" },
-        { id: "q1_2_a_4", titulo: "2 a 4 pessoas", proxima: "q2" },
-        { id: "q1_5_mais", titulo: "5 ou mais pessoas", proxima: "q2" },
+        { id: "motivo_trocar", titulo: "Trocar plano atual", proxima: "atendimento" },
+        // "Segurança e prevenção" (21 caracteres) não cabe no limite de botão (20) — abreviado.
+        { id: "motivo_seguranca", titulo: "Segurança/prevenção", proxima: "pessoas" },
+        // "Tratar alguma situação de saúde" (31) não cabe — abreviado.
+        { id: "motivo_tratar", titulo: "Tratar situação", proxima: "pessoas" },
       ],
     },
 
-    q2: {
-      corpo: "*Você possui CNPJ?*",
+    // só aparece pra quem escolheu "Trocar plano atual"
+    atendimento: {
+      corpo: "Certo! Para um novo plano te atender melhor, a sua preferência seria:",
       opcoes: [
-        { id: "q2_sim", titulo: "Sim", proxima: "q3" },
-        { id: "q2_nao", titulo: "Não", proxima: "q3" },
+        // "Melhor atendimento/rede maior" (29) não cabe — abreviado.
+        { id: "atendimento_melhor", titulo: "Melhor atendimento", proxima: "pessoas" },
+        { id: "atendimento_conta", titulo: "Plano mais em conta", proxima: "pessoas" },
       ],
     },
 
-    q3: {
-      corpo: [
-        "*Qual o motivo da procura por um plano de saúde hoje?*",
-        "",
-        "Se este for seu primeiro plano, escolha entre _Segurança/prevenção_ e _Tratar uma condição_.",
-      ].join("\n"),
+    pessoas: {
+      corpo: "Perfeito, para quantas pessoas gostaria de ver um plano?",
       opcoes: [
-        { id: "q3_trocar", titulo: "Trocar plano atual", proxima: "q4" },
-        { id: "q3_prevencao", titulo: "Segurança/prevenção", proxima: FIM },
-        { id: "q3_tratamento", titulo: "Tratar uma condição", proxima: FIM },
+        { id: "pessoas_1", titulo: "Somente 1", proxima: "cobertura" },
+        { id: "pessoas_2_4", titulo: "2 a 4 pessoas", proxima: "cobertura" },
+        { id: "pessoas_5_mais", titulo: "5 ou mais pessoas", proxima: "cobertura" },
       ],
     },
 
-    // só aparece para quem escolheu q3_trocar
-    q4: {
-      corpo: "*Por que você gostaria de ver um novo plano?*",
+    cobertura: {
+      corpo: "Sobre a cobertura, a sua preferência seria:",
       opcoes: [
-        { id: "q4_atendimento", titulo: "Melhorar atendimento", proxima: "q5" },
-        { id: "q4_custos", titulo: "Reduzir custos", proxima: "q5" },
+        // "Plano mais em conta e regional" (30) não cabe — abreviado.
+        { id: "cobertura_regional", titulo: "Conta/regional", proxima: "cidade" },
+        // "Plano mais completo e nacional" (30) não cabe — abreviado.
+        { id: "cobertura_nacional", titulo: "Completo/nacional", proxima: "cidade" },
       ],
     },
 
-    // só aparece para quem escolheu q3_trocar
-    q5: {
-      corpo: "*Qual sua principal necessidade com o novo plano?*",
-      opcoes: [
-        { id: "q5_prevencao", titulo: "Segurança/prevenção", proxima: FIM },
-        { id: "q5_tratamento", titulo: "Tratar uma condição", proxima: FIM },
-      ],
+    // pergunta de texto livre — sem botões, a resposta é o que o contato escrever.
+    cidade: {
+      corpo: "Para finalizar, escreve aqui em qual cidade você gostaria de cobertura 👇🏼",
+      opcoes: [],
+      proximaSeTexto: FIM,
     },
   },
 
@@ -73,6 +76,7 @@ export const QUIZ_DEFINITION: QuizDefinition = {
   ].join("\n"),
 
   mensagemRespostaInvalida: "Para continuar, toque em uma das opções abaixo 👇",
+  mensagemRespostaInvalidaTexto: "Não consegui entender 🙏 Pode escrever só o nome da cidade?",
 
   maxRespostasInvalidasSeguidas: 3,
 };
@@ -85,21 +89,21 @@ export const DERIVACAO: {
   temPlanoAtual: { step: string; quandoOptionId: string };
   necessidade: Record<NecessidadePrincipal, string[]>;
 } = {
-  temPlanoAtual: { step: "q3", quandoOptionId: "q3_trocar" },
+  temPlanoAtual: { step: "motivo", quandoOptionId: "motivo_trocar" },
   necessidade: {
-    prevencao: ["q3_prevencao", "q5_prevencao"],
-    tratamento: ["q3_tratamento", "q5_tratamento"],
+    prevencao: ["motivo_seguranca"],
+    tratamento: ["motivo_tratar"],
   },
 };
 
 /**
- * Mapa da opção da q1 para número de vidas gravado no lead em `aoConcluirQuiz`.
+ * Mapa da opção de "pessoas" pra número de vidas gravado no lead em `aoConcluirQuiz`.
  * Não faz parte do fluxo do quiz — só da ligação com o CRM.
  */
-export const Q1_QTD_VIDAS: Record<string, number> = {
-  q1_1_pessoa: 1,
-  q1_2_a_4: 4,
-  q1_5_mais: 5,
+export const PESSOAS_QTD_VIDAS: Record<string, number> = {
+  pessoas_1: 1,
+  pessoas_2_4: 4,
+  pessoas_5_mais: 5,
 };
 
 /** Rótulo legível de `necessidadePrincipal`, usado em qualquer exibição (UI, Will). */

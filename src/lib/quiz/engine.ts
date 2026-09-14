@@ -26,9 +26,9 @@ function buildSendQuestion(
   { withInvalidPrefix }: { withInvalidPrefix: boolean }
 ): QuizOutboundAction {
   const q = def.perguntas[step];
-  const body = withInvalidPrefix
-    ? def.mensagemRespostaInvalida + INVALID_PREFIX_SEPARATOR + q.corpo
-    : q.corpo;
+  const isFreeText = q.opcoes.length === 0;
+  const invalidPrefix = isFreeText ? def.mensagemRespostaInvalidaTexto : def.mensagemRespostaInvalida;
+  const body = withInvalidPrefix ? invalidPrefix + INVALID_PREFIX_SEPARATOR + q.corpo : q.corpo;
   return {
     type: "send_question",
     step,
@@ -50,11 +50,55 @@ export function computeDerived(answers: QuizState["answers"]): {
 
   let necessidadePrincipal: NecessidadePrincipal | null = null;
   for (const a of answers) {
+    if (a.optionId == null) continue;
     if (DERIVACAO.necessidade.prevencao.includes(a.optionId)) necessidadePrincipal = "prevencao";
     else if (DERIVACAO.necessidade.tratamento.includes(a.optionId)) necessidadePrincipal = "tratamento";
   }
 
   return { temPlanoAtual, necessidadePrincipal };
+}
+
+/** Registra a resposta atual e avança pro próximo passo (ou conclui, se for FIM). */
+function finishAnswer(
+  state: QuizState,
+  step: string,
+  answer: { optionId: string | null; optionTitle: string },
+  proxima: string,
+  def: QuizDefinition,
+  nowIso: () => string
+): QuizAdvanceResult {
+  const answers = [...state.answers, { step, ...answer, at: nowIso() }];
+
+  if (proxima === FIM) {
+    const derived = computeDerived(answers);
+    return {
+      state: {
+        ...state,
+        status: "CONCLUIDO",
+        currentStep: null,
+        lastQuestionWamid: null,
+        invalidCount: 0,
+        answers,
+        temPlanoAtual: derived.temPlanoAtual,
+        necessidadePrincipal: derived.necessidadePrincipal,
+        completedAt: nowIso(),
+      },
+      outbound: [{ type: "send_text", body: def.mensagemFinal }],
+      completed: true,
+    };
+  }
+
+  return {
+    state: {
+      ...state,
+      currentStep: proxima,
+      lastQuestionWamid: null, // a próxima pergunta ainda vai ser enviada
+      invalidCount: 0,
+      answers,
+    },
+    outbound: [buildSendQuestion(def, proxima, { withInvalidPrefix: false })],
+    completed: false,
+  };
 }
 
 /**
@@ -85,19 +129,23 @@ export function advance(
     };
   }
 
+  const isFreeText = question.opcoes.length === 0;
+
   // (A) A pergunta atual ainda não foi entregue (primeiro contato) ou o envio
   //     anterior falhou. Qualquer mensagem só faz (re)enviar a pergunta atual —
-  //     sem processar conteúdo, sem contador.
+  //     sem processar conteúdo, sem contador. No primeiríssimo turno (nunca
+  //     respondeu nada ainda), a mensagem de abertura é enviada junto.
   if (state.lastQuestionWamid === null) {
-    return {
-      state,
-      outbound: [buildSendQuestion(def, step, { withInvalidPrefix: false })],
-      completed: false,
-    };
+    const outbound: QuizOutboundAction[] = [];
+    if (step === def.primeiraPergunta && state.answers.length === 0) {
+      outbound.push({ type: "send_text", body: def.mensagemAbertura });
+    }
+    outbound.push(buildSendQuestion(def, step, { withInvalidPrefix: false }));
+    return { state, outbound, completed: false };
   }
 
-  // (B) Clique em botão.
-  if (event.kind === "button_reply") {
+  // (B) Clique em botão — só é processado se a pergunta atual tiver botões.
+  if (!isFreeText && event.kind === "button_reply") {
     const opt = optionInStep(def, step, event.id);
     const isCurrentAnswer = opt !== undefined && event.contextId === state.lastQuestionWamid;
 
@@ -111,44 +159,21 @@ export function advance(
       };
     }
 
-    const answers = [
-      ...state.answers,
-      { step, optionId: opt.id, optionTitle: opt.titulo, at: nowIso() },
-    ];
-
-    if (opt.proxima === FIM) {
-      const derived = computeDerived(answers);
-      return {
-        state: {
-          ...state,
-          status: "CONCLUIDO",
-          currentStep: null,
-          lastQuestionWamid: null,
-          invalidCount: 0,
-          answers,
-          temPlanoAtual: derived.temPlanoAtual,
-          necessidadePrincipal: derived.necessidadePrincipal,
-          completedAt: nowIso(),
-        },
-        outbound: [{ type: "send_text", body: def.mensagemFinal }],
-        completed: true,
-      };
-    }
-
-    return {
-      state: {
-        ...state,
-        currentStep: opt.proxima,
-        lastQuestionWamid: null, // a próxima pergunta ainda vai ser enviada
-        invalidCount: 0,
-        answers,
-      },
-      outbound: [buildSendQuestion(def, opt.proxima, { withInvalidPrefix: false })],
-      completed: false,
-    };
+    return finishAnswer(state, step, { optionId: opt.id, optionTitle: opt.titulo }, opt.proxima, def, nowIso);
   }
 
-  // (C) Não é botão (texto, áudio, imagem, figurinha…): resposta inválida.
+  // (C) Texto — só é uma resposta válida se a pergunta atual for de texto livre.
+  if (isFreeText && event.kind === "text") {
+    const texto = event.body.trim();
+    if (texto) {
+      const proxima = question.proximaSeTexto ?? FIM;
+      return finishAnswer(state, step, { optionId: null, optionTitle: texto }, proxima, def, nowIso);
+    }
+    // texto vazio (raro) cai no tratamento de resposta inválida abaixo.
+  }
+
+  // (D) Resposta inválida pro tipo da pergunta atual (texto numa pergunta de botão,
+  //     botão/áudio/imagem/figurinha numa pergunta de texto livre, etc.).
   const invalidCount = state.invalidCount + 1;
 
   if (invalidCount >= def.maxRespostasInvalidasSeguidas) {

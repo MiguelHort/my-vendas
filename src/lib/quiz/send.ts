@@ -19,7 +19,9 @@ export const realQuizSender: QuizSender = {
     try {
       const result =
         action.type === "send_question"
-          ? await sendWhatsAppInteractiveButtons(to, action.body, action.buttons)
+          ? action.buttons.length > 0
+            ? await sendWhatsAppInteractiveButtons(to, action.body, action.buttons)
+            : await sendWhatsAppText(to, action.body) // pergunta de texto livre: sem botão pra mandar
           : await sendWhatsAppText(to, action.body);
       return { ok: true, wamid: result.messages?.[0]?.id ?? null };
     } catch (err) {

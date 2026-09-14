@@ -11,6 +11,8 @@ export type QuizInboundMessage = {
   buttonReply?: { id: string; title: string } | null;
   /** context.id — wamid da mensagem que continha o botão. */
   contextId?: string | null;
+  /** corpo da mensagem, quando o tipo é "text" — usado pelas perguntas de texto livre. */
+  text?: string | null;
 };
 
 export type QuizDeps = {
@@ -49,7 +51,9 @@ export async function runQuizForInbound(
           title: message.buttonReply.title,
           contextId: message.contextId ?? null,
         }
-      : { kind: "other" };
+      : message.text
+        ? { kind: "text", body: message.text }
+        : { kind: "other" };
 
     const result = advance(ctx.quiz, event, { now: deps.now });
 
@@ -85,11 +89,13 @@ export async function runQuizForInbound(
           `[quiz] envio da pergunta sem wamid — conversa ${conversationId}; será reenviada na próxima mensagem`
         );
       }
+      // pergunta de texto livre (sem botão) foi mandada como mensagem de texto simples.
+      const isFreeText = action.buttons.length === 0;
       await deps.store.recordOutbound(conversationId, {
         wamid: sent.wamid,
-        type: "interactive",
+        type: isFreeText ? "text" : "interactive",
         body: action.body,
-        buttons: action.buttons,
+        buttons: isFreeText ? undefined : action.buttons,
       });
     } else {
       await deps.store.recordOutbound(conversationId, {

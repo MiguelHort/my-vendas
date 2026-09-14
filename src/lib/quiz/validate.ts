@@ -47,11 +47,25 @@ export function validateQuizDefinition(def: QuizDefinition): void {
     fail("maxRespostasInvalidasSeguidas deve ser um inteiro >= 1.");
   }
 
+  if (typeof def.mensagemAbertura !== "string" || def.mensagemAbertura.trim() === "") {
+    fail("mensagemAbertura está vazia.");
+  }
+  if (charLen(def.mensagemAbertura) > META_LIMITS.maxBody) {
+    fail(
+      `mensagemAbertura tem ${charLen(def.mensagemAbertura)} caracteres (máx ${META_LIMITS.maxBody}).`
+    );
+  }
   if (typeof def.mensagemFinal !== "string" || def.mensagemFinal.trim() === "") {
     fail("mensagemFinal está vazia.");
   }
   if (typeof def.mensagemRespostaInvalida !== "string" || def.mensagemRespostaInvalida.trim() === "") {
     fail("mensagemRespostaInvalida está vazia.");
+  }
+  if (
+    typeof def.mensagemRespostaInvalidaTexto !== "string" ||
+    def.mensagemRespostaInvalidaTexto.trim() === ""
+  ) {
+    fail("mensagemRespostaInvalidaTexto está vazia.");
   }
 
   const stepIds = Object.keys(def.perguntas);
@@ -59,6 +73,10 @@ export function validateQuizDefinition(def: QuizDefinition): void {
 
   for (const step of stepIds) {
     const q = def.perguntas[step];
+    const isFreeText = Array.isArray(q.opcoes) && q.opcoes.length === 0;
+    const invalidPrefix = isFreeText
+      ? def.mensagemRespostaInvalidaTexto
+      : def.mensagemRespostaInvalida;
 
     // corpo
     if (typeof q.corpo !== "string" || q.corpo.trim() === "") {
@@ -69,17 +87,26 @@ export function validateQuizDefinition(def: QuizDefinition): void {
         `Pergunta "${step}": corpo tem ${charLen(q.corpo)} caracteres (máx ${META_LIMITS.maxBody}).`
       );
     }
-    const withPrefix =
-      def.mensagemRespostaInvalida + INVALID_PREFIX_SEPARATOR + q.corpo;
+    const withPrefix = invalidPrefix + INVALID_PREFIX_SEPARATOR + q.corpo;
     if (charLen(withPrefix) > META_LIMITS.maxBody) {
       fail(
-        `Pergunta "${step}": corpo com mensagemRespostaInvalida no início tem ${charLen(withPrefix)} caracteres (máx ${META_LIMITS.maxBody}).`
+        `Pergunta "${step}": corpo com aviso de resposta inválida no início tem ${charLen(withPrefix)} caracteres (máx ${META_LIMITS.maxBody}).`
       );
+    }
+
+    // pergunta de texto livre: sem botões pra validar, só o destino depois da resposta.
+    if (isFreeText) {
+      if (q.proximaSeTexto !== FIM && !def.perguntas[q.proximaSeTexto ?? ""]) {
+        fail(
+          `Pergunta "${step}": é de texto livre (sem opções) mas "proximaSeTexto" ("${q.proximaSeTexto}") não é uma pergunta existente nem "${FIM}".`
+        );
+      }
+      continue;
     }
 
     // opções
     if (!Array.isArray(q.opcoes) || q.opcoes.length < 1) {
-      fail(`Pergunta "${step}": precisa de pelo menos 1 opção.`);
+      fail(`Pergunta "${step}": precisa de pelo menos 1 opção (ou nenhuma, pra texto livre).`);
     }
     if (q.opcoes.length > META_LIMITS.maxButtons) {
       fail(

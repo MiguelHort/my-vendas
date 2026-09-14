@@ -192,6 +192,7 @@ function toQuizInbound(msg: WaMessage): QuizInboundMessage {
     wamid: msg.id,
     buttonReply: br?.id ? { id: br.id, title: br.title ?? "" } : null,
     contextId: msg.context?.id ?? null,
+    text: msg.type === "text" ? (msg.text?.body ?? null) : null,
   };
 }
 

@@ -6,6 +6,7 @@ import { QuizDefinitionError, validateQuizDefinition } from "../validate";
 function baseDef(): QuizDefinition {
   return {
     primeiraPergunta: "a",
+    mensagemAbertura: "Abertura.",
     perguntas: {
       a: {
         corpo: "Pergunta A?",
@@ -21,6 +22,7 @@ function baseDef(): QuizDefinition {
     },
     mensagemFinal: "Fim.",
     mensagemRespostaInvalida: "Toque numa opção.",
+    mensagemRespostaInvalidaTexto: "Escreve de novo, por favor.",
     maxRespostasInvalidasSeguidas: 3,
   };
 }
@@ -46,7 +48,7 @@ describe("validateQuizDefinition", () => {
     const def = baseDef();
     // prefixo (17) + "\n\n" (2) + corpo => precisa passar de 1024 no total
     def.perguntas.a.corpo = "y".repeat(1010);
-    expect(() => validateQuizDefinition(def)).toThrow(/mensagemRespostaInvalida/);
+    expect(() => validateQuizDefinition(def)).toThrow(/resposta inválida/);
   });
 
   it("falha com mais de 3 botões numa pergunta", () => {
@@ -72,5 +74,31 @@ describe("validateQuizDefinition", () => {
     const def = baseDef();
     def.perguntas.a.opcoes[1].titulo = def.perguntas.a.opcoes[0].titulo;
     expect(() => validateQuizDefinition(def)).toThrow(/repetido/);
+  });
+
+  it("aceita uma pergunta de texto livre (sem opções) com proximaSeTexto válido", () => {
+    const def = baseDef();
+    def.perguntas.b.opcoes = [];
+    def.perguntas.b.proximaSeTexto = FIM;
+    expect(() => validateQuizDefinition(def)).not.toThrow();
+  });
+
+  it("falha quando uma pergunta de texto livre não tem proximaSeTexto válido", () => {
+    const def = baseDef();
+    def.perguntas.b.opcoes = [];
+    def.perguntas.b.proximaSeTexto = "nao_existe";
+    expect(() => validateQuizDefinition(def)).toThrow(/proximaSeTexto/);
+  });
+
+  it("falha quando mensagemAbertura está vazia", () => {
+    const def = baseDef();
+    def.mensagemAbertura = "";
+    expect(() => validateQuizDefinition(def)).toThrow(/mensagemAbertura/);
+  });
+
+  it("falha quando mensagemRespostaInvalidaTexto está vazia", () => {
+    const def = baseDef();
+    def.mensagemRespostaInvalidaTexto = "";
+    expect(() => validateQuizDefinition(def)).toThrow(/mensagemRespostaInvalidaTexto/);
   });
 });

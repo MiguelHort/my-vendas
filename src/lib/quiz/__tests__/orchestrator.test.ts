@@ -9,8 +9,8 @@ const WA_ID = "5547999998888";
 function storedQuiz(over: Partial<StoredQuiz> = {}): StoredQuiz {
   return {
     status: "EM_ANDAMENTO",
-    currentStep: "q1",
-    lastQuestionWamid: "wamid-q1",
+    currentStep: "motivo",
+    lastQuestionWamid: "wamid-motivo",
     lastInboundWamid: null,
     leadId: "lead-1",
     invalidCount: 0,
@@ -81,6 +81,10 @@ function inbound(wamid: string, button?: { id: string; contextId: string }): Qui
     : { wamid, buttonReply: null, contextId: null };
 }
 
+function inboundText(wamid: string, body: string): QuizInboundMessage {
+  return { wamid, buttonReply: null, contextId: null, text: body };
+}
+
 describe("runQuizForInbound", () => {
   it("não faz nada se a conversa existe mas nunca teve quiz (contato antigo)", async () => {
     const store = new FakeStore(null);
@@ -99,7 +103,7 @@ describe("runQuizForInbound", () => {
     const deps = makeDeps(store, sender);
 
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m1", { id: "q1_1_pessoa", contextId: "wamid-q1" }) },
+      { waId: WA_ID, message: inbound("m1", { id: "motivo_trocar", contextId: "wamid-motivo" }) },
       deps
     );
 
@@ -110,20 +114,20 @@ describe("runQuizForInbound", () => {
     const store = new FakeStore(storedQuiz());
     const sender = new FakeSender();
     const deps = makeDeps(store, sender);
-    const msg = inbound("m1", { id: "q1_1_pessoa", contextId: "wamid-q1" });
+    const msg = inbound("m1", { id: "motivo_seguranca", contextId: "wamid-motivo" });
 
     await runQuizForInbound({ waId: WA_ID, message: msg }, deps);
     await runQuizForInbound({ waId: WA_ID, message: msg }, deps);
 
-    expect(sender.sent).toHaveLength(1); // só a q2 foi enviada, uma vez
-    expect(store.quiz?.currentStep).toBe("q2");
+    expect(sender.sent).toHaveLength(1); // só a "pessoas" foi enviada, uma vez (pula "atendimento")
+    expect(store.quiz?.currentStep).toBe("pessoas");
     expect(store.quiz?.lastInboundWamid).toBe("m1");
-    expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["q1_1_pessoa"]);
+    expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["motivo_seguranca"]);
 
     // a pergunta enviada é registrada no inbox com os botões, pra exibição
-    const q2Record = store.outbound.at(-1)!;
-    expect(q2Record.type).toBe("interactive");
-    expect(q2Record.buttons?.map((b) => b.id)).toEqual(["q2_sim", "q2_nao"]);
+    const record = store.outbound.at(-1)!;
+    expect(record.type).toBe("interactive");
+    expect(record.buttons?.map((b) => b.id)).toEqual(["pessoas_1", "pessoas_2_4", "pessoas_5_mais"]);
   });
 
   it("falha no envio da próxima pergunta não perde a resposta e permite reenvio depois", async () => {
@@ -133,55 +137,78 @@ describe("runQuizForInbound", () => {
     const deps = makeDeps(store, sender);
 
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m1", { id: "q1_1_pessoa", contextId: "wamid-q1" }) },
+      { waId: WA_ID, message: inbound("m1", { id: "motivo_seguranca", contextId: "wamid-motivo" }) },
       deps
     );
 
     // avançou e guardou a resposta, mas a pergunta ficou pendente (sem wamid)
-    expect(store.quiz?.currentStep).toBe("q2");
-    expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["q1_1_pessoa"]);
+    expect(store.quiz?.currentStep).toBe("pessoas");
+    expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["motivo_seguranca"]);
     expect(store.quiz?.lastQuestionWamid).toBeNull();
     expect(store.lastQuestionWamidSet).toHaveLength(0);
 
-    // próxima mensagem qualquer → reenvia a pergunta pendente (q2)
+    // próxima mensagem qualquer → reenvia a pergunta pendente ("pessoas")
     await runQuizForInbound({ waId: WA_ID, message: inbound("m2") }, deps);
 
     expect(sender.sent).toHaveLength(2);
     const last = sender.sent.at(-1)!.action;
-    expect(last).toMatchObject({ type: "send_question", step: "q2" });
+    expect(last).toMatchObject({ type: "send_question", step: "pessoas" });
     expect(store.quiz?.lastInboundWamid).toBe("m2");
   });
 
-  it("ao concluir, envia a mensagem final e chama aoConcluirQuiz uma vez com os derivados", async () => {
-    // começa já na q3 (troca de plano), q3 é a pergunta atual e foi enviada
+  it("resposta em texto livre (cidade) é registrada como mensagem de texto simples, sem botões", async () => {
     const store = new FakeStore(
       storedQuiz({
-        currentStep: "q3",
-        lastQuestionWamid: "wamid-q3",
+        currentStep: "cidade",
+        lastQuestionWamid: "wamid-cidade",
         answers: [
-          { step: "q1", optionId: "q1_1_pessoa", optionTitle: "Somente 1 pessoa", at: "x" },
-          { step: "q2", optionId: "q2_sim", optionTitle: "Sim", at: "x" },
+          { step: "motivo", optionId: "motivo_seguranca", optionTitle: "Segurança/prevenção", at: "x" },
+          { step: "pessoas", optionId: "pessoas_1", optionTitle: "Somente 1", at: "x" },
+          { step: "cobertura", optionId: "cobertura_regional", optionTitle: "Conta/regional", at: "x" },
         ],
       })
     );
     const sender = new FakeSender();
     const deps = makeDeps(store, sender);
 
-    // q3_trocar → q4
+    await runQuizForInbound({ waId: WA_ID, message: inboundText("m1", "Joinville") }, deps);
+
+    expect(store.quiz?.status).toBe("CONCLUIDO");
+    expect(store.quiz?.answers.at(-1)).toMatchObject({ step: "cidade", optionId: null, optionTitle: "Joinville" });
+
+    const record = store.outbound.at(-1)!;
+    expect(record.type).toBe("text"); // mensagem final, texto simples
+    expect(deps.onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("ao concluir pelo caminho de troca de plano, envia a mensagem final e chama aoConcluirQuiz com os derivados", async () => {
+    // começa já na "motivo", primeira pergunta do quiz
+    const store = new FakeStore(storedQuiz());
+    const sender = new FakeSender();
+    const deps = makeDeps(store, sender);
+
+    // motivo_trocar → atendimento
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m3", { id: "q3_trocar", contextId: "wamid-q3" }) },
+      { waId: WA_ID, message: inbound("m1", { id: "motivo_trocar", contextId: "wamid-motivo" }) },
       deps
     );
-    // q4_custos → q5
+    // atendimento_conta → pessoas
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m4", { id: "q4_custos", contextId: "sent-1" }) },
+      { waId: WA_ID, message: inbound("m2", { id: "atendimento_conta", contextId: "sent-1" }) },
       deps
     );
-    // q5_tratamento → FIM
+    // pessoas_5_mais → cobertura
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m5", { id: "q5_tratamento", contextId: "sent-2" }) },
+      { waId: WA_ID, message: inbound("m3", { id: "pessoas_5_mais", contextId: "sent-2" }) },
       deps
     );
+    // cobertura_nacional → cidade
+    await runQuizForInbound(
+      { waId: WA_ID, message: inbound("m4", { id: "cobertura_nacional", contextId: "sent-3" }) },
+      deps
+    );
+    // texto livre → FIM
+    await runQuizForInbound({ waId: WA_ID, message: inboundText("m5", "São Paulo") }, deps);
 
     expect(store.quiz?.status).toBe("CONCLUIDO");
     const finalSend = sender.sent.at(-1)!.action;
@@ -191,7 +218,7 @@ describe("runQuizForInbound", () => {
     expect(deps.onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
         temPlanoAtual: true,
-        necessidadePrincipal: "tratamento",
+        necessidadePrincipal: null,
         leadId: "lead-1",
       })
     );
