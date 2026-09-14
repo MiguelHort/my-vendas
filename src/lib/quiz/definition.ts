@@ -45,9 +45,17 @@ export const QUIZ_DEFINITION: QuizDefinition = {
     pessoas: {
       corpo: "Perfeito, para quantas pessoas gostaria de ver um plano?",
       opcoes: [
-        { id: "pessoas_1", titulo: "Somente 1", proxima: "cobertura" },
-        { id: "pessoas_2_4", titulo: "2 a 4 pessoas", proxima: "cobertura" },
-        { id: "pessoas_5_mais", titulo: "5 ou mais pessoas", proxima: "cobertura" },
+        { id: "pessoas_1", titulo: "Somente 1", proxima: "cnpj" },
+        { id: "pessoas_2_4", titulo: "2 a 4 pessoas", proxima: "cnpj" },
+        { id: "pessoas_5_mais", titulo: "5 ou mais pessoas", proxima: "cnpj" },
+      ],
+    },
+
+    cnpj: {
+      corpo: "Você possui CNPJ?",
+      opcoes: [
+        { id: "cnpj_sim", titulo: "Sim", proxima: "cobertura" },
+        { id: "cnpj_nao", titulo: "Não", proxima: "cobertura" },
       ],
     },
 
@@ -55,7 +63,7 @@ export const QUIZ_DEFINITION: QuizDefinition = {
       corpo: "Sobre a cobertura, a sua preferência seria:",
       opcoes: [
         // "Plano mais em conta e regional" (30) não cabe — abreviado.
-        { id: "cobertura_regional", titulo: "Conta/regional", proxima: "cidade" },
+        { id: "cobertura_regional", titulo: "Em Conta/regional", proxima: "cidade" },
         // "Plano mais completo e nacional" (30) não cabe — abreviado.
         { id: "cobertura_nacional", titulo: "Completo/nacional", proxima: "cidade" },
       ],

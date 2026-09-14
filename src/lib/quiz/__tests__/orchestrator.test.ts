@@ -164,7 +164,7 @@ describe("runQuizForInbound", () => {
         answers: [
           { step: "motivo", optionId: "motivo_seguranca", optionTitle: "Segurança/prevenção", at: "x" },
           { step: "pessoas", optionId: "pessoas_1", optionTitle: "Somente 1", at: "x" },
-          { step: "cobertura", optionId: "cobertura_regional", optionTitle: "Conta/regional", at: "x" },
+          { step: "cobertura", optionId: "cobertura_regional", optionTitle: "Em Conta/regional", at: "x" },
         ],
       })
     );
@@ -197,18 +197,23 @@ describe("runQuizForInbound", () => {
       { waId: WA_ID, message: inbound("m2", { id: "atendimento_conta", contextId: "sent-1" }) },
       deps
     );
-    // pessoas_5_mais → cobertura
+    // pessoas_5_mais → cnpj
     await runQuizForInbound(
       { waId: WA_ID, message: inbound("m3", { id: "pessoas_5_mais", contextId: "sent-2" }) },
       deps
     );
+    // cnpj_sim → cobertura
+    await runQuizForInbound(
+      { waId: WA_ID, message: inbound("m4", { id: "cnpj_sim", contextId: "sent-3" }) },
+      deps
+    );
     // cobertura_nacional → cidade
     await runQuizForInbound(
-      { waId: WA_ID, message: inbound("m4", { id: "cobertura_nacional", contextId: "sent-3" }) },
+      { waId: WA_ID, message: inbound("m5", { id: "cobertura_nacional", contextId: "sent-4" }) },
       deps
     );
     // texto livre → FIM
-    await runQuizForInbound({ waId: WA_ID, message: inboundText("m5", "São Paulo") }, deps);
+    await runQuizForInbound({ waId: WA_ID, message: inboundText("m6", "São Paulo") }, deps);
 
     expect(store.quiz?.status).toBe("CONCLUIDO");
     const finalSend = sender.sent.at(-1)!.action;

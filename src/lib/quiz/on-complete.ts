@@ -16,9 +16,10 @@ export type QuizCompletePayload = {
  * Único ponto de extensão chamado uma vez quando o quiz é concluído.
  *
  * Ligação com o CRM (aprovada): preenche no lead vinculado os campos que o quiz
- * responde — `qtd_vidas` (bucket de "pessoas"), `cidade` (resposta em texto livre)
- * e `tem_plano_anterior` (= tem_plano_atual, motivo "Trocar plano atual"). Se um
- * dia houver fila de atendimento, é aqui que ela seria notificada.
+ * responde — `qtd_vidas` (bucket de "pessoas"), `possui_cnpj` (pergunta "cnpj"),
+ * `cidade` (resposta em texto livre) e `tem_plano_anterior` (= tem_plano_atual,
+ * motivo "Trocar plano atual"). Se um dia houver fila de atendimento, é aqui que
+ * ela seria notificada.
  *
  * LGPD: as respostas contêm dado de saúde — nada de conteúdo de resposta em log.
  */
@@ -28,10 +29,12 @@ export async function aoConcluirQuiz(payload: QuizCompletePayload): Promise<void
   const answerFor = (step: string) => answers.find((a) => a.step === step) ?? null;
 
   const pessoas = answerFor("pessoas")?.optionId ?? null;
+  const cnpj = answerFor("cnpj")?.optionId ?? null;
   const cidade = answerFor("cidade")?.optionTitle?.trim() || null;
 
   const data: {
     qtdVidas?: number;
+    possuiCnpj?: boolean;
     cidade?: string;
     temPlanoAnterior?: boolean;
   } = {};
@@ -39,6 +42,8 @@ export async function aoConcluirQuiz(payload: QuizCompletePayload): Promise<void
   if (pessoas && PESSOAS_QTD_VIDAS[pessoas] !== undefined) {
     data.qtdVidas = PESSOAS_QTD_VIDAS[pessoas];
   }
+  if (cnpj === "cnpj_sim") data.possuiCnpj = true;
+  else if (cnpj === "cnpj_nao") data.possuiCnpj = false;
   if (cidade) data.cidade = cidade;
   if (payload.temPlanoAtual !== null) data.temPlanoAnterior = payload.temPlanoAtual;
 
