@@ -18,6 +18,7 @@ import {
   Bot,
   MessageCircle,
   Tag,
+  Megaphone,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -88,6 +89,7 @@ const crmItems = [
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
   { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
+  { href: "/dashboard/anuncios", label: "Anúncios", icon: Megaphone },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
 ];
