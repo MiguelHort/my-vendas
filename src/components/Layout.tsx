@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Tag,
   Megaphone,
+  Kanban,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -45,6 +46,7 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
@@ -87,6 +89,7 @@ type MeUser = {
 const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
   { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
   { href: "/dashboard/anuncios", label: "Anúncios", icon: Megaphone },
@@ -105,8 +108,10 @@ const assistentesItems = [
 const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   funil: "Funil",
+  demandas: "Demandas",
   conversas: "Conversas",
   etiquetas: "Etiquetas",
+  anuncios: "Anúncios",
   "minhas-vendas": "Minhas Vendas",
   "mapa-estados": "Mapa",
   cotacao: "Cotação",
@@ -156,6 +161,7 @@ function AppSidebar({
   photo,
   initials,
   onLogout,
+  unreadCount,
 }: {
   pathname: string | null;
   isAdmin: boolean;
@@ -164,6 +170,7 @@ function AppSidebar({
   photo: string;
   initials: string;
   onLogout: () => void;
+  unreadCount: number;
 }) {
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -198,6 +205,7 @@ function AppSidebar({
               {crmItems.map((item) => {
                 const Icon = item.icon;
                 const active = isRouteActive(pathname, item.href);
+                const showUnreadBadge = item.href === "/dashboard/conversas" && unreadCount > 0;
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
@@ -206,6 +214,11 @@ function AppSidebar({
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                    {showUnreadBadge && (
+                      <SidebarMenuBadge className="bg-[#00a884] text-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 );
               })}
@@ -339,6 +352,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [meUser, setMeUser] = useState<MeUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -366,6 +380,40 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
 
     return () => unsub();
   }, [router]);
+
+  // Total de não lidas do WhatsApp — badge no menu + contador na aba do
+  // navegador (igual WhatsApp Web). Roda em toda página, não só no inbox.
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+    async function fetchUnreadCount() {
+      try {
+        const token = await user!.getIdToken();
+        const res = await fetch("/api/whatsapp/unread-count", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) setUnreadCount(data.count ?? 0);
+      } catch {
+        // silencioso — próximo polling tenta de novo
+      }
+    }
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  // Contador na aba do navegador, tipo "(3) WinLeads" — some quando zera.
+  useEffect(() => {
+    const base = "WinLeads";
+    document.title = unreadCount > 0 ? `(${unreadCount > 99 ? "99+" : unreadCount}) ${base}` : base;
+  }, [unreadCount]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -445,6 +493,7 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
         photo={photo}
         initials={initials}
         onLogout={handleLogout}
+        unreadCount={unreadCount}
       />
 
       <SidebarInset className="overflow-hidden md:peer-data-[variant=inset]:shadow-lg md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border/60">

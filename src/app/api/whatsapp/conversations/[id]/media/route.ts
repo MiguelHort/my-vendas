@@ -34,6 +34,8 @@ export async function POST(
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Arquivo é obrigatório" }, { status: 400 });
   }
+  const captionRaw = form?.get("caption");
+  const caption = typeof captionRaw === "string" && captionRaw.trim() ? captionRaw.trim() : undefined;
 
   const isImage = file.type.startsWith("image/");
   const maxBytes = isImage ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
@@ -51,8 +53,8 @@ export async function POST(
   try {
     const mediaId = await uploadWhatsAppMedia(buffer, mimeType, filename);
     const result = isImage
-      ? await sendWhatsAppImage(conversation.waId, mediaId)
-      : await sendWhatsAppDocument(conversation.waId, mediaId, filename);
+      ? await sendWhatsAppImage(conversation.waId, mediaId, caption)
+      : await sendWhatsAppDocument(conversation.waId, mediaId, filename, caption);
 
     const waMessageId = result.messages?.[0]?.id;
     const timestamp = new Date();
@@ -64,6 +66,7 @@ export async function POST(
         waMessageId: waMessageId ?? null,
         direction: "OUTBOUND",
         type,
+        body: caption ?? null,
         mediaId,
         mimeType,
         filename: isImage ? null : filename,
@@ -77,7 +80,11 @@ export async function POST(
       where: { id },
       data: {
         lastMessageAt: timestamp,
-        lastMessagePreview: isImage ? "📷 Foto" : `📎 ${filename}`,
+        lastMessagePreview: isImage
+          ? caption
+            ? `📷 ${caption}`
+            : "📷 Foto"
+          : `📎 ${filename}`,
       },
     });
 

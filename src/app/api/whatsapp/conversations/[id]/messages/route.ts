@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
-import { sendWhatsAppText } from "@/lib/whatsapp";
+import { sendWhatsAppText, WhatsAppSendError } from "@/lib/whatsapp";
 import { interruptQuizIfActive } from "@/lib/quiz/store";
 
 export const runtime = "nodejs";
@@ -120,9 +120,10 @@ export async function POST(
       },
     });
   } catch (err) {
+    const friendly = err instanceof WhatsAppSendError ? err.friendlyMessage : null;
     console.error("Erro ao enviar mensagem WhatsApp:", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: "Falha ao enviar mensagem pelo WhatsApp" },
+      { error: friendly ?? "Falha ao enviar mensagem pelo WhatsApp" },
       { status: 502 }
     );
   }

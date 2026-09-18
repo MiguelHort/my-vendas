@@ -22,6 +22,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
@@ -53,9 +60,11 @@ import {
   ListFilter,
   ClipboardList,
   CircleDot,
+  FileStack,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { NECESSIDADE_PRINCIPAL_LABEL } from "@/lib/quiz/definition";
+import { translateWhatsAppErrorTitle } from "@/lib/whatsappErrors";
 
 type Tag = { id: string; name: string; color: string };
 
@@ -99,6 +108,16 @@ type Message = {
   transcription?: string | null;
   filename?: string | null;
   timestamp: string;
+};
+
+type WhatsAppTemplate = {
+  id: string;
+  name: string;
+  category: string;
+  language: string;
+  body_text: string | null;
+  param_tokens: string[];
+  params_are_named: boolean;
 };
 
 const QUIZ_STATUS_LABEL: Record<QuizInfo["status"], string> = {
@@ -249,6 +268,12 @@ export default function ConversasPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [templateParamValues, setTemplateParamValues] = useState<string[]>([]);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -258,6 +283,8 @@ export default function ConversasPage() {
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [imagePreview, setImagePreview] = useState<{ file: File; url: string } | null>(null);
+  const [imageCaption, setImageCaption] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -358,6 +385,25 @@ export default function ConversasPage() {
     fetchTags();
   }, [firebaseUser, fetchTags]);
 
+  const fetchTemplates = useCallback(async () => {
+    const headers = await authHeader();
+    if (!headers) return;
+    try {
+      const res = await fetch("/api/whatsapp/templates", { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      setTemplates(data.templates ?? []);
+    } catch {
+      // silencioso
+    }
+  }, [authHeader]);
+
+  // Modelos aprovados: carga inicial — usados quando a janela de 24h fecha.
+  useEffect(() => {
+    if (!firebaseUser) return;
+    fetchTemplates();
+  }, [firebaseUser, fetchTemplates]);
+
   async function handleSaveLeadTags(tagIds: string[]) {
     if (!leadInfo || savingTags) return;
     setSavingTags(true);
@@ -426,6 +472,16 @@ export default function ConversasPage() {
     return () => clearInterval(interval);
   }, [selectedId, fetchMessages, fetchLeadInfo]);
 
+  // Troca de conversa com uma pré-visualização de imagem aberta: descarta, pra
+  // nunca mandar a imagem pro contato errado.
+  useEffect(() => {
+    setImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+    setImageCaption("");
+  }, [selectedId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -459,6 +515,92 @@ export default function ConversasPage() {
     }
     return groups;
   }, [messages]);
+
+  // Janela de atendimento de 24h da Meta: só dá pra mandar texto livre até 24h
+  // depois da ÚLTIMA mensagem do CONTATO (inbound). Passado isso, só um Message
+  // Template aprovado reabre a conversa — é regra da plataforma, não um bug.
+  const lastInboundAt = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].direction === "INBOUND") return messages[i].timestamp;
+    }
+    return null;
+  }, [messages]);
+
+  const windowClosed = useMemo(() => {
+    if (!lastInboundAt) return false;
+    return Date.now() - new Date(lastInboundAt).getTime() > 24 * 60 * 60 * 1000;
+  }, [lastInboundAt]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId]
+  );
+
+  const templatePreview = useMemo(() => {
+    if (!selectedTemplate?.body_text) return "";
+    let text = selectedTemplate.body_text;
+    selectedTemplate.param_tokens.forEach((token, i) => {
+      const value = templateParamValues[i]?.trim() || `{{${token}}}`;
+      text = text.replace(`{{${token}}}`, value);
+    });
+    return text;
+  }, [selectedTemplate, templateParamValues]);
+
+  function openTemplateModal() {
+    setSelectedTemplateId(templates[0]?.id ?? "");
+    setTemplateParamValues(templates[0] ? Array(templates[0].param_tokens.length).fill("") : []);
+    setTemplateModalOpen(true);
+  }
+
+  function handleSelectTemplate(templateId: string) {
+    setSelectedTemplateId(templateId);
+    const t = templates.find((x) => x.id === templateId);
+    setTemplateParamValues(t ? Array(t.param_tokens.length).fill("") : []);
+  }
+
+  async function handleSendTemplate() {
+    if (!selectedId || !selectedTemplate || sendingTemplate) return;
+
+    setSendingTemplate(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+
+      const bodyParams = selectedTemplate.param_tokens.map((token, i) => ({
+        ...(selectedTemplate.params_are_named ? { name: token } : {}),
+        value: templateParamValues[i]?.trim() || "",
+      }));
+
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/template`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_name: selectedTemplate.name,
+          language: selectedTemplate.language,
+          body_params: bodyParams,
+          preview_text: templatePreview,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao enviar modelo");
+
+      setMessages((prev) => [...prev, data.message]);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? { ...c, last_message_preview: data.message.body, last_message_at: data.message.timestamp }
+            : c
+        )
+      );
+      toast.success("Modelo enviado");
+      setTemplateModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar o modelo");
+    } finally {
+      setSendingTemplate(false);
+    }
+  }
 
   const selfInitials = useMemo(
     () => initialsFor(firebaseUser?.displayName || firebaseUser?.email || "Eu"),
@@ -504,7 +646,7 @@ export default function ConversasPage() {
       );
     } catch (err) {
       console.error(err);
-      toast.error("Não foi possível enviar a mensagem");
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar a mensagem");
       setInput(text);
     } finally {
       setSending(false);
@@ -563,7 +705,7 @@ export default function ConversasPage() {
     void sendAudio(file, file.name);
   }
 
-  async function sendMedia(file: File) {
+  async function sendMedia(file: File, caption?: string) {
     if (!selectedId || uploadingAttachment) return;
 
     setUploadingAttachment(true);
@@ -572,6 +714,7 @@ export default function ConversasPage() {
       if (!headers) return;
       const form = new FormData();
       form.append("file", file, file.name);
+      if (caption?.trim()) form.append("caption", caption.trim());
 
       const res = await fetch(`/api/whatsapp/conversations/${selectedId}/media`, {
         method: "POST",
@@ -582,23 +725,52 @@ export default function ConversasPage() {
       if (!res.ok) throw new Error(data.error ?? "Erro ao enviar arquivo");
 
       const isImage = file.type.startsWith("image/");
+      const preview = isImage
+        ? caption?.trim()
+          ? `📷 ${caption.trim()}`
+          : "📷 Foto"
+        : `📎 ${file.name}`;
       setMessages((prev) => [...prev, data.message]);
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? {
-                ...c,
-                last_message_preview: isImage ? "📷 Foto" : `📎 ${file.name}`,
-                last_message_at: data.message.timestamp,
-              }
+            ? { ...c, last_message_preview: preview, last_message_at: data.message.timestamp }
             : c
         )
       );
     } catch (err) {
       console.error(err);
       toast.error("Não foi possível enviar o arquivo");
+      throw err;
     } finally {
       setUploadingAttachment(false);
+    }
+  }
+
+  // Abre a pré-visualização em vez de mandar direto — igual o WhatsApp mostra a
+  // imagem antes de confirmar o envio (com campo de legenda opcional).
+  function openImagePreview(file: File) {
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx. 4MB)");
+      return;
+    }
+    setImageCaption("");
+    setImagePreview({ file, url: URL.createObjectURL(file) });
+  }
+
+  function closeImagePreview() {
+    if (imagePreview) URL.revokeObjectURL(imagePreview.url);
+    setImagePreview(null);
+    setImageCaption("");
+  }
+
+  async function confirmImageSend() {
+    if (!imagePreview || uploadingAttachment) return;
+    try {
+      await sendMedia(imagePreview.file, imageCaption);
+      closeImagePreview();
+    } catch {
+      // sendMedia já mostra o toast de erro — mantém a pré-visualização aberta pra tentar de novo
     }
   }
 
@@ -606,11 +778,7 @@ export default function ConversasPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      toast.error("Imagem muito grande (máx. 4MB)");
-      return;
-    }
-    void sendMedia(file);
+    openImagePreview(file);
   }
 
   function handleDocFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -622,6 +790,18 @@ export default function ConversasPage() {
       return;
     }
     void sendMedia(file);
+  }
+
+  // Cola uma imagem copiada (print, "copiar imagem" do navegador etc.) direto no
+  // campo de digitar e abre a pré-visualização — igual o WhatsApp Web.
+  function handlePasteImage(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const item = [...e.clipboardData.items].find((it) => it.type.startsWith("image/"));
+    if (!item) return; // texto colado normal — segue o fluxo padrão do textarea
+
+    e.preventDefault();
+    const file = item.getAsFile();
+    if (!file) return;
+    openImagePreview(file);
   }
 
   async function startRecording() {
@@ -1095,6 +1275,26 @@ export default function ConversasPage() {
                 <div ref={bottomRef} />
               </div>
 
+              {windowClosed && (
+                <div className="shrink-0 mx-4 mb-2 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  <AlertCircle className="size-3.5 shrink-0" />
+                  <span className="flex-1">
+                    Mais de 24h desde a última mensagem do contato — só dá pra responder com um
+                    modelo aprovado pela Meta.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10"
+                    onClick={openTemplateModal}
+                    disabled={templates.length === 0}
+                    title={templates.length === 0 ? "Nenhum modelo aprovado disponível" : undefined}
+                  >
+                    Enviar modelo
+                  </Button>
+                </div>
+              )}
+
               <div className="shrink-0 px-4 py-3 border-t border-border bg-[#f0f2f5] dark:bg-[#202c33]">
                 <input
                   ref={imageFileInputRef}
@@ -1176,10 +1376,21 @@ export default function ConversasPage() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-11 text-muted-foreground hover:text-foreground rounded-full"
+                      title="Enviar modelo aprovado"
+                      onClick={openTemplateModal}
+                      disabled={templates.length === 0}
+                    >
+                      <FileStack className="size-4" />
+                    </Button>
                     <Textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
+                      onPaste={handlePasteImage}
                       placeholder="Digite uma mensagem"
                       className="min-h-11 max-h-32 resize-none text-sm rounded-2xl bg-background"
                       rows={1}
@@ -1425,6 +1636,134 @@ export default function ConversasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Modal de envio de modelo (template) ─────────────── */}
+      <Dialog open={templateModalOpen} onOpenChange={setTemplateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <FileStack className="size-5" />
+              <DialogTitle>Enviar modelo</DialogTitle>
+            </div>
+            <DialogDescription>
+              Modelos (templates) são a única forma de mensagem que a Meta aceita mais de 24h
+              depois da última resposta do contato.
+            </DialogDescription>
+          </DialogHeader>
+
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              Nenhum modelo aprovado encontrado na conta.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Modelo</label>
+                <Select value={selectedTemplateId} onValueChange={handleSelectTemplate}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione um modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name} · {t.language}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedTemplate?.param_tokens.map((token, i) => (
+                <div key={`${token}-${i}`} className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    {selectedTemplate.params_are_named ? token : `Variável ${token}`}
+                  </label>
+                  <Input
+                    value={templateParamValues[i] ?? ""}
+                    onChange={(e) =>
+                      setTemplateParamValues((prev) => {
+                        const next = [...prev];
+                        next[i] = e.target.value;
+                        return next;
+                      })
+                    }
+                  />
+                </div>
+              ))}
+
+              {templatePreview && (
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Pré-visualização
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">{templatePreview}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSendTemplate} disabled={!selectedTemplate || sendingTemplate}>
+              {sendingTemplate ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Pré-visualização de imagem antes de enviar ──────── */}
+      <Dialog open={!!imagePreview} onOpenChange={(open) => !open && closeImagePreview()}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <ImageIcon className="size-5" />
+              <DialogTitle>Enviar imagem</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          {imagePreview && (
+            <div className="space-y-3">
+              <div className="rounded-lg overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center max-h-96">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePreview.url}
+                  alt="Pré-visualização"
+                  className="max-w-full max-h-96 object-contain"
+                />
+              </div>
+              <Input
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmImageSend()}
+                placeholder="Adicionar legenda (opcional)"
+                disabled={uploadingAttachment}
+                autoFocus
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeImagePreview} disabled={uploadingAttachment}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmImageSend}
+              disabled={uploadingAttachment}
+              className="bg-[#00a884] hover:bg-[#029074] text-white"
+            >
+              {uploadingAttachment ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
@@ -1548,7 +1887,7 @@ function MessageBubble({
               />
               <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-muted-foreground">
                 {time}
-                {isOutbound && <StatusIcon status={message.status} />}
+                {isOutbound && <StatusIcon status={message.status} errorMessage={message.error_message} />}
               </div>
             </>
           ) : isImage ? (
@@ -1561,7 +1900,7 @@ function MessageBubble({
               )}
               <div className="flex items-center justify-end gap-1 px-1.5 pb-0.5 pt-1 text-[10px] text-muted-foreground">
                 {time}
-                {isOutbound && <StatusIcon status={message.status} />}
+                {isOutbound && <StatusIcon status={message.status} errorMessage={message.error_message} />}
               </div>
             </>
           ) : isDocument ? (
@@ -1573,7 +1912,7 @@ function MessageBubble({
               />
               <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-muted-foreground">
                 {time}
-                {isOutbound && <StatusIcon status={message.status} />}
+                {isOutbound && <StatusIcon status={message.status} errorMessage={message.error_message} />}
               </div>
             </>
           ) : (
@@ -1593,7 +1932,7 @@ function MessageBubble({
               )}
               <div className="flex items-center gap-1 float-right -mb-1 ml-2 mt-1 text-[10px] text-muted-foreground">
                 {time}
-                {isOutbound && <StatusIcon status={message.status} />}
+                {isOutbound && <StatusIcon status={message.status} errorMessage={message.error_message} />}
               </div>
             </>
           )}
@@ -1969,10 +2308,22 @@ function DocumentMessage({
   );
 }
 
-function StatusIcon({ status }: { status: Message["status"] }) {
+function StatusIcon({
+  status,
+  errorMessage,
+}: {
+  status: Message["status"];
+  errorMessage?: string | null;
+}) {
   if (status === "READ") return <CheckCheck className="size-3.5 text-[#53bdeb]" />;
   if (status === "DELIVERED") return <CheckCheck className="size-3.5" />;
   if (status === "SENT") return <Check className="size-3.5" />;
-  if (status === "FAILED") return <AlertCircle className="size-3.5 text-destructive" />;
+  if (status === "FAILED") {
+    return (
+      <span title={translateWhatsAppErrorTitle(null, errorMessage ?? null)}>
+        <AlertCircle className="size-3.5 text-destructive" />
+      </span>
+    );
+  }
   return <Clock className="size-3.5" />;
 }

@@ -1,3 +1,5 @@
+import { translateWhatsAppErrorTitle } from "./whatsappErrors";
+
 const GRAPH_VERSION = "v24.0";
 
 export function normalizeWaId(phone: string) {
@@ -13,14 +15,22 @@ export class WhatsAppSendError extends Error {
   readonly status: number;
   readonly metaCode: number | null;
   readonly metaSubcode: number | null;
+  /** Título curto da Meta (ex: "Re-engagement message") — o que a Meta manda como `error.title`. */
+  readonly metaTitle: string | null;
 
   constructor(status: number, data: unknown) {
     super(`Erro ao enviar WhatsApp (${status}): ${JSON.stringify(data)}`);
     this.name = "WhatsAppSendError";
     this.status = status;
-    const err = (data as { error?: { code?: number; error_subcode?: number } })?.error;
+    const err = (data as { error?: { code?: number; error_subcode?: number; error_data?: { details?: string }; title?: string; message?: string } })?.error;
     this.metaCode = typeof err?.code === "number" ? err.code : null;
     this.metaSubcode = typeof err?.error_subcode === "number" ? err.error_subcode : null;
+    this.metaTitle = err?.title ?? err?.error_data?.details ?? err?.message ?? null;
+  }
+
+  /** Mensagem amigável (PT) pro corretor — traduz os casos mais comuns, senão devolve o título cru da Meta. */
+  get friendlyMessage(): string {
+    return translateWhatsAppErrorTitle(this.metaCode, this.metaTitle);
   }
 }
 
@@ -80,6 +90,106 @@ export function sendWhatsAppInteractiveButtons(
 
 export function sendWhatsAppText(to: string, text: string) {
   return sendWhatsAppMessage({ to, type: "text", text: { body: text, preview_url: false } });
+}
+
+export type WhatsAppTemplateParam = {
+  /** presente = template com placeholders nomeados ({{nome}}); ausente = posicionais ({{1}}). */
+  name?: string;
+  value: string;
+};
+
+/**
+ * Mensagem `template` (HSM) — o único tipo que a Meta aceita fora da janela de
+ * 24h desde a última mensagem do contato (ver `WhatsAppSendError.friendlyMessage`).
+ * O template precisa já existir aprovado na conta (ver `fetchWhatsAppTemplates`).
+ */
+export function sendWhatsAppTemplate(
+  to: string,
+  name: string,
+  languageCode: string,
+  bodyParams: WhatsAppTemplateParam[] = []
+) {
+  return sendWhatsAppMessage({
+    to,
+    type: "template",
+    template: {
+      name,
+      language: { code: languageCode },
+      ...(bodyParams.length > 0
+        ? {
+            components: [
+              {
+                type: "body",
+                parameters: bodyParams.map((p) =>
+                  p.name
+                    ? { type: "text", parameter_name: p.name, text: p.value }
+                    : { type: "text", text: p.value }
+                ),
+              },
+            ],
+          }
+        : {}),
+    },
+  });
+}
+
+export type WhatsAppTemplateInfo = {
+  id: string;
+  name: string;
+  status: string;
+  category: string;
+  language: string;
+  bodyText: string | null;
+  /** nomes/índices dos placeholders `{{...}}` encontrados no corpo, na ordem em que aparecem. */
+  paramTokens: string[];
+  /** true se os placeholders são nomeados ({{nome}}); false se posicionais ({{1}}) ou sem placeholder. */
+  paramsAreNamed: boolean;
+};
+
+/**
+ * Lista os Message Templates da conta (WhatsApp Business Account), aprovados ou
+ * não. Usado pra montar a UI de "enviar modelo" quando a janela de 24h fechou.
+ */
+export async function fetchWhatsAppTemplates(): Promise<WhatsAppTemplateInfo[]> {
+  const wabaId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+  const token = process.env.WHATSAPP_TOKEN;
+  if (!wabaId || !token) {
+    throw new Error("WHATSAPP_BUSINESS_ACCOUNT_ID / WHATSAPP_TOKEN não configurados");
+  }
+
+  const res = await fetch(
+    `https://graph.facebook.com/${GRAPH_VERSION}/${wabaId}/message_templates?fields=name,status,category,language,components&limit=100`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Erro ao listar templates do WhatsApp (${res.status}): ${JSON.stringify(data)}`);
+  }
+
+  type RawTemplate = {
+    id: string;
+    name: string;
+    status: string;
+    category: string;
+    language: string;
+    components?: { type: string; text?: string }[];
+  };
+
+  return ((data.data ?? []) as RawTemplate[]).map((t) => {
+    const bodyText = t.components?.find((c) => c.type === "BODY")?.text ?? null;
+    const tokens = bodyText ? [...bodyText.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1].trim()) : [];
+    const paramsAreNamed = tokens.length > 0 && !/^\d+$/.test(tokens[0]);
+    return {
+      id: t.id,
+      name: t.name,
+      status: t.status,
+      category: t.category,
+      language: t.language,
+      bodyText,
+      paramTokens: tokens,
+      paramsAreNamed,
+    };
+  });
 }
 
 export function sendWhatsAppAudio(to: string, mediaId: string) {
