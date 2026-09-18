@@ -58,7 +58,14 @@ async function sendWhatsAppMessage(payload: Record<string, unknown>) {
     throw new WhatsAppSendError(res.status, data);
   }
 
-  return data as { messages?: { id: string }[] };
+  return data as {
+    messages?: { id: string }[];
+    // A Meta devolve o wa_id CANÔNICO que ela vai usar pras próximas mensagens
+    // desse número — pode diferir do que a gente mandou em `to` (números BR às
+    // vezes têm o "9" a mais/a menos dependendo de onde vieram). Usar esse
+    // valor pra gravar a conversa é o que evita duplicar contato quando ele responde.
+    contacts?: { input: string; wa_id: string }[];
+  };
 }
 
 export type WhatsAppReplyButton = { id: string; title: string };

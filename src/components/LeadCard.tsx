@@ -39,9 +39,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import WhatsappIcon from "@/components/icons/WhatsappIcon";
+import { getCommissionPct, type CommissionMap } from "@/lib/commissions";
 
 // ========================
 // TIPOS
@@ -73,7 +73,6 @@ export type Lead = {
   data_venda: string | null;
   last_chamado_at: string | null;
   retornar_em: string | null;
-  tipo_comissao: string;
 };
 
 type LeadCardProps = {
@@ -84,19 +83,21 @@ type LeadCardProps = {
     displayName: string | null;
   };
   onRefreshLeads: () => void;
-  commissionMap?: Record<string, { interna: number; externa: number }>;
+  commissionMap?: CommissionMap;
 };
 
 // ========================
 // OPERADORAS COM CORES
 // ========================
 
-export const OPERADORAS = [
+export const OPERADORAS: { nome: string; cor: string; textoCor: string; logo?: string }[] = [
   { nome: "Amil", cor: "#0066cc", textoCor: "#ffffff", logo: "/imgs/planos/amil.png" },
   { nome: "Bradesco Saúde", cor: "#cc0000", textoCor: "#ffffff", logo: "/imgs/planos/bradesco.png" },
   { nome: "Hapvida", cor: "#f7941d", textoCor: "#ffffff", logo: "/imgs/planos/hapvida.png" },
   { nome: "LevMed", cor: "#00a86b", textoCor: "#ffffff", logo: "/imgs/planos/levmed.png" },
   { nome: "Nossa Saúde", cor: "#0091cf", textoCor: "#ffffff", logo: "/imgs/planos/nossasaude.png" },
+  // sem arquivo de logo ainda — os locais que mostram a imagem caem pro nome em texto.
+  { nome: "Pladisa", cor: "#7c3aed", textoCor: "#ffffff" },
   { nome: "SulAmérica", cor: "#e30613", textoCor: "#ffffff", logo: "/imgs/planos/sulamerica.png" },
   { nome: "Unimed", cor: "#009b3a", textoCor: "#ffffff", logo: "/imgs/planos/unimed.png" },
   { nome: "Select", cor: "#8b5cf6", textoCor: "#ffffff", logo: "/imgs/planos/select.png" },
@@ -236,14 +237,10 @@ const LeadCard: React.FC<LeadCardProps> = ({
       data_entrada: lead.data_entrada,
       data_venda: lead.data_venda,
       last_chamado_at: lead.last_chamado_at,
-      tipo_comissao: lead.tipo_comissao || "interno",
       status: lead.status,
     });
     // pré-calcula valor_comissao se ainda não definido
-    const opNome = lead.operadora_ofertada;
-    const tipo = lead.tipo_comissao || "interno";
-    const comInfo = opNome ? commissionMap[opNome] : undefined;
-    const pct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : 100;
+    const pct = getCommissionPct(commissionMap, lead.operadora_ofertada, lead.modalidade);
     if (!lead.valor_comissao && lead.valor_mensalidade) {
       setEditFormData((prev) => ({
         ...prev,
@@ -270,7 +267,6 @@ const LeadCard: React.FC<LeadCardProps> = ({
           id: lead.id,
           ...editFormData,
           valor_comissao: editFormData.valor_comissao ?? null,
-          tipo_comissao: editFormData.tipo_comissao ?? "interno",
           data_venda: editFormData.data_venda ?? null,
           last_chamado_at: editFormData.last_chamado_at ?? null,
         }),
@@ -353,14 +349,11 @@ const LeadCard: React.FC<LeadCardProps> = ({
   const waitTime = getLeadWaitTime(lead);
   const leadInitials = getInitials(lead.nome);
   const monthlyValue = formatCurrency(lead.valor_mensalidade);
-  const commissionInfo = lead.operadora_ofertada
-    ? commissionMap[lead.operadora_ofertada]
-    : undefined;
-  const commissionPct = commissionInfo
-    ? lead.tipo_comissao === "externo"
-      ? commissionInfo.externa
-      : commissionInfo.interna
-    : 100;
+  const commissionPct = getCommissionPct(
+    commissionMap,
+    lead.operadora_ofertada,
+    lead.modalidade
+  );
   const estimatedCommission =
     lead.valor_mensalidade != null
       ? lead.valor_mensalidade * (commissionPct / 100)
@@ -871,47 +864,17 @@ const LeadCard: React.FC<LeadCardProps> = ({
                 </p>
               </div>
 
-              {/* Tipo de comissão */}
-              <div className="space-y-2">
-                <Label>Tipo de Comissão</Label>
-                <div className="flex gap-2">
-                  {(["interno", "externo"] as const).map((tipo) => {
-                    const active = (editFormData.tipo_comissao ?? "interno") === tipo;
-                    const opNome = editFormData.operadora_ofertada;
-                    const comInfo = opNome ? commissionMap[opNome] : undefined;
-                    const pct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : null;
-                    return (
-                      <button
-                        key={tipo}
-                        type="button"
-                        onClick={() => {
-                          const newPct = comInfo ? (tipo === "externo" ? comInfo.externa : comInfo.interna) : 100;
-                          const newValor = editFormData.valor_mensalidade
-                            ? parseFloat((editFormData.valor_mensalidade * (newPct / 100)).toFixed(2))
-                            : editFormData.valor_comissao ?? null;
-                          setEditFormData({ ...editFormData, tipo_comissao: tipo, valor_comissao: newValor });
-                        }}
-                        className={cn(
-                          "flex-1 rounded-xl border-2 py-2 text-xs font-semibold transition-all capitalize",
-                          active
-                            ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-400"
-                            : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
-                        )}
-                      >
-                        {tipo}{pct !== null ? ` (${pct}%)` : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label>Modalidade</Label>
                 <Select
                   value={editFormData.modalidade || ""}
-                  onValueChange={(value) =>
-                    setEditFormData({ ...editFormData, modalidade: value })
-                  }
+                  onValueChange={(value) => {
+                    const pct = getCommissionPct(commissionMap, editFormData.operadora_ofertada, value);
+                    const newValor = editFormData.valor_mensalidade
+                      ? parseFloat((editFormData.valor_mensalidade * (pct / 100)).toFixed(2))
+                      : (editFormData.valor_comissao ?? null);
+                    setEditFormData({ ...editFormData, modalidade: value, valor_comissao: newValor });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -934,9 +897,14 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       key={op.nome}
                       type="button"
                       onClick={() => {
+                        const pct = getCommissionPct(commissionMap, op.nome, editFormData.modalidade);
+                        const newValor = editFormData.valor_mensalidade
+                          ? parseFloat((editFormData.valor_mensalidade * (pct / 100)).toFixed(2))
+                          : (editFormData.valor_comissao ?? null);
                         setEditFormData({
                           ...editFormData,
                           operadora_ofertada: op.nome,
+                          valor_comissao: newValor,
                         });
                         setOperadoraCustom(false);
                       }}
@@ -951,13 +919,19 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       }}
                       title={op.nome}
                     >
-                      <Image
-                        src={op.logo}
-                        alt={op.nome}
-                        width={80}
-                        height={20}
-                        className="h-5 w-auto object-contain"
-                      />
+                      {op.logo ? (
+                        <Image
+                          src={op.logo}
+                          alt={op.nome}
+                          width={80}
+                          height={20}
+                          className="h-5 w-auto object-contain"
+                        />
+                      ) : (
+                        <span className="text-[11px] font-medium" style={{ color: op.cor }}>
+                          {op.nome}
+                        </span>
+                      )}
                     </button>
                   ))}
                   <button

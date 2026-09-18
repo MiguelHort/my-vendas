@@ -6,6 +6,8 @@
  * então comparamos só os últimos 8 dígitos (número do assinante, sem DDD/DDI).
  */
 
+import { prisma } from "@/lib/prisma";
+
 export function onlyDigits(phone: string | null | undefined) {
   return (phone || "").replace(/\D/g, "");
 }
@@ -23,4 +25,26 @@ export function phonesMatch(a: string | null | undefined, b: string | null | und
   const sa = phoneSuffix(a);
   const sb = phoneSuffix(b);
   return sa !== "" && sa === sb;
+}
+
+/**
+ * Marca o lead vinculado a esse `wa_id` como "chamado agora" (`lastChamadoAt`),
+ * igual o botão "Marcar chamado" no funil — chamado automaticamente sempre que
+ * um atendente manda mensagem pro contato pelo inbox do WhatsApp (texto, áudio,
+ * mídia ou modelo). Não lança erro se não achar lead — quem chama decide se
+ * isso deve interromper o envio (normalmente não deve).
+ */
+export async function markLeadChamado(waId: string): Promise<void> {
+  const suffix = phoneSuffix(waId);
+  if (!suffix) return;
+
+  const candidates = await prisma.lead.findMany({
+    where: { telefone: { not: null } },
+    select: { id: true, telefone: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const leadId = candidates.find((l) => phoneSuffix(l.telefone) === suffix)?.id;
+  if (!leadId) return;
+
+  await prisma.lead.update({ where: { id: leadId }, data: { lastChamadoAt: new Date() } });
 }

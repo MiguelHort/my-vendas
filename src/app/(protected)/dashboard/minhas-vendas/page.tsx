@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { OPERADORAS } from "@/components/LeadCard";
 import { formatPhoneNumber } from "@/lib/phoneMask";
+import { buildCommissionMap, getCommissionPct, type CommissionMap } from "@/lib/commissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -71,8 +71,6 @@ const ACOMODACOES = ["Enfermaria", "Apartamento", "Ambulatorial"];
 const COPARTICIPACOES = ["Total", "Parcial", "Isenta"];
 const OPERADORA_NOMES = OPERADORAS.map((o) => o.nome);
 
-type CommissionMap = Record<string, { interna: number; externa: number }>;
-
 type ImportedLead = {
   nome: string;
   telefone: string;
@@ -86,7 +84,6 @@ type ImportedLead = {
   valor_comissao: string;
   operadora_ofertada: string;
   modalidade: string;
-  tipo_comissao: "interno" | "externo";
 };
 
 type View = "choice" | "manual" | "upload" | "preview";
@@ -117,7 +114,6 @@ export default function MinhasVendasPage() {
   const [qtdVidas, setQtdVidas] = useState("");
   const [idades, setIdades] = useState("");
   const [operadoraOfertada, setOperadoraOfertada] = useState("");
-  const [tipoComissao, setTipoComissao] = useState<"interno" | "externo">("interno");
   const [modalidade, setModalidade] = useState("");
   const [acomodacao, setAcomodacao] = useState("");
   const [valorMensalidade, setValorMensalidade] = useState("");
@@ -139,12 +135,8 @@ export default function MinhasVendasPage() {
     });
     fetch(`/api/configuracoes/comissoes?${params}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: { operadora: string; comissao_interna: number; comissao_externa: number }[]) => {
-        const map: CommissionMap = {};
-        data.forEach((r) => {
-          map[r.operadora] = { interna: r.comissao_interna, externa: r.comissao_externa };
-        });
-        setCommissionMap(map);
+      .then((data: { operadora: string; modalidade: string; percentual: number }[]) => {
+        setCommissionMap(buildCommissionMap(data));
       })
       .catch(() => {});
   }, [firebaseUser]);
@@ -154,22 +146,17 @@ export default function MinhasVendasPage() {
   // ========================
 
   useEffect(() => {
-    if (!operadoraOfertada || !valorMensalidade) return;
-    const comInfo = commissionMap[operadoraOfertada];
-    if (!comInfo) return;
-    const pct = tipoComissao === "externo" ? comInfo.externa : comInfo.interna;
+    if (!operadoraOfertada || !modalidade || !valorMensalidade) return;
+    const pct = getCommissionPct(commissionMap, operadoraOfertada, modalidade);
     const mensalidade = parseFloat(valorMensalidade);
     if (isNaN(mensalidade) || mensalidade <= 0) return;
     setValorComissao(String(parseFloat((mensalidade * (pct / 100)).toFixed(2))));
     setComissaoAutoCalc(true);
-  }, [operadoraOfertada, valorMensalidade, tipoComissao, commissionMap]);
+  }, [operadoraOfertada, modalidade, valorMensalidade, commissionMap]);
 
-  const pctVigente = (() => {
-    if (!operadoraOfertada) return null;
-    const comInfo = commissionMap[operadoraOfertada];
-    if (!comInfo) return null;
-    return tipoComissao === "externo" ? comInfo.externa : comInfo.interna;
-  })();
+  const pctVigente = operadoraOfertada && modalidade
+    ? getCommissionPct(commissionMap, operadoraOfertada, modalidade)
+    : null;
 
   // ========================
   // UPLOAD + GEMINI
@@ -224,7 +211,6 @@ export default function MinhasVendasPage() {
           ? String(l.operadora_ofertada)
           : "",
         modalidade: MODALIDADES.includes(String(l.modalidade ?? "")) ? String(l.modalidade) : "",
-        tipo_comissao: l.tipo_comissao === "externo" ? "externo" : "interno",
       }));
 
       setImportedLeads(normalized);
@@ -295,7 +281,6 @@ export default function MinhasVendasPage() {
         valor_comissao: l.valor_comissao ? parseFloat(l.valor_comissao) : null,
         operadora_ofertada: l.operadora_ofertada || null,
         modalidade: l.modalidade || null,
-        tipo_comissao: l.tipo_comissao,
       }));
 
       const res = await fetch(`/api/leads/bulk?${params}`, {
@@ -346,7 +331,6 @@ export default function MinhasVendasPage() {
           status: "Concluído",
           data_venda: dataVenda ? new Date(dataVenda + "T00:00:00").toISOString() : null,
           valor_comissao: valorComissao ? parseFloat(valorComissao) : null,
-          tipo_comissao: tipoComissao,
           operadora_ofertada: operadoraOfertada || null,
           modalidade: modalidade || null,
           acomodacao: acomodacao || null,
@@ -734,27 +718,20 @@ export default function MinhasVendasPage() {
                       return (
                         <button key={op.nome} type="button" onClick={() => setOperadoraOfertada(selected ? "" : op.nome)}
                           className={`flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-all ${selected ? "border-primary ring-1 ring-primary bg-primary/5" : "border-border hover:border-muted-foreground/50"}`}>
-                          <div className="relative h-6 w-12">
-                            <Image src={op.logo} alt={op.nome} fill className="object-contain" />
+                          <div className="relative h-6 w-12 flex items-center justify-center">
+                            {op.logo ? (
+                              <Image src={op.logo} alt={op.nome} fill className="object-contain" />
+                            ) : (
+                              <span className="text-[9px] font-medium" style={{ color: op.cor }}>
+                                {op.nome}
+                              </span>
+                            )}
                           </div>
                           <span className="text-[10px] text-center leading-tight text-muted-foreground">{op.nome}</span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo de comissão</Label>
-                  <RadioGroup value={tipoComissao} onValueChange={(v) => setTipoComissao(v as "interno" | "externo")} className="flex gap-6">
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="interno" id="tipo-interno" />
-                      <Label htmlFor="tipo-interno" className="cursor-pointer font-normal">Interno</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="externo" id="tipo-externo" />
-                      <Label htmlFor="tipo-externo" className="cursor-pointer font-normal">Externo</Label>
-                    </div>
-                  </RadioGroup>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">

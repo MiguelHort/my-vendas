@@ -43,12 +43,13 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { OPERADORAS } from "@/components/LeadCard";
+import { MODALIDADES } from "@/lib/commissions";
 
 type CommissionRow = {
   id: string;
   operadora: string;
-  comissao_interna: number;
-  comissao_externa: number;
+  modalidade: string;
+  percentual: number;
 };
 
 type Profile = {
@@ -68,34 +69,29 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-// ─── Aba Comissões (conteúdo original) ───────────────────────────────────────
+// ─── Aba Comissões — percentual por operadora × modalidade ───────────────────
+
+function commissionKey(operadora: string, modalidade: string) {
+  return `${operadora}|${modalidade}`;
+}
 
 function CommissionsTab({ authParams, readOnly }: { authParams: URLSearchParams; readOnly: boolean }) {
-  const [rows, setRows] = React.useState<CommissionRow[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [draft, setDraft] = React.useState<
-    Record<string, { interna: string; externa: string }>
-  >({});
+  const [draft, setDraft] = React.useState<Record<string, string>>({});
   const debouncedDraft = useDebounce(draft, 600);
-  const savedRef = React.useRef<Record<string, { interna: number; externa: number }>>({});
+  const savedRef = React.useRef<Record<string, number>>({});
 
   React.useEffect(() => {
     setLoading(true);
     fetch(`/api/configuracoes/comissoes?${authParams}`)
       .then((r) => r.json())
       .then((data: CommissionRow[]) => {
-        setRows(data);
-        const initial: Record<string, { interna: string; externa: string }> = {};
-        const saved: Record<string, { interna: number; externa: number }> = {};
+        const initial: Record<string, string> = {};
+        const saved: Record<string, number> = {};
         data.forEach((r) => {
-          initial[r.operadora] = {
-            interna: String(r.comissao_interna),
-            externa: String(r.comissao_externa),
-          };
-          saved[r.operadora] = {
-            interna: r.comissao_interna,
-            externa: r.comissao_externa,
-          };
+          const key = commissionKey(r.operadora, r.modalidade);
+          initial[key] = String(r.percentual);
+          saved[key] = r.percentual;
         });
         setDraft(initial);
         savedRef.current = saved;
@@ -107,49 +103,28 @@ function CommissionsTab({ authParams, readOnly }: { authParams: URLSearchParams;
   React.useEffect(() => {
     if (readOnly) return;
     if (Object.keys(debouncedDraft).length === 0) return;
-    for (const operadora of Object.keys(debouncedDraft)) {
-      const d = debouncedDraft[operadora];
-      const interna = parseFloat(d.interna);
-      const externa = parseFloat(d.externa);
-      if (isNaN(interna) || isNaN(externa)) continue;
-      const prev = savedRef.current[operadora];
-      if (prev && prev.interna === interna && prev.externa === externa) continue;
+    for (const key of Object.keys(debouncedDraft)) {
+      const percentual = parseFloat(debouncedDraft[key]);
+      if (isNaN(percentual)) continue;
+      if (savedRef.current[key] === percentual) continue;
+      const [operadora, modalidade] = key.split("|");
       fetch(`/api/configuracoes/comissoes?${authParams}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operadora, comissao_interna: interna, comissao_externa: externa }),
+        body: JSON.stringify({ operadora, modalidade, percentual }),
       })
         .then((r) => r.json())
         .then((updated: CommissionRow) => {
-          savedRef.current[operadora] = {
-            interna: updated.comissao_interna,
-            externa: updated.comissao_externa,
-          };
-          setRows((prev) =>
-            prev.map((r) => (r.operadora === operadora ? updated : r))
-          );
+          savedRef.current[key] = updated.percentual;
         })
-        .catch(() => toast.error(`Erro ao salvar ${operadora}`));
+        .catch(() => toast.error(`Erro ao salvar ${operadora} · ${modalidade}`));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedDraft]);
 
-  const setField = (operadora: string, field: "interna" | "externa", value: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      [operadora]: { ...prev[operadora], [field]: value },
-    }));
+  const setField = (operadora: string, modalidade: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [commissionKey(operadora, modalidade)]: value }));
   };
-
-  const displayRows = OPERADORAS.map((op) => {
-    const found = rows.find((r) => r.operadora === op.nome);
-    return {
-      operadora: op.nome,
-      logo: op.logo,
-      comissao_interna: found?.comissao_interna ?? 100,
-      comissao_externa: found?.comissao_externa ?? 100,
-    };
-  });
 
   if (loading) {
     return (
@@ -161,65 +136,66 @@ function CommissionsTab({ authParams, readOnly }: { authParams: URLSearchParams;
     );
   }
 
+  const gridTemplate = `1fr repeat(${MODALIDADES.length}, 6rem)`;
+
   return (
     <>
-      <div className="rounded-2xl border overflow-hidden shadow-sm">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2.5 bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          <span>Operadora</span>
-          <span className="w-28 text-center">Interna (%)</span>
-          <span className="w-28 text-center">Externa (%)</span>
-        </div>
+      <div className="overflow-x-auto">
+        <div className="rounded-2xl border overflow-hidden shadow-sm min-w-[560px]">
+          <div
+            className="grid gap-4 px-4 py-2.5 bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+            style={{ gridTemplateColumns: gridTemplate }}
+          >
+            <span>Operadora</span>
+            {MODALIDADES.map((m) => (
+              <span key={m} className="text-center">{m}</span>
+            ))}
+          </div>
 
-        {displayRows.map((row, i) => {
-          const d = draft[row.operadora] ?? {
-            interna: String(row.comissao_interna),
-            externa: String(row.comissao_externa),
-          };
-          return (
+          {OPERADORAS.map((op, i) => (
             <div
-              key={row.operadora}
-              className={`grid grid-cols-[1fr_auto_auto] gap-4 items-center px-4 py-3 ${
-                i !== displayRows.length - 1 ? "border-b" : ""
+              key={op.nome}
+              className={`grid gap-4 items-center px-4 py-3 ${
+                i !== OPERADORAS.length - 1 ? "border-b" : ""
               }`}
+              style={{ gridTemplateColumns: gridTemplate }}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Image
-                  src={row.logo}
-                  alt={row.operadora}
-                  width={80}
-                  height={24}
-                  className="h-6 w-auto object-contain shrink-0"
-                />
+                {op.logo ? (
+                  <Image
+                    src={op.logo}
+                    alt={op.nome}
+                    width={80}
+                    height={24}
+                    className="h-6 w-auto object-contain shrink-0"
+                  />
+                ) : (
+                  <span className="text-sm font-medium truncate" style={{ color: op.cor }}>
+                    {op.nome}
+                  </span>
+                )}
               </div>
-              <div className="relative w-28">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={d.interna}
-                  onChange={(e) => setField(row.operadora, "interna", e.target.value)}
-                  disabled={readOnly}
-                  className="pr-7 text-sm text-right rounded-xl h-9 disabled:opacity-80"
-                />
-                <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              </div>
-              <div className="relative w-28">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={d.externa}
-                  onChange={(e) => setField(row.operadora, "externa", e.target.value)}
-                  disabled={readOnly}
-                  className="pr-7 text-sm text-right rounded-xl h-9 disabled:opacity-80"
-                />
-                <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              </div>
+              {MODALIDADES.map((modalidade) => {
+                const key = commissionKey(op.nome, modalidade);
+                const value = draft[key] ?? "100";
+                return (
+                  <div key={modalidade} className="relative w-24">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={value}
+                      onChange={(e) => setField(op.nome, modalidade, e.target.value)}
+                      disabled={readOnly}
+                      className="pr-6 text-sm text-right rounded-xl h-9 disabled:opacity-80"
+                    />
+                    <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
       <p className="mt-3 text-xs text-muted-foreground text-right">
         {readOnly
@@ -396,7 +372,7 @@ function MyAccountTab({ token }: { token: string }) {
         </div>
         <div className="px-4 py-4 flex items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            Baixe uma cópia completa de todos os seus dados em formato JSON — comissões e configurações.
+            Baixe uma cópia completa dos seus dados de perfil em formato JSON.
           </p>
           <Button variant="outline" size="sm" onClick={handleExport} className="shrink-0 gap-1.5">
             <Download className="h-3.5 w-3.5" />
@@ -428,9 +404,9 @@ function MyAccountTab({ token }: { token: string }) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Excluir conta permanentemente?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Todos os seus dados — configurações e comissões —
-                  serão removidos definitivamente. Esta ação não pode ser desfeita. Leads são
-                  compartilhados pela equipe e não são afetados.
+                  Todos os seus dados de perfil serão removidos definitivamente. Esta ação não
+                  pode ser desfeita. Leads e comissões são compartilhados pela equipe e não são
+                  afetados.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -534,8 +510,8 @@ export default function ConfiguracoesPage() {
           <TabsContent value="comissoes">
             <p className="text-sm text-muted-foreground mb-6">
               {isAdmin
-                ? "Defina as porcentagens de comissão interna e externa para cada operadora. As alterações são salvas automaticamente."
-                : "Porcentagens de comissão interna e externa definidas para cada operadora."}
+                ? "Defina o percentual de comissão de cada operadora por modalidade. As alterações são salvas automaticamente."
+                : "Percentual de comissão de cada operadora por modalidade."}
             </p>
             {authParams && <CommissionsTab authParams={authParams} readOnly={!isAdmin} />}
           </TabsContent>

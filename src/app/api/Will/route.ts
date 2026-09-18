@@ -38,7 +38,6 @@ type LeadRow = {
   modalidade: string | null;
   acomodacao: string | null;
   qtdVidas: number;
-  tipoComissao: string;
   telefone: string | null;
   tags: string[];
 };
@@ -331,7 +330,6 @@ export async function POST(req: NextRequest) {
           modalidade: true,
           acomodacao: true,
           qtdVidas: true,
-          tipoComissao: true,
           telefone: true,
           tags: { select: { tag: { select: { name: true } } } },
         },
@@ -395,7 +393,6 @@ export async function POST(req: NextRequest) {
       modalidade: r.modalidade,
       acomodacao: r.acomodacao,
       qtdVidas: r.qtdVidas,
-      tipoComissao: r.tipoComissao,
       telefone: r.telefone,
       tags: r.tags.map((t) => t.tag.name),
     }));

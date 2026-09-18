@@ -51,7 +51,6 @@ export async function GET(req: NextRequest) {
       data_venda: l.dataVenda ? l.dataVenda.toISOString() : null,
       last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
-      tipo_comissao: l.tipoComissao,
     }));
 
     return NextResponse.json(payload);
@@ -97,7 +96,6 @@ export async function POST(req: NextRequest) {
     valor_mensalidade,
     coparticipacao,
     status,
-    tipo_comissao,
     valor_comissao,
     data_venda,
     last_chamado_at,
@@ -152,7 +150,6 @@ export async function POST(req: NextRequest) {
             : null,
         dataVenda: data_venda ? new Date(data_venda) : null,
         lastChamadoAt: last_chamado_at ? new Date(last_chamado_at) : null,
-        tipoComissao: tipo_comissao || "interno",
         retornarEm: retornar_em ? new Date(retornar_em) : null,
       },
     });

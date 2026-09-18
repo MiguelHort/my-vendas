@@ -17,7 +17,6 @@ type LeadInput = {
   valor_mensalidade?: number | null;
   operadora_ofertada?: string | null;
   modalidade?: string | null;
-  tipo_comissao?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -67,7 +66,6 @@ export async function POST(req: NextRequest) {
               l.valor_mensalidade != null ? Number(l.valor_mensalidade) : null,
             operadoraOfertada: l.operadora_ofertada || null,
             modalidade: l.modalidade || null,
-            tipoComissao: l.tipo_comissao || "interno",
           },
         })
       )

@@ -26,7 +26,6 @@ Retorne um JSON array. Cada objeto deve ter exatamente estes campos:
 - valor_comissao: número decimal ou null (valor da comissão recebida em reais)
 - operadora_ofertada: um de ${JSON.stringify(OPERADORAS_VALIDAS)} ou null
 - modalidade: um de ["PF", "Adesão", "Empresarial", "PME"] ou null
-- tipo_comissao: "interno" ou "externo" (padrão "interno")
 
 Regras:
 - Tente mapear os nomes das colunas da planilha para os campos acima de forma inteligente

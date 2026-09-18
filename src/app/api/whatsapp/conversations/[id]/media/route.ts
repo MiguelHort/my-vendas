@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppDocument, sendWhatsAppImage, uploadWhatsAppMedia } from "@/lib/whatsapp";
 import { interruptQuizIfActive } from "@/lib/quiz/store";
+import { markLeadChamado } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +90,7 @@ export async function POST(
     });
 
     await interruptQuizIfActive(id);
+    await markLeadChamado(conversation.waId);
 
     return NextResponse.json({
       message: {

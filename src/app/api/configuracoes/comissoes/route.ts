@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
+import { MODALIDADES } from "@/lib/commissions";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,7 @@ const OPERADORAS_DEFAULT = [
   "Hapvida",
   "LevMed",
   "Nossa Saúde",
+  "Pladisa",
   "SulAmérica",
   "Unimed",
   "Select",
@@ -26,6 +28,10 @@ function getAuthParams(req: NextRequest) {
   };
 }
 
+/**
+ * Comissão global por operadora + modalidade (PF/PME/Adesão/Empresarial) —
+ * não é mais por usuário nem interno/externo (removido em 2026-09-18).
+ */
 export async function GET(req: NextRequest) {
   const { firebaseUid, email, name } = getAuthParams(req);
   if (!firebaseUid || !email) {
@@ -33,43 +39,41 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await getOrCreateUserByFirebaseUid({
+    await getOrCreateUserByFirebaseUid({
       firebaseUid,
       email,
       name: name || undefined,
     });
 
-    const existing = await prisma.planCommission.findMany({
-      where: { userId: user.id },
-    });
+    const existing = await prisma.commissionRate.findMany();
+    const existingKeys = new Set(existing.map((r) => `${r.operadora}|${r.modalidade}`));
 
-    const existingMap = new Map(existing.map((r) => [r.operadora, r]));
-
-    // Garante que todas as operadoras existam (upsert lazy)
-    const missing = OPERADORAS_DEFAULT.filter((op) => !existingMap.has(op));
+    // Garante que toda combinação operadora×modalidade exista (upsert lazy).
+    const missing: { operadora: string; modalidade: string }[] = [];
+    for (const operadora of OPERADORAS_DEFAULT) {
+      for (const modalidade of MODALIDADES) {
+        if (!existingKeys.has(`${operadora}|${modalidade}`)) {
+          missing.push({ operadora, modalidade });
+        }
+      }
+    }
     if (missing.length > 0) {
-      await prisma.planCommission.createMany({
-        data: missing.map((op) => ({
-          userId: user.id,
-          operadora: op,
-          comissaoInterna: 100,
-          comissaoExterna: 100,
-        })),
+      await prisma.commissionRate.createMany({
+        data: missing.map((m) => ({ operadora: m.operadora, modalidade: m.modalidade, percentual: 100 })),
         skipDuplicates: true,
       });
     }
 
-    const all = await prisma.planCommission.findMany({
-      where: { userId: user.id },
-      orderBy: { operadora: "asc" },
+    const all = await prisma.commissionRate.findMany({
+      orderBy: [{ operadora: "asc" }, { modalidade: "asc" }],
     });
 
     return NextResponse.json(
       all.map((r) => ({
         id: r.id,
         operadora: r.operadora,
-        comissao_interna: Number(r.comissaoInterna),
-        comissao_externa: Number(r.comissaoExterna),
+        modalidade: r.modalidade,
+        percentual: Number(r.percentual),
       }))
     );
   } catch (e) {
@@ -85,11 +89,11 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  if (!body || !body.operadora) {
+  if (!body || !body.operadora || !body.modalidade) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
 
-  const { operadora, comissao_interna, comissao_externa } = body;
+  const { operadora, modalidade, percentual } = body;
 
   try {
     const user = await getOrCreateUserByFirebaseUid({
@@ -102,29 +106,23 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     }
 
-    const updated = await prisma.planCommission.upsert({
-      where: { userId_operadora: { userId: user.id, operadora } },
+    const updated = await prisma.commissionRate.upsert({
+      where: { operadora_modalidade: { operadora, modalidade } },
       update: {
-        ...(comissao_interna !== undefined && {
-          comissaoInterna: Number(comissao_interna),
-        }),
-        ...(comissao_externa !== undefined && {
-          comissaoExterna: Number(comissao_externa),
-        }),
+        ...(percentual !== undefined && { percentual: Number(percentual) }),
       },
       create: {
-        userId: user.id,
         operadora,
-        comissaoInterna: comissao_interna !== undefined ? Number(comissao_interna) : 100,
-        comissaoExterna: comissao_externa !== undefined ? Number(comissao_externa) : 100,
+        modalidade,
+        percentual: percentual !== undefined ? Number(percentual) : 100,
       },
     });
 
     return NextResponse.json({
       id: updated.id,
       operadora: updated.operadora,
-      comissao_interna: Number(updated.comissaoInterna),
-      comissao_externa: Number(updated.comissaoExterna),
+      modalidade: updated.modalidade,
+      percentual: Number(updated.percentual),
     });
   } catch (e) {
     console.error(e);

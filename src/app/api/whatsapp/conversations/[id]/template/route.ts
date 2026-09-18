@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppTemplate, WhatsAppSendError, type WhatsAppTemplateParam } from "@/lib/whatsapp";
 import { interruptQuizIfActive } from "@/lib/quiz/store";
+import { markLeadChamado } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,8 +66,10 @@ export async function POST(
       data: { lastMessageAt: timestamp, lastMessagePreview: previewText },
     });
 
-    // Atendente humano respondeu → interrompe o quiz, se estiver rolando.
+    // Atendente humano respondeu → interrompe o quiz, se estiver rolando, e
+    // marca o lead vinculado como "chamado agora" (igual o botão do funil).
     await interruptQuizIfActive(id);
+    await markLeadChamado(conversation.waId);
 
     return NextResponse.json({
       message: {

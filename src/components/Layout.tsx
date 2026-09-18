@@ -8,7 +8,6 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import {
   LayoutDashboard,
   Workflow,
-  Plus,
   MapPinned,
   UserStar,
   LogOut,
@@ -24,7 +23,6 @@ import {
 
 import { auth } from "@/lib/firebase";
 
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -523,15 +521,6 @@ export function Layout({ children, fullWidth = false }: LayoutProps) {
               })}
             </BreadcrumbList>
           </Breadcrumb>
-
-          <div className="ml-auto">
-            <Button asChild size="sm" className="rounded-full gap-2 shadow-sm">
-              <Link href="/dashboard/novo-lead">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Novo Lead</span>
-              </Link>
-            </Button>
-          </div>
         </header>
 
         {/* ===== CONTENT ===== */}

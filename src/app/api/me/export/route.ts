@@ -15,13 +15,12 @@ export async function GET(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { firebaseUid: decoded.uid },
-      include: {
-        planCommissions: true,
-      },
     });
 
     if (!user) return NextResponse.json({ ok: false }, { status: 404 });
 
+    // As comissões deixaram de ser por usuário (agora são globais, por
+    // operadora + modalidade) — não fazem mais parte do "meus dados" pessoais.
     const exportData = {
       exportedAt: new Date().toISOString(),
       profile: {
@@ -31,7 +30,6 @@ export async function GET(req: NextRequest) {
         createdAt: user.createdAt,
         role: user.role,
       },
-      comissoes: user.planCommissions,
     };
 
     return new NextResponse(JSON.stringify(exportData, null, 2), {

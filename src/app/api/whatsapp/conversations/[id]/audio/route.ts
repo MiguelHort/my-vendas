@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/authServer";
 import { sendWhatsAppAudio, uploadWhatsAppMedia } from "@/lib/whatsapp";
 import { transcodeToOggOpus } from "@/lib/audioTranscode";
 import { interruptQuizIfActive } from "@/lib/quiz/store";
+import { markLeadChamado } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ export async function POST(
     });
 
     await interruptQuizIfActive(id);
+    await markLeadChamado(conversation.waId);
 
     return NextResponse.json({
       message: {

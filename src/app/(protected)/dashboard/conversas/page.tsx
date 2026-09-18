@@ -61,6 +61,7 @@ import {
   ClipboardList,
   CircleDot,
   FileStack,
+  UserPlus,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { NECESSIDADE_PRINCIPAL_LABEL } from "@/lib/quiz/definition";
@@ -274,6 +275,13 @@ export default function ConversasPage() {
   const [templateParamValues, setTemplateParamValues] = useState<string[]>([]);
   const [sendingTemplate, setSendingTemplate] = useState(false);
 
+  const [newContactModalOpen, setNewContactModalOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
+  const [newContactTemplateId, setNewContactTemplateId] = useState("");
+  const [newContactParamValues, setNewContactParamValues] = useState<string[]>([]);
+  const [sendingNewContact, setSendingNewContact] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -287,6 +295,9 @@ export default function ConversasPage() {
   const [imageCaption, setImageCaption] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Só rola pro fim sozinho se o usuário já estava perto do fim — assim ler o
+  // histórico pra cima não é interrompido pelo polling trazendo mensagens de novo.
+  const isNearBottomRef = useRef(true);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
 
@@ -459,6 +470,7 @@ export default function ConversasPage() {
       setQuizModalOpen(false);
       return;
     }
+    isNearBottomRef.current = true; // abrindo a conversa: sempre começa no fim
     setLoadingMessages(true);
     fetchMessages(selectedId).finally(() => setLoadingMessages(false));
     fetchLeadInfo(selectedId); // só na abertura — não precisa de polling
@@ -483,8 +495,16 @@ export default function ConversasPage() {
   }, [selectedId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
+
+  function handleMessagesScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < 120;
+  }
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -599,6 +619,86 @@ export default function ConversasPage() {
       toast.error(err instanceof Error ? err.message : "Não foi possível enviar o modelo");
     } finally {
       setSendingTemplate(false);
+    }
+  }
+
+  // ── Iniciar conversa com um contato novo ──────────────────
+  // A Meta só aceita Message Template pra falar com quem nunca te mandou
+  // mensagem antes — mesma regra da janela de 24h (ver lib/whatsapp.ts).
+
+  const newContactTemplate = useMemo(
+    () => templates.find((t) => t.id === newContactTemplateId) ?? null,
+    [templates, newContactTemplateId]
+  );
+
+  const newContactPreview = useMemo(() => {
+    if (!newContactTemplate?.body_text) return "";
+    let text = newContactTemplate.body_text;
+    newContactTemplate.param_tokens.forEach((token, i) => {
+      const value = newContactParamValues[i]?.trim() || `{{${token}}}`;
+      text = text.replace(`{{${token}}}`, value);
+    });
+    return text;
+  }, [newContactTemplate, newContactParamValues]);
+
+  function openNewContactModal() {
+    setNewContactName("");
+    setNewContactPhone("");
+    setNewContactTemplateId(templates[0]?.id ?? "");
+    setNewContactParamValues(templates[0] ? Array(templates[0].param_tokens.length).fill("") : []);
+    setNewContactModalOpen(true);
+  }
+
+  function handleSelectNewContactTemplate(templateId: string) {
+    setNewContactTemplateId(templateId);
+    const t = templates.find((x) => x.id === templateId);
+    setNewContactParamValues(t ? Array(t.param_tokens.length).fill("") : []);
+  }
+
+  async function handleStartConversation() {
+    if (!newContactTemplate || sendingNewContact) return;
+    const digits = newContactPhone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("Digite um telefone válido, com DDD");
+      return;
+    }
+
+    setSendingNewContact(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+
+      const bodyParams = newContactTemplate.param_tokens.map((token, i) => ({
+        ...(newContactTemplate.params_are_named ? { name: token } : {}),
+        value: newContactParamValues[i]?.trim() || "",
+      }));
+
+      const res = await fetch("/api/whatsapp/contacts", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: digits,
+          contact_name: newContactName.trim() || null,
+          template_name: newContactTemplate.name,
+          language: newContactTemplate.language,
+          body_params: bodyParams,
+          preview_text: newContactPreview,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao iniciar conversa");
+
+      toast.success(
+        data.already_existed ? "Já existia uma conversa com esse número — abrindo ela." : "Conversa iniciada!"
+      );
+      setNewContactModalOpen(false);
+      await fetchConversations();
+      setSelectedId(data.conversation.id);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Não foi possível iniciar a conversa");
+    } finally {
+      setSendingNewContact(false);
     }
   }
 
@@ -906,10 +1006,25 @@ export default function ConversasPage() {
             <div className="h-9 w-9 rounded-full bg-[#00a884] flex items-center justify-center">
               <WhatsAppIcon className="size-4 text-white" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm leading-tight">Conversas</p>
               <p className="text-[11px] text-muted-foreground leading-tight">WhatsApp da equipe</p>
             </div>
+            <span
+              className="shrink-0 inline-flex items-center rounded-full bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+              title="Total de conversas"
+            >
+              {conversations.length} {conversations.length === 1 ? "conversa" : "conversas"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+              title="Adicionar contato"
+              onClick={openNewContactModal}
+            >
+              <UserPlus className="size-4" />
+            </Button>
           </div>
 
           <div className="shrink-0 px-3 py-2 border-b border-border bg-background space-y-2">
@@ -1237,6 +1352,7 @@ export default function ConversasPage() {
               </div>
 
               <div
+                onScroll={handleMessagesScroll}
                 className="flex-1 overflow-y-auto px-4 md:px-10 py-4 space-y-1"
                 style={{
                   backgroundImage:
@@ -1656,50 +1772,21 @@ export default function ConversasPage() {
               Nenhum modelo aprovado encontrado na conta.
             </p>
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Modelo</label>
-                <Select value={selectedTemplateId} onValueChange={handleSelectTemplate}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um modelo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name} · {t.language}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedTemplate?.param_tokens.map((token, i) => (
-                <div key={`${token}-${i}`} className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    {selectedTemplate.params_are_named ? token : `Variável ${token}`}
-                  </label>
-                  <Input
-                    value={templateParamValues[i] ?? ""}
-                    onChange={(e) =>
-                      setTemplateParamValues((prev) => {
-                        const next = [...prev];
-                        next[i] = e.target.value;
-                        return next;
-                      })
-                    }
-                  />
-                </div>
-              ))}
-
-              {templatePreview && (
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Pré-visualização
-                  </p>
-                  <p className="text-sm whitespace-pre-wrap">{templatePreview}</p>
-                </div>
-              )}
-            </div>
+            <TemplatePickerFields
+              templates={templates}
+              selectedTemplateId={selectedTemplateId}
+              onSelectTemplate={handleSelectTemplate}
+              selectedTemplate={selectedTemplate}
+              paramValues={templateParamValues}
+              onParamChange={(i, value) =>
+                setTemplateParamValues((prev) => {
+                  const next = [...prev];
+                  next[i] = value;
+                  return next;
+                })
+              }
+              preview={templatePreview}
+            />
           )}
 
           <DialogFooter>
@@ -1709,6 +1796,82 @@ export default function ConversasPage() {
             <Button onClick={handleSendTemplate} disabled={!selectedTemplate || sendingTemplate}>
               {sendingTemplate ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal de novo contato (inicia conversa com template) ── */}
+      <Dialog open={newContactModalOpen} onOpenChange={setNewContactModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <UserPlus className="size-5" />
+              <DialogTitle>Adicionar contato</DialogTitle>
+            </div>
+            <DialogDescription>
+              Manda um modelo aprovado pra iniciar uma conversa com um número que ainda não
+              falou com a gente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Nome (opcional)</label>
+              <Input
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="Como você conhece esse contato"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Telefone</label>
+              <Input
+                value={newContactPhone}
+                onChange={(e) => setNewContactPhone(formatPhoneNumber(e.target.value))}
+                placeholder="(47) 99999-9999"
+              />
+            </div>
+
+            {templates.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                Nenhum modelo aprovado encontrado na conta.
+              </p>
+            ) : (
+              <TemplatePickerFields
+                templates={templates}
+                selectedTemplateId={newContactTemplateId}
+                onSelectTemplate={handleSelectNewContactTemplate}
+                selectedTemplate={newContactTemplate}
+                paramValues={newContactParamValues}
+                onParamChange={(i, value) =>
+                  setNewContactParamValues((prev) => {
+                    const next = [...prev];
+                    next[i] = value;
+                    return next;
+                  })
+                }
+                preview={newContactPreview}
+              />
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewContactModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleStartConversation}
+              disabled={!newContactTemplate || sendingNewContact}
+            >
+              {sendingNewContact ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              Iniciar conversa
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1765,6 +1928,64 @@ export default function ConversasPage() {
         </DialogContent>
       </Dialog>
     </Layout>
+  );
+}
+
+/** Seletor de modelo + campos de variável + pré-visualização — usado tanto pra
+ * mandar modelo numa conversa aberta quanto pra iniciar uma conversa nova. */
+function TemplatePickerFields({
+  templates,
+  selectedTemplateId,
+  onSelectTemplate,
+  selectedTemplate,
+  paramValues,
+  onParamChange,
+  preview,
+}: {
+  templates: WhatsAppTemplate[];
+  selectedTemplateId: string;
+  onSelectTemplate: (id: string) => void;
+  selectedTemplate: WhatsAppTemplate | null;
+  paramValues: string[];
+  onParamChange: (index: number, value: string) => void;
+  preview: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground">Modelo</label>
+        <Select value={selectedTemplateId} onValueChange={onSelectTemplate}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Selecione um modelo" />
+          </SelectTrigger>
+          <SelectContent>
+            {templates.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name} · {t.language}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedTemplate?.param_tokens.map((token, i) => (
+        <div key={`${token}-${i}`} className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            {selectedTemplate.params_are_named ? token : `Variável ${token}`}
+          </label>
+          <Input value={paramValues[i] ?? ""} onChange={(e) => onParamChange(i, e.target.value)} />
+        </div>
+      ))}
+
+      {preview && (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+            Pré-visualização
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{preview}</p>
+        </div>
+      )}
+    </div>
   );
 }
 

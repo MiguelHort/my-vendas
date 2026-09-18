@@ -81,7 +81,6 @@ const NovoLeadPage = () => {
   const [tempoPlanoAnterior, setTempoPlanoAnterior] = useState("");
 
   // Step 3 — Proposta (opcional)
-  const [tipoComissao, setTipoComissao] = useState<"interno" | "externo">("interno");
   const [modalidade, setModalidade] = useState("");
   const [operadoraOfertada, setOperadoraOfertada] = useState("");
   const [operadoraCustom, setOperadoraCustom] = useState(false);
@@ -150,7 +149,6 @@ const NovoLeadPage = () => {
           acomodacao: acomodacao || null,
           valor_mensalidade: valorMensalidade ? parseFloat(valorMensalidade) : null,
           coparticipacao: coparticipacao || null,
-          tipo_comissao: tipoComissao,
           status: "Backlog",
         }),
       });
@@ -424,28 +422,6 @@ const NovoLeadPage = () => {
             {currentStep === 3 && (
               <div className="space-y-4">
 
-                {/* Tipo de comissão */}
-                <div className="space-y-2">
-                  <Label>Tipo de Comissão</Label>
-                  <div className="flex gap-2">
-                    {(["interno", "externo"] as const).map((tipo) => (
-                      <button
-                        key={tipo}
-                        type="button"
-                        onClick={() => setTipoComissao(tipo)}
-                        className="flex-1 rounded-xl border-2 py-2.5 text-sm font-semibold transition-all capitalize"
-                        style={{
-                          borderColor: tipoComissao === tipo ? "#8b5cf6" : "transparent",
-                          backgroundColor: tipoComissao === tipo ? "#8b5cf620" : "#f3f4f6",
-                          color: tipoComissao === tipo ? "#7c3aed" : "#6b7280",
-                        }}
-                      >
-                        {tipo}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Modalidade</Label>
@@ -499,13 +475,19 @@ const NovoLeadPage = () => {
                         }}
                         title={op.nome}
                       >
-                        <Image
-                          src={op.logo}
-                          alt={op.nome}
-                          width={80}
-                          height={20}
-                          className="h-5 w-auto object-contain"
-                        />
+                        {op.logo ? (
+                          <Image
+                            src={op.logo}
+                            alt={op.nome}
+                            width={80}
+                            height={20}
+                            className="h-5 w-auto object-contain"
+                          />
+                        ) : (
+                          <span className="text-xs font-medium" style={{ color: op.cor }}>
+                            {op.nome}
+                          </span>
+                        )}
                       </button>
                     ))}
                     <button
