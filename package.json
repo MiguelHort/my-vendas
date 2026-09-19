@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "upload:planos": "tsx scripts/upload-planos-gemini.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "px:sync": "tsx scripts/px-sync.ts",
     "reset:quiz": "tsx scripts/reset-quiz-contato.ts"
   },
   "dependencies": {
