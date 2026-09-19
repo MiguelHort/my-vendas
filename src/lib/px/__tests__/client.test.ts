@@ -84,7 +84,14 @@ describe("buscarProduto", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it.each(["brokerUser", "activeTenant", "notificationsPoll", "activeTenant,brokerUser,produto"])(
+  it("recusa uma lista de procedures separada por vírgula e explica o que fazer", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    vi.stubEnv("PX_PROC_PRODUTO", "activeTenant,brokerUser,produto");
+    await expect(buscarProduto(12)).rejects.toThrow(/UMA procedure só/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["brokerUser", "activeTenant", "notificationsPoll"])(
     "recusa chamar a procedure proibida %s",
     async (proibida) => {
       vi.stubGlobal("fetch", vi.fn());

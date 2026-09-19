@@ -46,7 +46,12 @@ async function chamar(
   if (!procedure) {
     throw new Error("Nome da procedure não informado (confira PX_PROC_PRODUTO)");
   }
-  if (PROCEDURES_PROIBIDAS.some((p) => procedure.split(",").includes(p))) {
+  if (procedure.includes(",")) {
+    throw new Error(
+      "PX_PROC_PRODUTO deve ter UMA procedure só (a que devolve o produto completo), não a lista inteira copiada da URL do DevTools. Ex.: PX_PROC_PRODUTO=nomeDaProcedure"
+    );
+  }
+  if (PROCEDURES_PROIBIDAS.includes(procedure)) {
     throw new Error(`Procedure "${procedure}" não é permitida nesta integração`);
   }
 
