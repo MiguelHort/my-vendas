@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { ProdutoNormalizado } from "./normalizar";
+import type { TabelaCotavel } from "./cotacao";
 
 /** O que o job de sincronização precisa do banco (permite trocar por um repositório em memória nos testes). */
 export interface RepositorioSync {
@@ -142,4 +143,79 @@ export function criarRepositorioPrisma(db: PrismaClient): RepositorioSync {
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Leitura pra cotação
+// ---------------------------------------------------------------------------
+
+/**
+ * Carrega as tabelas visíveis no formato que o calculador espera. O filtro no banco é só uma
+ * pré-seleção (modalidade e vidas mínimas); as regras finas ficam em `calcularCotacao`.
+ */
+export async function carregarTabelas(
+  db: PrismaClient,
+  { modalidade, vidas }: { modalidade?: string; vidas?: number } = {}
+): Promise<TabelaCotavel[]> {
+  const tabelas = await db.pxTabela.findMany({
+    where: {
+      visivel: true,
+      produto: { visivel: true },
+      ...(modalidade ? { modalidade } : {}),
+      ...(vidas !== undefined ? { vidasMin: { lte: vidas } } : {}),
+    },
+    include: {
+      produto: { select: { nome: true, operadora: true } },
+      precos: { orderBy: [{ planoOrdem: "asc" }, { pxPlanoId: "asc" }, { faixaId: "asc" }] },
+    },
+    orderBy: [{ produtoPxId: "asc" }, { ordem: "asc" }, { pxVinculoId: "asc" }],
+  });
+
+  return tabelas.map((t) => {
+    const planosPorId = new Map<number, TabelaCotavel["planos"][number]>();
+    for (const p of t.precos) {
+      let plano = planosPorId.get(p.pxPlanoId);
+      if (!plano) {
+        plano = {
+          px_plano_id: p.pxPlanoId,
+          nome: p.planoNome,
+          acomodacao: p.acomodacao,
+          visivel: p.planoVisivel,
+          precos: [],
+        };
+        planosPorId.set(p.pxPlanoId, plano);
+      }
+      plano.precos.push({
+        faixa_id: p.faixaId,
+        idade_min: p.idadeMin,
+        idade_max: p.idadeMax,
+        valor: Number(p.valor),
+      });
+    }
+
+    return {
+      px_vinculo_id: t.pxVinculoId,
+      px_tabela_id: t.pxTabelaId,
+      produto_nome: t.produto.nome,
+      operadora: t.produto.operadora,
+      modalidade: t.modalidade,
+      linha: t.linha,
+      coparticipacao: t.coparticipacao,
+      coparticipacao_detalhe: t.coparticipacaoDetalhe,
+      contratacao: t.contratacao,
+      mei: t.mei,
+      obstetricia: t.obstetricia,
+      idade_unica: t.idadeUnica,
+      vidas_min: t.vidasMin,
+      vidas_max: t.vidasMax,
+      idade_min: t.idadeMin,
+      idade_max: t.idadeMax,
+      desconto_percentual: Number(t.descontoPercentual),
+      entidades: t.entidades as unknown as TabelaCotavel["entidades"],
+      vigencia_inicio: t.vigenciaInicio ? t.vigenciaInicio.toISOString() : null,
+      vigencia_fim: t.vigenciaFim ? t.vigenciaFim.toISOString() : null,
+      visivel: t.visivel,
+      planos: [...planosPorId.values()],
+    };
+  });
 }

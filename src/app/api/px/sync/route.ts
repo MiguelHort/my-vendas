@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { criarRepositorioPrisma } from "@/lib/px/repositorio";
 import { SincronizacaoEmAndamento, idsDosProdutos, sincronizar } from "@/lib/px/sync";
+import { statusSincronizacao } from "@/lib/px/servico";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,4 +41,13 @@ export async function POST(req: NextRequest) {
     console.error("[px-sync] erro inesperado:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Erro inesperado na sincronização" }, { status: 500 });
   }
+}
+
+/** Status da última sincronização + produtos sincronizados (pra tela e pro aviso de tabelas desatualizadas). */
+export async function GET(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  return NextResponse.json(await statusSincronizacao(prisma));
 }
