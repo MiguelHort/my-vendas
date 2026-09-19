@@ -354,6 +354,7 @@ const FunilPage = () => {
   const [conclusaoLeadId, setConclusaoLeadId] = React.useState<string>("");
   const [valorComissaoInput, setValorComissaoInput] = React.useState<string>("");
   const [dataVendaInput, setDataVendaInput] = React.useState<string>("");
+  const [dataPagamentoInput, setDataPagamentoInput] = React.useState<string>("");
 
   // Modal de "Retornar Futuramente" (Feature 5)
   const [showRetornarModal, setShowRetornarModal] = React.useState(false);
@@ -494,6 +495,7 @@ const FunilPage = () => {
       setConclusaoLeadId(leadId);
       setValorComissaoInput(calc > 0 ? calc.toFixed(2) : "");
       setDataVendaInput(new Date().toISOString().substring(0, 10));
+      setDataPagamentoInput("");
       setShowConclusaoModal(true);
       return;
     }
@@ -629,11 +631,15 @@ const FunilPage = () => {
     const dataVendaISO = dataVendaInput
       ? new Date(dataVendaInput + "T00:00:00").toISOString()
       : null;
+    const dataPagamentoISO = dataPagamentoInput
+      ? new Date(dataPagamentoInput + "T00:00:00").toISOString()
+      : null;
 
     setShowConclusaoModal(false);
     setConclusaoLeadId("");
     setValorComissaoInput("");
     setDataVendaInput("");
+    setDataPagamentoInput("");
 
     setLeads((prev) =>
       prev.map((l) =>
@@ -643,6 +649,7 @@ const FunilPage = () => {
               status: "Concluído",
               valor_comissao: isNaN(valorNumber) ? null : valorNumber,
               data_venda: dataVendaISO,
+              data_pagamento_comissao: dataPagamentoISO,
             }
           : l
       )
@@ -655,6 +662,7 @@ const FunilPage = () => {
               status: "Concluído",
               valor_comissao: isNaN(valorNumber) ? null : valorNumber,
               data_venda: dataVendaISO,
+              data_pagamento_comissao: dataPagamentoISO,
             }
           : l
       )
@@ -680,6 +688,7 @@ const FunilPage = () => {
             id: tempId,
             valor_comissao: isNaN(valorNumber) ? null : valorNumber,
             data_venda: dataVendaISO,
+            data_pagamento_comissao: dataPagamentoISO,
           }),
         }),
       ]);
@@ -1107,6 +1116,17 @@ const FunilPage = () => {
                 value={dataVendaInput}
                 onChange={(e) => setDataVendaInput(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Pagamento da Comissão (opcional)</Label>
+              <Input
+                type="date"
+                value={dataPagamentoInput}
+                onChange={(e) => setDataPagamentoInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Dia em que a comissão cai na conta. Se ainda não souber, deixe em branco e preencha depois editando o card.
+              </p>
             </div>
           </div>
           <DialogFooter className="gap-2">

@@ -47,6 +47,7 @@ export async function PUT(req: NextRequest) {
     valor_comissao,
     data_entrada,
     data_venda,
+    data_pagamento_comissao,
     last_chamado_at,
     retornar_em,
   } = body;
@@ -90,15 +91,35 @@ export async function PUT(req: NextRequest) {
         valor_comissao !== null ? Number(valor_comissao) : null;
     if (data_entrada !== undefined) data.dataEntrada = new Date(data_entrada);
     if (data_venda !== undefined) data.dataVenda = data_venda;
+    if (data_pagamento_comissao !== undefined)
+      data.dataPagamentoComissao = data_pagamento_comissao
+        ? new Date(data_pagamento_comissao)
+        : null;
     if (last_chamado_at !== undefined)
       data.lastChamadoAt = last_chamado_at;
     if (retornar_em !== undefined)
       data.retornarEm = retornar_em ? new Date(retornar_em) : null;
 
-    await prisma.lead.update({
+    const updated = await prisma.lead.update({
       where: { id },
       data,
     });
+
+    // Entrada financeira já lançada dessa venda acompanha a data/valor da comissão.
+    if (
+      data_venda !== undefined ||
+      data_pagamento_comissao !== undefined ||
+      valor_comissao !== undefined
+    ) {
+      const efetiva = updated.dataPagamentoComissao ?? updated.dataVenda;
+      const patch: { data?: Date; valor?: number } = {};
+      if (efetiva) patch.data = new Date(efetiva.toISOString().slice(0, 10) + "T00:00:00.000Z");
+      if (updated.valorComissao && Number(updated.valorComissao) > 0)
+        patch.valor = Number(updated.valorComissao);
+      if (Object.keys(patch).length > 0) {
+        await prisma.financeEntry.updateMany({ where: { leadId: id }, data: patch });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (e) {

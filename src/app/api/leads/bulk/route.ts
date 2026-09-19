@@ -13,6 +13,7 @@ type LeadInput = {
   qtd_vidas: number;
   idades: string;
   data_venda?: string | null;
+  data_pagamento_comissao?: string | null;
   valor_comissao?: number | null;
   valor_mensalidade?: number | null;
   operadora_ofertada?: string | null;
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
             status: "Concluído",
             dataEntrada: l.data_venda ? new Date(l.data_venda) : new Date(),
             dataVenda: l.data_venda ? new Date(l.data_venda) : null,
+            dataPagamentoComissao: l.data_pagamento_comissao
+              ? new Date(l.data_pagamento_comissao)
+              : null,
             valorComissao:
               l.valor_comissao != null ? Number(l.valor_comissao) : null,
             valorMensalidade:

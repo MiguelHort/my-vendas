@@ -80,6 +80,7 @@ type ImportedLead = {
   qtd_vidas: string;
   idades: string;
   data_venda: string;
+  data_pagamento_comissao: string;
   valor_mensalidade: string;
   valor_comissao: string;
   operadora_ofertada: string;
@@ -119,6 +120,7 @@ export default function MinhasVendasPage() {
   const [valorMensalidade, setValorMensalidade] = useState("");
   const [coparticipacao, setCoparticipacao] = useState("");
   const [dataVenda, setDataVenda] = useState("");
+  const [dataPagamentoComissao, setDataPagamentoComissao] = useState("");
   const [valorComissao, setValorComissao] = useState("");
   const [comissaoAutoCalc, setComissaoAutoCalc] = useState(false);
 
@@ -205,6 +207,7 @@ export default function MinhasVendasPage() {
         qtd_vidas: String(l.qtd_vidas ?? "1"),
         idades: String(l.idades ?? ""),
         data_venda: String(l.data_venda ?? ""),
+        data_pagamento_comissao: String(l.data_pagamento_comissao ?? ""),
         valor_mensalidade: String(l.valor_mensalidade ?? ""),
         valor_comissao: String(l.valor_comissao ?? ""),
         operadora_ofertada: OPERADORA_NOMES.includes(String(l.operadora_ofertada ?? ""))
@@ -277,6 +280,7 @@ export default function MinhasVendasPage() {
         qtd_vidas: parseInt(l.qtd_vidas) || 1,
         idades: l.idades || "",
         data_venda: l.data_venda || null,
+        data_pagamento_comissao: l.data_pagamento_comissao || null,
         valor_mensalidade: l.valor_mensalidade ? parseFloat(l.valor_mensalidade) : null,
         valor_comissao: l.valor_comissao ? parseFloat(l.valor_comissao) : null,
         operadora_ofertada: l.operadora_ofertada || null,
@@ -330,6 +334,9 @@ export default function MinhasVendasPage() {
           cidade: cidade.trim(), qtd_vidas: parseInt(qtdVidas), idades: idades.trim(),
           status: "Concluído",
           data_venda: dataVenda ? new Date(dataVenda + "T00:00:00").toISOString() : null,
+          data_pagamento_comissao: dataPagamentoComissao
+            ? new Date(dataPagamentoComissao + "T00:00:00").toISOString()
+            : null,
           valor_comissao: valorComissao ? parseFloat(valorComissao) : null,
           operadora_ofertada: operadoraOfertada || null,
           modalidade: modalidade || null,
@@ -511,6 +518,7 @@ export default function MinhasVendasPage() {
                   <TableRow>
                     <TableHead className="min-w-40">Nome</TableHead>
                     <TableHead className="min-w-[110px]">Data venda</TableHead>
+                    <TableHead className="min-w-[130px]">Pagto. comissão</TableHead>
                     <TableHead className="min-w-[130px]">Comissão (R$)</TableHead>
                     <TableHead className="min-w-[130px]">Mensalidade (R$)</TableHead>
                     <TableHead className="min-w-[140px]">Operadora</TableHead>
@@ -535,6 +543,14 @@ export default function MinhasVendasPage() {
                           type="date"
                           value={lead.data_venda}
                           onChange={(e) => updateLead(idx, "data_venda", e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={lead.data_pagamento_comissao}
+                          onChange={(e) => updateLead(idx, "data_pagamento_comissao", e.target.value)}
                           className="h-8 text-sm"
                         />
                       </TableCell>
@@ -770,12 +786,17 @@ export default function MinhasVendasPage() {
                   <CalendarCheck className="h-4 w-4 text-primary" />
                   Dados da Venda
                 </CardTitle>
-                <CardDescription>Data de fechamento e comissão recebida</CardDescription>
+                <CardDescription>Data de fechamento, comissão e quando ela cai na conta</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dataVenda">Data da venda <span className="text-destructive">*</span></Label>
                   <Input id="dataVenda" type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dataPagamentoComissao">Pagamento da comissão</Label>
+                  <Input id="dataPagamentoComissao" type="date" value={dataPagamentoComissao} onChange={(e) => setDataPagamentoComissao(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Dia em que a comissão cai na conta (opcional)</p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">

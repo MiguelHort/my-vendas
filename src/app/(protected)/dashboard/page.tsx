@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 
 import { Layout } from "@/components/Layout";
 import LeadCard, { Lead as FunilLead } from "@/components/LeadCard";
+import { buildCommissionMap, type CommissionMap } from "@/lib/commissions";
 
 import { toast } from "sonner";
 import {
@@ -74,6 +75,9 @@ type Lead = FunilLead;
 
 type SerieVendasMode = "semana" | "mes" | "ano";
 
+/** Dia em que a comissão caiu; vendas sem data de pagamento contam pelo dia da venda. */
+const dataComissao = (l: Lead) => l.data_pagamento_comissao || l.data_venda;
+
 function useCountUp(target: number, duration = 800) {
   const [displayed, setDisplayed] = useState(target);
   const rafRef = useRef<number | null>(null);
@@ -120,6 +124,8 @@ const DashboardPage = () => {
 
   const [serieVendasMode, setSerieVendasMode] =
     useState<SerieVendasMode>("semana");
+
+  const [commissionMap, setCommissionMap] = useState<CommissionMap>({});
 
   // ----------------- helpers -----------------
   const getDateRange = () => {
@@ -258,6 +264,23 @@ const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, loadingAuth]);
 
+  // Comissão real por operadora+modalidade — pros cards de "Retornos Pendentes"
+  // mostrarem a comissão estimada certa, não sempre 100%.
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const params = new URLSearchParams({
+      firebaseUid: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      name: firebaseUser.displayName || "",
+    });
+    fetch(`/api/configuracoes/comissoes?${params}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: { operadora: string; modalidade: string; percentual: number }[]) => {
+        setCommissionMap(buildCommissionMap(data));
+      })
+      .catch(() => {/* silently ignore */});
+  }, [firebaseUser]);
+
   // ----------------- métricas (filtradas) -----------------
   const filteredLeads = useMemo(() => {
     const { startDate, endDate } = getDateRange();
@@ -274,15 +297,16 @@ const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leads, filtroOrigem, filtroPeriodo, filtroDataInicio, filtroDataFim]);
 
-  // Vendas fechadas no período filtradas por data_venda (não data_entrada)
+  // Vendas do período filtradas pelo dia em que a comissão caiu (fallback: data_venda), não data_entrada
   const vendasNoPeriodo = useMemo(() => {
     const { startDate, endDate } = getDateRange();
     const startStr = startDate.toISOString().slice(0, 10);
     const endStr = endDate.toISOString().slice(0, 10);
 
     return leads.filter((lead) => {
-      if (lead.status !== "Concluído" || !lead.data_venda) return false;
-      const dateStr = lead.data_venda.slice(0, 10);
+      const dataRef = dataComissao(lead);
+      if (lead.status !== "Concluído" || !dataRef) return false;
+      const dateStr = dataRef.slice(0, 10);
       const origemMatch =
         filtroOrigem === "Todos" || lead.origem === filtroOrigem;
       return dateStr >= startStr && dateStr <= endStr && origemMatch;
@@ -295,6 +319,24 @@ const DashboardPage = () => {
 
   const totalComissoes = vendasNoPeriodo
     .reduce((acc, l) => acc + (l.valor_comissao || 0), 0);
+
+  // A comissão cai alguns dias depois da venda: separa o que já caiu do que ainda vai cair.
+  const { comissaoRecebida, comissaoAReceber, comissaoSemData } = useMemo(() => {
+    const hoje = Date.now();
+    let recebida = 0;
+    let aReceber = 0;
+    let semData = 0;
+    for (const l of vendasNoPeriodo) {
+      const v = l.valor_comissao || 0;
+      if (!l.data_pagamento_comissao) semData += v;
+      else if (new Date(l.data_pagamento_comissao).getTime() > hoje) aReceber += v;
+      else recebida += v;
+    }
+    return { comissaoRecebida: recebida, comissaoAReceber: aReceber, comissaoSemData: semData };
+  }, [vendasNoPeriodo]);
+
+  const brl = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const leadsQualificados = filteredLeads.filter((l) =>
     ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
@@ -338,7 +380,7 @@ const DashboardPage = () => {
 
   // ----------------- Série de vendas -----------------
   const vendasConcluidas = useMemo(() => {
-    return leads.filter((l) => l.status === "Concluído" && !!l.data_venda);
+    return leads.filter((l) => l.status === "Concluído" && !!dataComissao(l));
   }, [leads]);
 
   const vendasSerieData = useMemo(() => {
@@ -356,7 +398,7 @@ const DashboardPage = () => {
       for (const d of days) map.set(ymd(d), 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_venda!);
+        const d = new Date(dataComissao(l)!);
         if (Number.isNaN(d.getTime())) continue;
         const key = ymd(d);
         if (map.has(key)) map.set(key, (map.get(key) || 0) + 1);
@@ -380,7 +422,7 @@ const DashboardPage = () => {
       for (let day = 1; day <= daysInMonth; day++) map.set(day, 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_venda!);
+        const d = new Date(dataComissao(l)!);
         if (Number.isNaN(d.getTime())) continue;
         if (d.getFullYear() !== year || d.getMonth() !== month) continue;
         map.set(d.getDate(), (map.get(d.getDate()) || 0) + 1);
@@ -398,7 +440,7 @@ const DashboardPage = () => {
       for (let m = 0; m < 12; m++) map.set(m, 0);
 
       for (const l of vendasConcluidas) {
-        const d = new Date(l.data_venda!);
+        const d = new Date(dataComissao(l)!);
         if (Number.isNaN(d.getTime())) continue;
         if (d.getFullYear() !== year) continue;
         map.set(d.getMonth(), (map.get(d.getMonth()) || 0) + 1);
@@ -730,8 +772,10 @@ const DashboardPage = () => {
                         <TooltipContent side="top" className="max-w-[240px]">
                           <p className="text-xs">
                             Soma do valor de comissão de todas as vendas com status
-                            Concluído cuja data de venda cai dentro do período e
-                            origem filtrados.
+                            Concluído cuja comissão cai dentro do período (data de pagamento da
+                            comissão; sem ela, vale a data da venda) e origem
+                            filtrados. Abaixo, quanto já caiu na conta e quanto
+                            ainda vai cair.
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -778,6 +822,17 @@ const DashboardPage = () => {
                         {vendasFechadas} venda{vendasFechadas !== 1 ? "s" : ""}
                       </span>
                     </div>
+                  )}
+                  {!showSkeleton && totalComissoes > 0 && (
+                    <p className="mt-2 text-xs opacity-70 tabular-nums">
+                      {[
+                        comissaoRecebida > 0 && `${brl(comissaoRecebida)} já recebida`,
+                        comissaoAReceber > 0 && `${brl(comissaoAReceber)} a receber`,
+                        comissaoSemData > 0 && `${brl(comissaoSemData)} sem data de pagamento`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   )}
                 </div>
 
@@ -1148,6 +1203,8 @@ const DashboardPage = () => {
                         displayName: firebaseUser.displayName,
                       }}
                       onRefreshLeads={fetchLeads}
+                      commissionMap={commissionMap}
+                      hideMonthlyValue
                     />
                   ))}
                 </div>

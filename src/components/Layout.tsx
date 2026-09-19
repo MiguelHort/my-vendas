@@ -19,6 +19,7 @@ import {
   Tag,
   Megaphone,
   Kanban,
+  Wallet,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -107,6 +108,7 @@ const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   funil: "Funil",
   demandas: "Demandas",
+  financeiro: "Financeiro",
   conversas: "Conversas",
   etiquetas: "Etiquetas",
   anuncios: "Anúncios",
@@ -261,6 +263,18 @@ function AppSidebar({
                     <Link href="/dashboard/admin">
                       <UserStar />
                       <span>Painel Admin</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isRouteActive(pathname, "/dashboard/financeiro")}
+                    tooltip="Financeiro"
+                  >
+                    <Link href="/dashboard/financeiro">
+                      <Wallet />
+                      <span>Financeiro</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

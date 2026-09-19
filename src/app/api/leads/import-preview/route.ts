@@ -22,6 +22,7 @@ Retorne um JSON array. Cada objeto deve ter exatamente estes campos:
 - qtd_vidas: inteiro (número de vidas/beneficiários, padrão 1 se não encontrado)
 - idades: string ou null (idades separadas por vírgula, ex: "34, 30, 5")
 - data_venda: string no formato "YYYY-MM-DD" ou null (data de fechamento da venda)
+- data_pagamento_comissao: string no formato "YYYY-MM-DD" ou null (dia em que a comissão foi/será paga; colunas como "pagamento", "data pgto", "recebimento")
 - valor_mensalidade: número decimal ou null (valor mensal do plano em reais)
 - valor_comissao: número decimal ou null (valor da comissão recebida em reais)
 - operadora_ofertada: um de ${JSON.stringify(OPERADORAS_VALIDAS)} ou null

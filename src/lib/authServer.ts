@@ -20,3 +20,13 @@ export async function requireUser(req: NextRequest) {
     return { error: "Token inválido", status: 401 as const };
   }
 }
+
+/** Igual a `requireUser`, mas só deixa passar ADMIN (ex: financeiro da empresa). */
+export async function requireAdmin(req: NextRequest) {
+  const result = await requireUser(req);
+  if ("error" in result) return result;
+  if (result.user.role !== "ADMIN") {
+    return { error: "Acesso restrito a administradores", status: 403 as const };
+  }
+  return result;
+}

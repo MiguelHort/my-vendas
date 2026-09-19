@@ -32,6 +32,7 @@ type LeadRow = {
   cidade: string | null;
   dataEntrada: Date;
   dataVenda: Date | null;
+  dataPagamentoComissao: Date | null;
   valorComissao: number | null;
   operadoraOfertada: string | null;
   motivoDispensa: string | null;
@@ -104,6 +105,8 @@ function formatLeadLine(lead: LeadRow, conversa?: ConversaInfo): string {
   if (lead.estado) parts.push(`Estado: ${lead.estado}${lead.cidade ? `/${lead.cidade}` : ""}`);
   parts.push(`Entrada: ${lead.dataEntrada.toLocaleDateString("pt-BR")}`);
   if (lead.dataVenda) parts.push(`Venda: ${lead.dataVenda.toLocaleDateString("pt-BR")}`);
+  if (lead.dataPagamentoComissao)
+    parts.push(`Pagamento da comissão: ${lead.dataPagamentoComissao.toLocaleDateString("pt-BR")}`);
   if (lead.valorComissao != null)
     parts.push(
       `Comissão: R$ ${lead.valorComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
@@ -324,6 +327,7 @@ export async function POST(req: NextRequest) {
           cidade: true,
           dataEntrada: true,
           dataVenda: true,
+          dataPagamentoComissao: true,
           valorComissao: true,
           operadoraOfertada: true,
           motivoDispensa: true,
@@ -387,6 +391,7 @@ export async function POST(req: NextRequest) {
       cidade: r.cidade,
       dataEntrada: r.dataEntrada,
       dataVenda: r.dataVenda,
+      dataPagamentoComissao: r.dataPagamentoComissao,
       valorComissao: r.valorComissao ? Number(r.valorComissao) : null,
       operadoraOfertada: r.operadoraOfertada,
       motivoDispensa: r.motivoDispensa,

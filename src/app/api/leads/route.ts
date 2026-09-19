@@ -49,6 +49,9 @@ export async function GET(req: NextRequest) {
       updated_at: l.updatedAt.toISOString(),
       valor_comissao: l.valorComissao ? Number(l.valorComissao) : null,
       data_venda: l.dataVenda ? l.dataVenda.toISOString() : null,
+      data_pagamento_comissao: l.dataPagamentoComissao
+        ? l.dataPagamentoComissao.toISOString()
+        : null,
       last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
     }));
@@ -98,6 +101,7 @@ export async function POST(req: NextRequest) {
     status,
     valor_comissao,
     data_venda,
+    data_pagamento_comissao,
     last_chamado_at,
     retornar_em,
   } = body;
@@ -149,6 +153,9 @@ export async function POST(req: NextRequest) {
             ? Number(valor_comissao)
             : null,
         dataVenda: data_venda ? new Date(data_venda) : null,
+        dataPagamentoComissao: data_pagamento_comissao
+          ? new Date(data_pagamento_comissao)
+          : null,
         lastChamadoAt: last_chamado_at ? new Date(last_chamado_at) : null,
         retornarEm: retornar_em ? new Date(retornar_em) : null,
       },

@@ -71,6 +71,7 @@ export type Lead = {
   updated_at: string;
   valor_comissao: number | null;
   data_venda: string | null;
+  data_pagamento_comissao?: string | null;
   last_chamado_at: string | null;
   retornar_em: string | null;
 };
@@ -84,6 +85,8 @@ type LeadCardProps = {
   };
   onRefreshLeads: () => void;
   commissionMap?: CommissionMap;
+  /** Esconde o valor da mensalidade (valor da venda) no card — mostra só a comissão. */
+  hideMonthlyValue?: boolean;
 };
 
 // ========================
@@ -190,6 +193,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
   firebaseUser,
   onRefreshLeads,
   commissionMap = {},
+  hideMonthlyValue = false,
 }) => {
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
@@ -236,6 +240,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
       valor_comissao: lead.valor_comissao,
       data_entrada: lead.data_entrada,
       data_venda: lead.data_venda,
+      data_pagamento_comissao: lead.data_pagamento_comissao ?? null,
       last_chamado_at: lead.last_chamado_at,
       status: lead.status,
     });
@@ -268,6 +273,7 @@ const LeadCard: React.FC<LeadCardProps> = ({
           ...editFormData,
           valor_comissao: editFormData.valor_comissao ?? null,
           data_venda: editFormData.data_venda ?? null,
+          data_pagamento_comissao: editFormData.data_pagamento_comissao ?? null,
           last_chamado_at: editFormData.last_chamado_at ?? null,
         }),
       });
@@ -477,10 +483,19 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </span>
                 </div>
               )}
-              {monthlyValue && (
+              {monthlyValue && !hideMonthlyValue && (
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <WalletCards className="h-3 w-3 shrink-0" />
                   <span className="truncate text-foreground/80">{monthlyValue}</span>
+                </div>
+              )}
+              {lead.status === "Concluído" && lead.data_pagamento_comissao && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <CalendarDays className="h-3 w-3 shrink-0" />
+                  <span className="truncate text-foreground/80">
+                    Comissão em{" "}
+                    {new Date(lead.data_pagamento_comissao).toLocaleDateString("pt-BR")}
+                  </span>
                 </div>
               )}
             </div>
@@ -1061,6 +1076,26 @@ const LeadCard: React.FC<LeadCardProps> = ({
                       setEditFormData({
                         ...editFormData,
                         data_venda: value
+                          ? new Date(value + "T00:00:00").toISOString()
+                          : null,
+                      });
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pagamento da Comissão</Label>
+                  <Input
+                    type="date"
+                    value={
+                      editFormData.data_pagamento_comissao
+                        ? editFormData.data_pagamento_comissao.substring(0, 10)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditFormData({
+                        ...editFormData,
+                        data_pagamento_comissao: value
                           ? new Date(value + "T00:00:00").toISOString()
                           : null,
                       });

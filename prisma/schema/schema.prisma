@@ -12,35 +12,38 @@ datasource db {
 // =====================
 
 model Lead {
-  id                 String    @id @default(uuid()) @db.Uuid
-  nome               String
-  dataEntrada        DateTime  @map("data_entrada") @db.Timestamptz(6)
-  origem             String
-  status             String
-  valorComissao      Decimal?  @map("valor_comissao") // removido @db.Numeric
-  dataVenda          DateTime? @map("data_venda") @db.Timestamptz(6)
-  lastChamadoAt      DateTime? @map("last_chamado_at") @db.Timestamptz(6)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  estado             String?   @db.Text
-  cidade             String?   @db.Text
-  qtdVidas           Int       @map("qtd_vidas")
-  idades             String?   @db.Text
-  possuiCnpj         Boolean?  @map("possui_cnpj")
-  temPlanoAnterior   Boolean?  @map("tem_plano_anterior")
-  operadoraAnterior  String?   @map("operadora_anterior") @db.Text
-  tempoPlanoAnterior String?   @map("tempo_plano_anterior") @db.Text
-  modalidade         String?   @db.Text
-  operadoraOfertada  String?   @map("operadora_ofertada") @db.Text
-  acomodacao         String?   @db.Text
-  valorMensalidade   Decimal?  @map("valor_mensalidade") // removido @db.Numeric
-  coparticipacao     String?   @db.Text
-  motivoDispensa     String?   @map("motivo_dispensa") @db.Text
-  telefone           String?   @db.Text
-  retornarEm         DateTime? @map("retornar_em") @db.Timestamptz(6)
+  id                    String    @id @default(uuid()) @db.Uuid
+  nome                  String
+  dataEntrada           DateTime  @map("data_entrada") @db.Timestamptz(6)
+  origem                String
+  status                String
+  valorComissao         Decimal?  @map("valor_comissao") // removido @db.Numeric
+  dataVenda             DateTime? @map("data_venda") @db.Timestamptz(6)
+  /// dia em que a comissão da venda cai (ou cairá) na conta — costuma ser alguns dias depois de dataVenda
+  dataPagamentoComissao DateTime? @map("data_pagamento_comissao") @db.Timestamptz(6)
+  lastChamadoAt         DateTime? @map("last_chamado_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  estado                String?   @db.Text
+  cidade                String?   @db.Text
+  qtdVidas              Int       @map("qtd_vidas")
+  idades                String?   @db.Text
+  possuiCnpj            Boolean?  @map("possui_cnpj")
+  temPlanoAnterior      Boolean?  @map("tem_plano_anterior")
+  operadoraAnterior     String?   @map("operadora_anterior") @db.Text
+  tempoPlanoAnterior    String?   @map("tempo_plano_anterior") @db.Text
+  modalidade            String?   @db.Text
+  operadoraOfertada     String?   @map("operadora_ofertada") @db.Text
+  acomodacao            String?   @db.Text
+  valorMensalidade      Decimal?  @map("valor_mensalidade") // removido @db.Numeric
+  coparticipacao        String?   @db.Text
+  motivoDispensa        String?   @map("motivo_dispensa") @db.Text
+  telefone              String?   @db.Text
+  retornarEm            DateTime? @map("retornar_em") @db.Timestamptz(6)
 
-  tags       LeadTag[]
-  quizStates WhatsAppQuizState[]
+  tags           LeadTag[]
+  quizStates     WhatsAppQuizState[]
+  financeEntries FinanceEntry[]
 
   @@map("leads")
   @@schema("public")
@@ -248,6 +251,44 @@ model CommissionRate {
 
   @@unique([operadora, modalidade])
   @@map("commission_rates")
+  @@schema("public")
+}
+
+// =====================
+// Financeiro da empresa (só ADMIN) — entradas, despesas eventuais e contas fixas
+// =====================
+
+/// Entrada de dinheiro (ex: comissão de uma venda) ou despesa eventual, lançada num dia específico.
+model FinanceEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// "ENTRADA" | "DESPESA_EVENTUAL"
+  tipo      String   @db.Text
+  descricao String   @db.Text
+  valor     Decimal  @db.Decimal(12, 2)
+  data      DateTime @db.Date
+  /// venda que originou a entrada (uma venda só pode ser lançada uma vez)
+  leadId    String?  @unique @map("lead_id") @db.Uuid
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([data])
+  @@map("finance_entries")
+  @@schema("public")
+}
+
+/// Conta fixa mensal (aluguel, ferramentas...). Vale em todo mês de `inicio` até `fim` (ambos "YYYY-MM"; fim nulo = em aberto).
+model FinanceFixedCost {
+  id            String   @id @default(uuid()) @db.Uuid
+  descricao     String   @db.Text
+  valor         Decimal  @db.Decimal(12, 2)
+  diaVencimento Int      @map("dia_vencimento")
+  inicio        String   @db.Text
+  fim           String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("finance_fixed_costs")
   @@schema("public")
 }
 
