@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import {
   Building2,
   CalendarDays,
+  Calculator,
   CheckCheck,
   Clock3,
   MapPin,
@@ -411,6 +413,20 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   <WhatsappIcon />
                 </Button>
               )}
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                title="Nova cotação para este lead"
+              >
+                <Link
+                  href={`/dashboard/cotacao?lead=${lead.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Calculator className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

@@ -20,6 +20,7 @@ import {
   Megaphone,
   Kanban,
   Wallet,
+  Calculator,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -90,6 +91,7 @@ const crmItems = [
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
+  { href: "/dashboard/cotacao", label: "Cotação", icon: Calculator },
   { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
   { href: "/dashboard/anuncios", label: "Anúncios", icon: Megaphone },
   { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
