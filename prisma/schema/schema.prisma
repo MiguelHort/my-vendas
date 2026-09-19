@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["cotacao", "public"]
+  schemas  = ["public"]
 }
 
 // =====================
@@ -44,6 +44,7 @@ model Lead {
   tags           LeadTag[]
   quizStates     WhatsAppQuizState[]
   financeEntries FinanceEntry[]
+  cotacoes       Cotacao[]
 
   @@map("leads")
   @@schema("public")
@@ -123,6 +124,7 @@ model User {
   whatsappMessagesSent WhatsAppMessage[]
   tasksCreated         Task[]            @relation("TaskCreatedBy")
   tasksAssigned        Task[]            @relation("TaskAssignee")
+  cotacoes             Cotacao[]
 
   @@map("users")
   @@schema("public")
@@ -298,180 +300,140 @@ model FinanceFixedCost {
 }
 
 // =====================
-// Cotação
+// Tabelas de preço da PX Tecnologia + cotação local
+// A sincronização (manual, pelo botão) baixa os produtos da PX e grava aqui;
+// a cotação é calculada só com esses dados, nunca chamando a PX.
 // =====================
 
-enum SegmentType {
-  PF
-  PME
-  ADESAO
+/// Um registro por produto da PX (ex: 12 = Amil SC).
+model PxProduto {
+  pxId           Int      @id @map("px_id")
+  nome           String   @db.Text
+  operadora      String?  @db.Text
+  operadoraPxId  Int?     @map("operadora_px_id")
+  categoriaPxId  Int?     @map("categoria_px_id")
+  visivel        Boolean  @default(true)
+  /// SHA-256 do conteúdo normalizado — se não mudou, a sincronização pula o produto
+  hashConteudo   String   @map("hash_conteudo") @db.Text
+  sincronizadoEm DateTime @default(now()) @map("sincronizado_em") @db.Timestamptz(6)
 
-  @@schema("cotacao")
+  planos  PxPlano[]
+  tabelas PxTabela[]
+
+  @@map("px_produtos")
+  @@schema("public")
 }
 
-enum AccommodationType {
-  ENFERMARIA
-  APARTAMENTO
+/// Catálogo de planos de cada produto (Amil Prata, Amil S380, Black I R1...).
+model PxPlano {
+  produtoPxId Int     @map("produto_px_id")
+  pxPlanoId   Int     @map("px_plano_id")
+  nome        String  @db.Text
+  codigoAns   String? @map("codigo_ans") @db.Text
+  acomodacao  String? @db.Text
+  abrangencia String? @db.Text
 
-  @@schema("cotacao")
+  produto PxProduto @relation(fields: [produtoPxId], references: [pxId], onDelete: Cascade)
+
+  @@id([produtoPxId, pxPlanoId])
+  @@map("px_planos")
+  @@schema("public")
 }
 
-enum PmeAdhesionType {
-  LIVRE_ADESAO
-  COMPULSORIO
+/// Cada "tabela de preço" do produto, com as regras de quem pode usá-la (tableBinds[] + valueTable).
+model PxTabela {
+  /// tableBinds[].id — a mesma valueTable pode, em tese, estar vinculada a vários produtos
+  pxVinculoId           Int       @id @map("px_vinculo_id")
+  /// tableBinds[].valueTable.id
+  pxTabelaId            Int       @map("px_tabela_id")
+  produtoPxId           Int       @map("produto_px_id")
+  /// PME | Adesão
+  modalidade            String?   @db.Text
+  /// Amil | Selecionada | Black
+  linha                 String?   @db.Text
+  /// Parcial | Completa
+  coparticipacao        String?   @db.Text
+  /// ex: 40%
+  coparticipacaoDetalhe String?   @map("coparticipacao_detalhe") @db.Text
+  /// Compulsório | Opcional/Livre Adesão | Indiferente
+  contratacao           String?   @db.Text
+  /// true = tabela para empresas MEI
+  mei                   Boolean
+  obstetricia           Boolean
+  idadeUnica            Boolean   @map("idade_unica")
+  vidasMin              Int       @map("vidas_min")
+  vidasMax              Int       @map("vidas_max")
+  idadeMin              Int       @map("idade_min")
+  idadeMax              Int       @map("idade_max")
+  descontoPercentual    Decimal   @default(0) @map("desconto_percentual") @db.Decimal(6, 2)
+  /// ex: Supermed (Adesão)
+  administradora        String?   @db.Text
+  /// entidades de classe (Adesão)
+  entidades             Json      @default("[]")
+  vigenciaInicio        DateTime? @map("vigencia_inicio") @db.Timestamptz(6)
+  vigenciaFim           DateTime? @map("vigencia_fim") @db.Timestamptz(6)
+  visivel               Boolean   @default(true)
+  ordem                 Int       @default(0)
+  /// problemas encontrados nos dados da PX (faixa de vidas inválida, preço zerado, buraco nas faixas...)
+  inconsistencias       Json      @default("[]")
 
-  @@schema("cotacao")
+  produto PxProduto @relation(fields: [produtoPxId], references: [pxId], onDelete: Cascade)
+  precos  PxPreco[]
+
+  @@index([produtoPxId])
+  @@index([modalidade, mei, vidasMin])
+  @@map("px_tabelas")
+  @@schema("public")
 }
 
-model Operator {
-  id        String  @id @default(cuid())
-  name      String
-  ansNumber String? @map("ansNumber") @db.VarChar(32)
-  active    Boolean @default(true)
+/// Preço de cada plano, em cada tabela, em cada faixa etária.
+model PxPreco {
+  pxVinculoId  Int     @map("px_vinculo_id")
+  pxPlanoId    Int     @map("px_plano_id")
+  planoNome    String  @map("plano_nome") @db.Text
+  acomodacao   String? @db.Text
+  planoVisivel Boolean @default(true) @map("plano_visivel")
+  planoOrdem   Int     @default(0) @map("plano_ordem")
+  /// 1 a 10 (faixas da ANS)
+  faixaId      Int     @map("faixa_id")
+  idadeMin     Int     @map("idade_min")
+  idadeMax     Int     @map("idade_max")
+  valor        Decimal @db.Decimal(10, 2)
 
-  colorHex String?
+  tabela PxTabela @relation(fields: [pxVinculoId], references: [pxVinculoId], onDelete: Cascade)
 
-  products  Product[]
-  rateCards RateCard[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name])
-  @@map("operators")
-  @@schema("cotacao")
+  @@id([pxVinculoId, pxPlanoId, faixaId])
+  @@map("px_precos")
+  @@schema("public")
 }
 
-model Product {
-  id         String   @id @default(cuid())
-  operatorId String
-  operator   Operator @relation(fields: [operatorId], references: [id])
+/// Histórico de execuções da sincronização (não há alerta: o resultado fica aqui e na tela).
+model PxSyncLog {
+  id           Int      @id @default(autoincrement())
+  iniciadoEm   DateTime @map("iniciado_em") @db.Timestamptz(6)
+  finalizadoEm DateTime @map("finalizado_em") @db.Timestamptz(6)
+  /// ok | com_erros
+  status       String   @db.Text
+  detalhes     Json
 
-  commercialName String
-  segment        SegmentType
-
-  planVariants PlanVariant[]
-  rateCards    RateCard[]
-
-  notes     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([operatorId])
-  @@index([commercialName])
-  @@map("products")
-  @@schema("cotacao")
+  @@map("px_sync_log")
+  @@schema("public")
 }
 
-model PlanVariant {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+/// Cotação gerada no sistema. `resultado` guarda uma CÓPIA dos preços usados,
+/// pra cotação não mudar quando a tabela for reajustada.
+model Cotacao {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// opcional: dá pra cotar sem lead e vincular depois
+  leadId      String?  @map("lead_id") @db.Uuid
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  criadoPorId String?  @map("criado_por_id") @db.Uuid
+  criadoPor   User?    @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
+  entrada     Json
+  resultado   Json
+  criadoEm    DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
 
-  planName     String
-  coverageJson Json?
-
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  rateCards RateCard[]
-
-  @@index([productId, planName])
-  @@map("plan_variants")
-  @@schema("cotacao")
-}
-
-model Area {
-  id   String @id @default(cuid())
-  name String
-
-  cities    City[]
-  rateCards RateCard[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name])
-  @@map("areas")
-  @@schema("cotacao")
-}
-
-model City {
-  id     String @id @default(cuid())
-  areaId String
-  area   Area   @relation(fields: [areaId], references: [id])
-
-  name String
-  uf   String @db.Char(2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name, uf])
-  @@index([areaId])
-  @@map("cities")
-  @@schema("cotacao")
-}
-
-model RateCard {
-  id String @id @default(cuid())
-
-  operatorId String
-  operator   Operator @relation(fields: [operatorId], references: [id])
-
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  planVariantId String
-  planVariant   PlanVariant @relation(fields: [planVariantId], references: [id])
-
-  areaId String
-  area   Area   @relation(fields: [areaId], references: [id])
-
-  segment       SegmentType
-  accommodation AccommodationType
-  adhesionType  PmeAdhesionType?
-
-  minLives Int
-  maxLives Int
-
-  pricesByAge Json
-
-  validFrom DateTime  @db.Date
-  validTo   DateTime? @db.Date
-
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([areaId, segment, accommodation])
-  @@index([operatorId, productId, planVariantId, areaId])
-  @@index([validFrom, validTo])
-  @@map("rate_cards")
-  @@schema("cotacao")
-}
-
-model CoparticipationRule {
-  id String @id @default(cuid())
-
-  operatorId    String?
-  productId     String?
-  planVariantId String?
-
-  areaId  String?
-  segment SegmentType?
-
-  rules Json
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([operatorId])
-  @@index([productId])
-  @@index([planVariantId])
-  @@index([areaId])
-  @@map("coparticipation_rules")
-  @@schema("cotacao")
+  @@index([leadId])
+  @@map("cotacoes")
+  @@schema("public")
 }
