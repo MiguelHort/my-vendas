@@ -2,7 +2,7 @@ import { normalizeWaId, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 
 // Quem recebe o aviso de "novo lead". Pode ser trocado via env sem mexer no código.
-const NOTIFY_TO = normalizeWaId(process.env.WHATSAPP_NEW_LEAD_NOTIFY_TO || "5547996751564");
+const NOTIFY_TO = normalizeWaId(process.env.WHATSAPP_NEW_LEAD_NOTIFY_TO || "5547996119962");
 
 const NOT_INFORMED = "Não informado";
 
