@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeWaId } from "@/lib/whatsapp";
 import { verifyMetaSignature } from "@/lib/metaSignature";
 import { formatPhoneNumber } from "@/lib/phoneMask";
+import { notifyNewWhatsAppLead } from "@/lib/newLeadNotify";
 import { QUIZ_DEFINITION } from "@/lib/quiz/definition";
 import { runQuizForInbound, type QuizInboundMessage } from "@/lib/quiz/orchestrator";
 import { realQuizDeps } from "@/lib/quiz/deps";
@@ -253,6 +254,9 @@ async function processChangeValue(value: WaChangeValue) {
           qtdVidas: 1,
         },
       });
+
+      // Avisa a equipe no WhatsApp (template new_lead) — depois de responder 200 pra Meta.
+      after(() => notifyNewWhatsAppLead({ name: contactName ?? null, waId }));
 
       // Primeiro contato → cria o estado do quiz (a menos que o kill-switch
       // QUIZ_START_DATE esteja no futuro). `skipDuplicates` protege contra
