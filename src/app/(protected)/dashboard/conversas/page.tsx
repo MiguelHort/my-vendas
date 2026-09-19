@@ -90,6 +90,8 @@ type Conversation = {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  last_message_direction?: "INBOUND" | "OUTBOUND" | null;
+  last_message_status?: Message["status"] | null;
   tags: Tag[];
   ad?: AdInfo | null;
 };
@@ -665,7 +667,7 @@ export default function ConversasPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? { ...c, last_message_preview: data.message.body, last_message_at: data.message.timestamp }
+            ? { ...c, last_message_preview: data.message.body, last_message_at: data.message.timestamp, last_message_direction: "OUTBOUND" as const, last_message_status: data.message.status }
             : c
         )
       );
@@ -797,7 +799,7 @@ export default function ConversasPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? { ...c, last_message_preview: text, last_message_at: data.message.timestamp }
+            ? { ...c, last_message_preview: text, last_message_at: data.message.timestamp, last_message_direction: "OUTBOUND" as const, last_message_status: data.message.status }
             : c
         )
       );
@@ -839,7 +841,7 @@ export default function ConversasPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? { ...c, last_message_preview: "🎤 Áudio", last_message_at: data.message.timestamp }
+            ? { ...c, last_message_preview: "🎤 Áudio", last_message_at: data.message.timestamp, last_message_direction: "OUTBOUND" as const, last_message_status: data.message.status }
             : c
         )
       );
@@ -891,7 +893,7 @@ export default function ConversasPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedId
-            ? { ...c, last_message_preview: preview, last_message_at: data.message.timestamp }
+            ? { ...c, last_message_preview: preview, last_message_at: data.message.timestamp, last_message_direction: "OUTBOUND" as const, last_message_status: data.message.status }
             : c
         )
       );
@@ -1255,8 +1257,13 @@ export default function ConversasPage() {
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <p className="text-xs text-muted-foreground truncate">
-                          {c.last_message_preview || "—"}
+                        <p className="flex items-center gap-1 min-w-0 text-xs text-muted-foreground">
+                          {c.last_message_direction === "OUTBOUND" && c.last_message_status && (
+                            <span className="shrink-0 [&>svg]:size-3.5">
+                              <StatusIcon status={c.last_message_status} />
+                            </span>
+                          )}
+                          <span className="truncate">{c.last_message_preview || "—"}</span>
                         </p>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {c.last_message_at && (

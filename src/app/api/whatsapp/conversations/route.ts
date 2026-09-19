@@ -19,6 +19,15 @@ export async function GET(req: NextRequest) {
     orderBy: { lastMessageAt: "desc" },
   });
 
+  // Última mensagem de cada conversa (direção + status) pra mostrar o "visto" na lista.
+  const lastMessages = await prisma.whatsAppMessage.findMany({
+    where: { conversationId: { in: conversations.map((c) => c.id) } },
+    distinct: ["conversationId"],
+    orderBy: [{ conversationId: "asc" }, { timestamp: "desc" }],
+    select: { conversationId: true, direction: true, status: true },
+  });
+  const lastByConversation = new Map(lastMessages.map((m) => [m.conversationId, m]));
+
   // Mapa telefone (sufixo de 8 dígitos) -> etiquetas do lead, pra montar a lista
   // já com as tags e permitir filtrar por etiqueta no cliente.
   const leads = await prisma.lead.findMany({
@@ -49,6 +58,8 @@ export async function GET(req: NextRequest) {
       last_message_at: c.lastMessageAt ? c.lastMessageAt.toISOString() : null,
       last_message_preview: c.lastMessagePreview,
       unread_count: c.unreadCount,
+      last_message_direction: lastByConversation.get(c.id)?.direction ?? null,
+      last_message_status: lastByConversation.get(c.id)?.status ?? null,
       tags: tagsBySuffix.get(phoneSuffix(c.waId)) ?? [],
       ad: toAdReferralDto(c.adReferral),
     })),
