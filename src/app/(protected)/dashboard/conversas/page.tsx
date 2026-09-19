@@ -62,12 +62,26 @@ import {
   CircleDot,
   FileStack,
   UserPlus,
+  Megaphone,
+  ExternalLink,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { NECESSIDADE_PRINCIPAL_LABEL } from "@/lib/quiz/definition";
 import { translateWhatsAppErrorTitle } from "@/lib/whatsappErrors";
 
 type Tag = { id: string; name: string; color: string };
+
+type AdInfo = {
+  source_id: string | null;
+  source_type: string | null;
+  source_url: string | null;
+  headline: string | null;
+  body: string | null;
+  media_type: string | null;
+  image_url: string | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
+};
 
 type Conversation = {
   id: string;
@@ -77,6 +91,7 @@ type Conversation = {
   last_message_preview: string | null;
   unread_count: number;
   tags: Tag[];
+  ad?: AdInfo | null;
 };
 
 type LeadInfo = {
@@ -244,6 +259,48 @@ function formatRecordingTime(seconds: number) {
 
 function formatCurrency(value: number) {
   return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+}
+
+/** Cartão no início da conversa: de qual anúncio (Click-to-WhatsApp) o contato veio. */
+function AdReferralCard({ ad }: { ad: AdInfo }) {
+  const image = ad.image_url ?? ad.thumbnail_url;
+  return (
+    <div className="mx-auto my-3 w-full max-w-sm overflow-hidden rounded-xl border border-blue-500/20 bg-background/90 shadow-sm">
+      <div className="flex items-center gap-1.5 border-b border-border/60 bg-blue-500/5 px-3 py-1.5 text-[11px] font-medium text-blue-700 dark:text-blue-400">
+        <Megaphone className="size-3.5" />
+        {ad.source_type === "post" ? "Veio de uma publicação" : "Veio de um anúncio"}
+      </div>
+      <div className="flex gap-3 p-3">
+        {image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt=""
+            className="size-16 shrink-0 rounded-lg object-cover bg-muted"
+            referrerPolicy="no-referrer"
+          />
+        )}
+        <div className="min-w-0 space-y-0.5">
+          {ad.headline && <p className="text-sm font-semibold leading-snug">{ad.headline}</p>}
+          {ad.body && <p className="text-xs text-muted-foreground line-clamp-3">{ad.body}</p>}
+          {ad.source_id && (
+            <p className="text-[10px] text-muted-foreground/70">ID do anúncio: {ad.source_id}</p>
+          )}
+        </div>
+      </div>
+      {ad.source_url && (
+        <a
+          href={ad.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 border-t border-border/60 px-3 py-2 text-xs font-medium text-blue-600 hover:bg-blue-500/5 dark:text-blue-400"
+        >
+          <ExternalLink className="size-3" />
+          Ver anúncio
+        </a>
+      )}
+    </div>
+  );
 }
 
 export default function ConversasPage() {
@@ -1169,6 +1226,12 @@ export default function ConversasPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <p className="text-sm font-medium truncate">{name}</p>
+                          {c.ad && (
+                            <Megaphone
+                              className="size-3 shrink-0 text-blue-500"
+                              aria-label="Veio de anúncio"
+                            />
+                          )}
                           {c.tags.slice(0, 3).map((t) => (
                             <span
                               key={t.id}
@@ -1365,7 +1428,12 @@ export default function ConversasPage() {
                     <Loader2 className="size-4 animate-spin" />
                   </div>
                 ) : (
-                  groupedMessages.map((group) => (
+                  <>
+                    {(() => {
+                      const ad = conversations.find((x) => x.id === selectedId)?.ad;
+                      return ad ? <AdReferralCard ad={ad} /> : null;
+                    })()}
+                  {groupedMessages.map((group) => (
                     <div key={group.label}>
                       <div className="flex justify-center my-3">
                         <span className="text-[11px] font-medium text-muted-foreground bg-background/80 backdrop-blur-sm rounded-lg px-2.5 py-1 shadow-sm">
@@ -1386,7 +1454,8 @@ export default function ConversasPage() {
                         ))}
                       </div>
                     </div>
-                  ))
+                  ))}
+                  </>
                 )}
                 <div ref={bottomRef} />
               </div>

@@ -5,6 +5,7 @@ import { normalizeWaId } from "@/lib/whatsapp";
 import { verifyMetaSignature } from "@/lib/metaSignature";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { notifyNewWhatsAppLead } from "@/lib/newLeadNotify";
+import { AD_LEAD_ORIGIN, parseAdReferral } from "@/lib/adReferral";
 import { QUIZ_DEFINITION } from "@/lib/quiz/definition";
 import { runQuizForInbound, type QuizInboundMessage } from "@/lib/quiz/orchestrator";
 import { realQuizDeps } from "@/lib/quiz/deps";
@@ -45,6 +46,8 @@ type WaMessage = {
   };
   button?: { text?: string; payload?: string };
   context?: { id?: string };
+  /** Só vem quando o contato chegou clicando num anúncio Click-to-WhatsApp. */
+  referral?: Record<string, unknown>;
 };
 
 type WaStatus = {
@@ -221,6 +224,14 @@ async function processChangeValue(value: WaChangeValue) {
       where: { waId },
     });
 
+    const adReferral = parseAdReferral(msg.referral);
+    const adData = adReferral
+      ? {
+          adReferral: adReferral as unknown as Prisma.InputJsonValue,
+          adSourceId: adReferral.source_id,
+        }
+      : {};
+
     const conversation = existingConversation
       ? await prisma.whatsAppConversation.update({
           where: { waId },
@@ -229,6 +240,8 @@ async function processChangeValue(value: WaChangeValue) {
             lastMessageAt: timestamp,
             lastMessagePreview: preview,
             unreadCount: { increment: 1 },
+            // contato antigo que agora clicou num anúncio: guarda o anúncio (o primeiro vale)
+            ...(existingConversation.adReferral === null ? adData : {}),
           },
         })
       : await prisma.whatsAppConversation.create({
@@ -238,6 +251,7 @@ async function processChangeValue(value: WaChangeValue) {
             lastMessageAt: timestamp,
             lastMessagePreview: preview,
             unreadCount: 1,
+            ...adData,
           },
         });
 
@@ -248,7 +262,7 @@ async function processChangeValue(value: WaChangeValue) {
         data: {
           nome: contactName || formatPhoneNumber(waId.replace(/^55/, "")) || waId,
           telefone: waId,
-          origem: "WhatsApp",
+          origem: adReferral ? AD_LEAD_ORIGIN : "WhatsApp",
           status: "Triagem",
           dataEntrada: timestamp,
           qtdVidas: 1,

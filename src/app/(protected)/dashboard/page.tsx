@@ -696,6 +696,7 @@ const DashboardPage = () => {
                   <SelectItem value="Ligação">Apenas Ligações</SelectItem>
                   <SelectItem value="Indicação">Apenas Indicações</SelectItem>
                   <SelectItem value="Presencial">Apenas Presenciais</SelectItem>
+                  <SelectItem value="Anúncio (WhatsApp)">Apenas Anúncios (WhatsApp)</SelectItem>
                 </SelectContent>
               </Select>
 

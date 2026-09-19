@@ -127,6 +127,7 @@ export default function AnunciosPage() {
   const [campaignRows, setCampaignRows] = useState<AdsRow[]>([]);
   const [adRows, setAdRows] = useState<AdsRow[]>([]);
   const [dailySeries, setDailySeries] = useState<AdsRow[]>([]);
+  const [convByAd, setConvByAd] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,13 +188,15 @@ export default function AnunciosPage() {
     setError(null);
     try {
       const qs = (extra: string) => `since=${since}&until=${until}&${extra}`;
-      const [summaryRes, campaignsRes, seriesRes, adsRes] = await Promise.all([
+      const [summaryRes, campaignsRes, seriesRes, adsRes, convRes] = await Promise.all([
         fetch(`/api/meta/ads-insights?${qs("level=account")}`, { headers }),
         fetch(`/api/meta/ads-insights?${qs("level=campaign")}`, { headers }),
         fetch(`/api/meta/ads-insights?${qs("level=account&time_increment=1")}`, { headers }),
         level === "ad"
           ? fetch(`/api/meta/ads-insights?${qs("level=ad")}`, { headers })
           : Promise.resolve(null),
+        // conversas de WhatsApp por anúncio (dado nosso; se falhar, só some a coluna)
+        fetch(`/api/meta/ads-conversations?since=${since}&until=${until}`, { headers }).catch(() => null),
       ]);
 
       const summaryData = await summaryRes.json();
@@ -207,6 +210,16 @@ export default function AnunciosPage() {
             "Erro ao consultar a Meta"
         );
       }
+
+      const convData = convRes && convRes.ok ? await convRes.json().catch(() => null) : null;
+      setConvByAd(
+        Object.fromEntries(
+          ((convData?.rows ?? []) as { ad_id: string; conversations: number }[]).map((r) => [
+            r.ad_id,
+            r.conversations,
+          ])
+        )
+      );
 
       setSummary(summaryData.rows?.[0] ?? null);
       setCampaignRows(
@@ -225,6 +238,7 @@ export default function AnunciosPage() {
       setCampaignRows([]);
       setAdRows([]);
       setDailySeries([]);
+      setConvByAd({});
     } finally {
       setLoading(false);
     }
@@ -718,6 +732,12 @@ export default function AnunciosPage() {
                             <TableHead className="text-right">CPC</TableHead>
                             <TableHead className="text-right">Leads</TableHead>
                             <TableHead className="text-right">Custo/lead</TableHead>
+                            {level === "ad" && (
+                              <>
+                                <TableHead className="text-right">Conversas WhatsApp</TableHead>
+                                <TableHead className="text-right">Custo/conversa</TableHead>
+                              </>
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -747,6 +767,18 @@ export default function AnunciosPage() {
                               <TableCell className="text-right tabular-nums">
                                 {r.cost_per_lead != null ? formatCurrency(r.cost_per_lead) : "—"}
                               </TableCell>
+                              {level === "ad" && (
+                                <>
+                                  <TableCell className="text-right tabular-nums">
+                                    {formatNumber(r.ad_id ? (convByAd[r.ad_id] ?? 0) : 0)}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {r.ad_id && (convByAd[r.ad_id] ?? 0) > 0
+                                      ? formatCurrency(r.spend / convByAd[r.ad_id])
+                                      : "—"}
+                                  </TableCell>
+                                </>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>

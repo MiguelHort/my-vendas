@@ -163,12 +163,17 @@ model WhatsAppConversation {
   lastMessageAt      DateTime? @map("last_message_at") @db.Timestamptz(6)
   lastMessagePreview String?   @map("last_message_preview") @db.Text
   unreadCount        Int       @default(0) @map("unread_count")
+  /// Click-to-WhatsApp: dados do anúncio de onde o contato veio (bloco "referral" do webhook da Meta)
+  adReferral         Json?     @map("ad_referral")
+  /// id do anúncio (referral.source_id) — indexado pra contar conversas por anúncio
+  adSourceId         String?   @map("ad_source_id") @db.Text
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   messages  WhatsAppMessage[]
   quizState WhatsAppQuizState?
 
+  @@index([adSourceId])
   @@map("whatsapp_conversations")
   @@schema("public")
 }

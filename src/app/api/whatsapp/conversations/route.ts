@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
 import { phoneSuffix } from "@/lib/leadMatch";
+import { toAdReferralDto } from "@/lib/adReferral";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
       last_message_preview: c.lastMessagePreview,
       unread_count: c.unreadCount,
       tags: tagsBySuffix.get(phoneSuffix(c.waId)) ?? [],
+      ad: toAdReferralDto(c.adReferral),
     })),
   });
 }
