@@ -118,6 +118,7 @@ function Conteudo() {
             authHeader={authHeader}
             leads={leads}
             leadInicial={leadParam}
+            produtos={status?.produtos ?? []}
             onSalva={carregarHistorico}
           />
         </TabsContent>

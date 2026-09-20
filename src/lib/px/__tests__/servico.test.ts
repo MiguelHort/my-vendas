@@ -60,7 +60,7 @@ const linhas = normalizado.tabelas.map((t) => ({
   ),
 }));
 
-type Where = { modalidade?: string; vidasMin?: { lte: number } };
+type Where = { modalidade?: string; vidasMin?: { lte: number }; produtoPxId?: number };
 
 function dbFalso(extra: Record<string, unknown> = {}) {
   const criadas: unknown[] = [];
@@ -70,7 +70,8 @@ function dbFalso(extra: Record<string, unknown> = {}) {
         linhas.filter(
           (l) =>
             (!where?.modalidade || l.modalidade === where.modalidade) &&
-            (!where?.vidasMin || l.vidasMin <= where.vidasMin.lte)
+            (!where?.vidasMin || l.vidasMin <= where.vidasMin.lte) &&
+            (where?.produtoPxId === undefined || l.produtoPxId === where.produtoPxId)
         )
       ),
     },
@@ -118,6 +119,18 @@ describe("cotar (tabelas vindas do banco)", () => {
         where: expect.objectContaining({ modalidade: "PME", vidasMin: { lte: 3 }, visivel: true }),
       })
     );
+  });
+
+  it("filtra por produto/região no banco", async () => {
+    const { db, mocks } = dbFalso();
+    const daRegiao = await cotar(db, { idades: [34, 31, 4], mei: false, modalidade: "PME", produto_px_id: 12 });
+    expect(daRegiao.resultados).toHaveLength(61);
+    expect(mocks.pxTabela.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ produtoPxId: 12 }) })
+    );
+
+    const deOutra = await cotar(db, { idades: [34, 31, 4], mei: false, modalidade: "PME", produto_px_id: 99 });
+    expect(deOutra.resultados).toHaveLength(0);
   });
 
   it("respeita a configuração de faixa de vidas inválida (caso #3 e #4)", async () => {

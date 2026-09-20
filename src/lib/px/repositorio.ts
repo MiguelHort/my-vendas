@@ -155,13 +155,14 @@ export function criarRepositorioPrisma(db: PrismaClient): RepositorioSync {
  */
 export async function carregarTabelas(
   db: PrismaClient,
-  { modalidade, vidas }: { modalidade?: string; vidas?: number } = {}
+  { modalidade, vidas, produtoPxId }: { modalidade?: string; vidas?: number; produtoPxId?: number } = {}
 ): Promise<TabelaCotavel[]> {
   const tabelas = await db.pxTabela.findMany({
     where: {
       visivel: true,
       produto: { visivel: true },
       ...(modalidade ? { modalidade } : {}),
+      ...(produtoPxId !== undefined ? { produtoPxId } : {}),
       ...(vidas !== undefined ? { vidasMin: { lte: vidas } } : {}),
     },
     include: {
@@ -196,6 +197,7 @@ export async function carregarTabelas(
     return {
       px_vinculo_id: t.pxVinculoId,
       px_tabela_id: t.pxTabelaId,
+      produto_px_id: t.produtoPxId,
       produto_nome: t.produto.nome,
       operadora: t.produto.operadora,
       modalidade: t.modalidade,

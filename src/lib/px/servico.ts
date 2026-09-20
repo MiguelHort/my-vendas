@@ -27,6 +27,7 @@ export async function cotar(db: PrismaClient, entrada: EntradaCotacao): Promise<
   const tabelas = await carregarTabelas(db, {
     modalidade: entrada.modalidade,
     vidas: entrada.idades.length,
+    produtoPxId: entrada.produto_px_id,
   });
   return calcularCotacao(tabelas, entrada, opcoesDaConfiguracao());
 }

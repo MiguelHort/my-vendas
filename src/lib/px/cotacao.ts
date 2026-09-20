@@ -25,6 +25,8 @@ export type EntradaCotacao = {
   obstetricia?: boolean;
   /** Sigla da entidade de classe (Adesão) */
   entidade?: string;
+  /** Produto/região da PX (ex.: 12 = Amil SC). Sem isso, cota em todos os produtos. */
+  produto_px_id?: number;
   /** Data de referência da vigência (padrão: hoje). ISO. */
   data?: string;
 };
@@ -46,6 +48,7 @@ export type TabelaCotavel = Pick<
   TabelaNormalizada,
   | "px_vinculo_id"
   | "px_tabela_id"
+  | "produto_px_id"
   | "modalidade"
   | "linha"
   | "coparticipacao"
@@ -137,6 +140,9 @@ export function motivoDeExclusao(
 ): string | null {
   const vidas = idades.length;
 
+  if (entrada.produto_px_id !== undefined && t.produto_px_id !== entrada.produto_px_id) {
+    return "outro produto/região";
+  }
   if (!t.visivel) return "tabela oculta na PX";
   if (t.vigencia_inicio && new Date(t.vigencia_inicio) > data) return "tabela ainda não vigente";
   if (t.vigencia_fim && new Date(t.vigencia_fim) < data) return "tabela vencida";
@@ -289,6 +295,11 @@ export function parseEntrada(bruto: unknown): EntradaCotacao {
   const acomodacao = texto(b.acomodacao);
   const linha = texto(b.linha);
   const entidade = texto(b.entidade);
+  if (b.produto_px_id !== undefined && b.produto_px_id !== null && b.produto_px_id !== "") {
+    const id = Number(b.produto_px_id);
+    if (!Number.isInteger(id) || id <= 0) throw new EntradaInvalida("Produto/região inválido");
+    entrada.produto_px_id = id;
+  }
   if (contratacao) entrada.contratacao = contratacao;
   if (coparticipacao) entrada.coparticipacao = coparticipacao;
   if (acomodacao) entrada.acomodacao = acomodacao;

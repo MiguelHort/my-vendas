@@ -44,6 +44,7 @@ import {
   type AuthHeader,
   type CalculoDto,
   type LeadResumo,
+  type StatusSyncDto,
 } from "./comum";
 
 const TODOS = "__todos__";
@@ -88,9 +89,11 @@ export function NovaCotacao({
   authHeader,
   leads,
   leadInicial,
+  produtos,
   onSalva,
 }: {
   authHeader: AuthHeader;
+  produtos: StatusSyncDto["produtos"];
   leads: LeadResumo[];
   leadInicial: string | null;
   onSalva: () => void;
@@ -106,6 +109,7 @@ export function NovaCotacao({
   const [linha, setLinha] = React.useState("");
   const [obstetricia, setObstetricia] = React.useState<"" | "com" | "sem">("");
   const [entidade, setEntidade] = React.useState("");
+  const [produtoId, setProdutoId] = React.useState("");
 
   // ----- lead (opcional) -----
   const [leadId, setLeadId] = React.useState<string | null>(leadInicial);
@@ -148,6 +152,7 @@ export function NovaCotacao({
     const entrada: EntradaCotacao = {
       idades,
       modalidade,
+      ...(produtoId ? { produto_px_id: Number(produtoId) } : {}),
       ...(modalidade === "PME" ? { mei } : {}),
       ...(contratacao ? { contratacao } : {}),
       ...(coparticipacao ? { coparticipacao } : {}),
@@ -338,6 +343,34 @@ export function NovaCotacao({
                 </>
               )}
             </div>
+          </div>
+
+          {/* Cidade / região (cada produto da PX é uma região, ex.: Amil SC) */}
+          <div className="space-y-1.5 sm:max-w-sm">
+            <Label className="text-xs">Cidade / região</Label>
+            <Select
+              value={produtoId || TODOS}
+              onValueChange={(v) => setProdutoId(v === TODOS ? "" : v)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value={TODOS}>Todas as regiões</SelectItem>
+                {[...produtos]
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((p) => (
+                    <SelectItem key={p.px_id} value={String(p.px_id)}>
+                      {p.nome}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {produtos.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nenhuma região disponível — sincronize as tabelas na aba Sincronização.
+              </p>
+            )}
           </div>
 
           {/* Modalidade / MEI / filtros */}

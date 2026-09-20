@@ -176,6 +176,38 @@ describe("calcularCotacao — regras", () => {
   });
 });
 
+describe("cidade / região (produto da PX)", () => {
+  it("cota só no produto escolhido e descarta os outros com o motivo", () => {
+    const outroProduto = tabelas.map((t) => ({ ...t, produto_px_id: 99 }));
+    const misturadas = [...tabelas, ...outroProduto.map((t) => ({ ...t, px_vinculo_id: t.px_vinculo_id + 1_000_000 }))];
+
+    const todas = calcularCotacao(misturadas, { idades: [34, 31, 4], mei: false, modalidade: "PME" });
+    const so12 = calcularCotacao(misturadas, {
+      idades: [34, 31, 4],
+      mei: false,
+      modalidade: "PME",
+      produto_px_id: 12,
+    });
+
+    expect(todas.resultados).toHaveLength(122); // 61 em cada produto
+    expect(so12.resultados).toHaveLength(61);
+    expect(so12.resultados[0].total).toBe(1070.01);
+    expect(so12.excluidas.some((e) => e.motivo === "outro produto/região")).toBe(true);
+  });
+
+  it("produto sem tabelas dá lista vazia", () => {
+    const r = cotar({ idades: [34], modalidade: "PME", produto_px_id: 555 });
+    expect(r.resultados).toHaveLength(0);
+  });
+
+  it("parseEntrada valida o id do produto", () => {
+    expect(parseEntrada({ idades: [30], produto_px_id: "12" }).produto_px_id).toBe(12);
+    expect(parseEntrada({ idades: [30], produto_px_id: "" }).produto_px_id).toBeUndefined();
+    expect(() => parseEntrada({ idades: [30], produto_px_id: "abc" })).toThrow(EntradaInvalida);
+    expect(() => parseEntrada({ idades: [30], produto_px_id: -3 })).toThrow(EntradaInvalida);
+  });
+});
+
 describe("validação de idades", () => {
   it("rejeita idades vazias, negativas, não numéricas, decimais e acima de 120", () => {
     expect(() => cotar({ idades: [] })).toThrow();
