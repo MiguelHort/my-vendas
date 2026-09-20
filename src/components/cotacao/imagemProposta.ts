@@ -12,7 +12,7 @@ const ESCALA = 2; // 1280px de largura: nítido no celular do cliente
 const PAD = 24;
 const FONTE = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
 
-const AZUL_LINHA = "#c3cff6";
+const AZUL_LINHA = "#c6efd3";
 const CINZA_TOTAL = "#e5e5e5";
 
 function carregarImagem(src: string): Promise<HTMLImageElement | null> {

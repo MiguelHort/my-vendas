@@ -69,7 +69,7 @@ export function PropostaCotacao({
         <table className="w-full border-collapse">
           <tbody>
             {linhas.map((l, i) => (
-              <tr key={`${l.rotulo}-${i}`} className={i % 2 === 0 ? "bg-[#c3cff6]" : "bg-white"}>
+              <tr key={`${l.rotulo}-${i}`} className={i % 2 === 0 ? "bg-[#c6efd3]" : "bg-white"}>
                 <td className="w-36 px-2.5 py-1.5 text-left">{l.rotulo}</td>
                 <td className="px-2.5 py-1.5 text-center">{l.valor}</td>
               </tr>
