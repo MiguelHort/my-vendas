@@ -1717,6 +1717,11 @@ export default function ConversasPage() {
         }
         corretor={firebaseUser?.displayName ?? null}
         email={firebaseUser?.email ?? null}
+        conversationId={selectedId}
+        onEnviada={() => {
+          if (selectedId) void fetchMessages(selectedId);
+          void fetchConversations();
+        }}
       />
 
       {/* ── Modal de etiquetas do contato ──────────────────── */}

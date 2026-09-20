@@ -127,3 +127,40 @@ export function rotuloTabela(r: {
     .filter(Boolean)
     .join(" | ");
 }
+
+export type LinhaProposta = { rotulo: string; valor: string };
+
+/** Linhas da tabela da proposta (sem o Total). Usadas pelo cartão da tela e pela imagem gerada. */
+export function linhasDaProposta(o: {
+  modalidade: string | null;
+  operadora: string | null;
+  produto: string | null;
+  plano: string;
+  acomodacao: string | null;
+  coparticipacao: string | null;
+  linha: string | null;
+  contratacao: string | null;
+  obstetricia?: boolean;
+  desconto: number;
+  detalhamento: { idade: number; faixa: string; valor: number }[];
+}): LinhaProposta[] {
+  const fixas: [string, string | null][] = [
+    ["Categoria", "Saúde"],
+    ["Modalidade", o.modalidade],
+    ["Operadora", o.operadora],
+    ["Produto", o.produto],
+    ["Tabela", rotuloTabela(o)],
+    ["Plano", o.plano],
+    ["Acomodação", o.acomodacao],
+    ["Coparticipação", o.coparticipacao],
+  ];
+  const linhas: LinhaProposta[] = fixas
+    .filter((f): f is [string, string] => Boolean(f[1]))
+    .map(([rotulo, valor]) => ({ rotulo, valor }));
+
+  for (const f of agruparPorFaixa(o.detalhamento)) {
+    linhas.push({ rotulo: `${f.faixa}:`, valor: `${f.qtd} x ${brl(f.valor)}` });
+  }
+  if (o.desconto > 0) linhas.push({ rotulo: "Desconto", valor: `- ${brl(o.desconto)}` });
+  return linhas;
+}

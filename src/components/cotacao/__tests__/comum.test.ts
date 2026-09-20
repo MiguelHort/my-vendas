@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorFaixa, chaveOpcao, extrairIdades, resumoEntrada, rotuloTabela } from "../comum";
+import {
+  agruparPorFaixa,
+  chaveOpcao,
+  extrairIdades,
+  linhasDaProposta,
+  resumoEntrada,
+  rotuloTabela,
+} from "../comum";
 
 describe("extrairIdades (colar uma lista)", () => {
   it("aceita vírgula, espaço, ponto e vírgula e 'e'", () => {
@@ -99,5 +106,41 @@ describe("rotuloTabela", () => {
     expect(
       rotuloTabela({ coparticipacao: null, obstetricia: true, linha: null, contratacao: "Compulsório" })
     ).toBe("Com obstetrícia | Compulsório");
+  });
+});
+
+describe("linhasDaProposta (mesmas linhas do cartão e da imagem)", () => {
+  const base = {
+    modalidade: "PF",
+    operadora: "Clinipam",
+    produto: "Clinipam | Hapvida SC",
+    plano: "Nosso Plano",
+    acomodacao: "Enfermaria",
+    coparticipacao: "Completa",
+    linha: null,
+    contratacao: null,
+    obstetricia: false,
+    desconto: 0,
+    detalhamento: [
+      { idade: 60, faixa: "59+", valor: 1201.91 },
+      { idade: 62, faixa: "59+", valor: 1201.91 },
+    ],
+  };
+
+  it("reproduz o exemplo da PX: tabela, faixa agrupada e sem linhas vazias", () => {
+    const l = linhasDaProposta(base).map((x) => `${x.rotulo}=${x.valor}`);
+    expect(l).toContain("Categoria=Saúde");
+    expect(l).toContain("Operadora=Clinipam");
+    expect(l).toContain("Tabela=Completa | Sem obstetrícia");
+    expect(l).toContain("Acomodação=Enfermaria");
+    expect(l.some((x) => x.startsWith("59 a 100:=2 x R$") && x.includes("1.201,91"))).toBe(true);
+    expect(l.some((x) => x.startsWith("Desconto"))).toBe(false);
+  });
+
+  it("omite campos vazios e mostra desconto quando existe", () => {
+    const l = linhasDaProposta({ ...base, operadora: null, acomodacao: null, desconto: 10 });
+    expect(l.find((x) => x.rotulo === "Operadora")).toBeUndefined();
+    expect(l.find((x) => x.rotulo === "Acomodação")).toBeUndefined();
+    expect(l.find((x) => x.rotulo === "Desconto")?.valor).toContain("10,00");
   });
 });

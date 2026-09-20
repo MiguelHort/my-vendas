@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import type { ResultadoCotacao } from "@/lib/px/cotacao";
-import { agruparPorFaixa, brl, rotuloTabela } from "./comum";
+import { brl, linhasDaProposta } from "./comum";
 
 /**
- * Cartão da proposta de UMA opção, feito pra tirar print e mandar pro lead.
- * Cores fixas (não seguem o tema escuro) pra imagem sair sempre igual.
+ * Cartão da proposta de UMA opção, pra conferir na tela. A imagem enviada ao cliente é gerada
+ * por `gerarImagemProposta` com as MESMAS linhas (`linhasDaProposta`).
+ * Cores fixas (não seguem o tema escuro) pra sair sempre igual.
  */
 export function PropostaCotacao({
   opcao,
@@ -21,19 +22,8 @@ export function PropostaCotacao({
   email: string | null;
   geradoEm: Date;
 }) {
-  const faixas = agruparPorFaixa(opcao.detalhamento);
+  const linhas = linhasDaProposta(opcao);
   const dataTexto = geradoEm.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-
-  const linhas: [string, string | null][] = [
-    ["Categoria", "Saúde"],
-    ["Modalidade", opcao.modalidade],
-    ["Operadora", opcao.operadora],
-    ["Produto", opcao.produto],
-    ["Tabela", rotuloTabela(opcao)],
-    ["Plano", opcao.plano],
-    ["Acomodação", opcao.acomodacao],
-    ["Coparticipação", opcao.coparticipacao],
-  ];
 
   return (
     <div
@@ -78,31 +68,12 @@ export function PropostaCotacao({
       <div className="overflow-hidden rounded-lg border border-neutral-300">
         <table className="w-full border-collapse">
           <tbody>
-            {linhas
-              .filter(([, valor]) => valor)
-              .map(([rotulo, valor], i) => (
-                <tr key={rotulo} className={i % 2 === 0 ? "bg-[#c3cff6]" : "bg-white"}>
-                  <td className="w-36 px-2.5 py-1.5 text-left">{rotulo}</td>
-                  <td className="px-2.5 py-1.5 text-center">{valor}</td>
-                </tr>
-              ))}
-            {faixas.map((f, i) => (
-              <tr
-                key={`${f.faixa}-${f.valor}`}
-                className={(linhas.filter(([, v]) => v).length + i) % 2 === 0 ? "bg-[#c3cff6]" : "bg-white"}
-              >
-                <td className="px-2.5 py-1.5 text-left">{f.faixa}:</td>
-                <td className="px-2.5 py-1.5 text-center">
-                  {f.qtd} x {brl(f.valor)}
-                </td>
+            {linhas.map((l, i) => (
+              <tr key={`${l.rotulo}-${i}`} className={i % 2 === 0 ? "bg-[#c3cff6]" : "bg-white"}>
+                <td className="w-36 px-2.5 py-1.5 text-left">{l.rotulo}</td>
+                <td className="px-2.5 py-1.5 text-center">{l.valor}</td>
               </tr>
             ))}
-            {opcao.desconto > 0 && (
-              <tr className="bg-white">
-                <td className="px-2.5 py-1.5 text-left">Desconto</td>
-                <td className="px-2.5 py-1.5 text-center text-emerald-700">- {brl(opcao.desconto)}</td>
-              </tr>
-            )}
             <tr className="bg-neutral-200 font-bold">
               <td className="px-2.5 py-2 text-left">Total</td>
               <td className="px-2.5 py-2 text-center">{brl(opcao.total)}</td>
