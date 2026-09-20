@@ -84,6 +84,7 @@ export type ResultadoCotacao = {
   contratacao: string | null;
   modalidade: string | null;
   mei: boolean;
+  obstetricia: boolean;
   vidas: number;
   subtotal: number;
   desconto: number;
@@ -250,6 +251,7 @@ export function calcularCotacao(
         contratacao: t.contratacao,
         modalidade: t.modalidade,
         mei: t.mei,
+        obstetricia: t.obstetricia,
         vidas: idades.length,
         subtotal: emReais(subtotal),
         desconto: emReais(desconto),

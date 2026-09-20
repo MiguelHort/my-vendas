@@ -64,8 +64,10 @@ import {
   UserPlus,
   Megaphone,
   ExternalLink,
+  Calculator,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
+import { CotacaoConversaModal } from "@/components/cotacao/CotacaoConversaModal";
 import { NECESSIDADE_PRINCIPAL_LABEL } from "@/lib/quiz/definition";
 import { translateWhatsAppErrorTitle } from "@/lib/whatsappErrors";
 
@@ -342,6 +344,7 @@ export default function ConversasPage() {
   const [sendingNewContact, setSendingNewContact] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [cotacaoModalOpen, setCotacaoModalOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1399,6 +1402,15 @@ export default function ConversasPage() {
                   variant="ghost"
                   size="icon"
                   className="size-8 text-muted-foreground hover:text-foreground"
+                  title="Fazer cotação"
+                  onClick={() => setCotacaoModalOpen(true)}
+                >
+                  <Calculator className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
                   title="Adicionar etiqueta"
                   onClick={() => {
                     void fetchTags();
@@ -1681,6 +1693,31 @@ export default function ConversasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Cotação a partir da conversa ─────────────────────── */}
+      <CotacaoConversaModal
+        open={cotacaoModalOpen}
+        onOpenChange={setCotacaoModalOpen}
+        authHeader={authHeader}
+        cliente={
+          contactHeader?.name ||
+          formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "") ||
+          null
+        }
+        lead={
+          leadInfo
+            ? {
+                id: leadInfo.id,
+                nome:
+                  contactHeader?.name ||
+          formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "") ||
+                  "Lead",
+              }
+            : null
+        }
+        corretor={firebaseUser?.displayName ?? null}
+        email={firebaseUser?.email ?? null}
+      />
 
       {/* ── Modal de etiquetas do contato ──────────────────── */}
       <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}>

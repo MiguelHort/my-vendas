@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chaveOpcao, extrairIdades, resumoEntrada } from "../comum";
+import { agruparPorFaixa, chaveOpcao, extrairIdades, resumoEntrada, rotuloTabela } from "../comum";
 
 describe("extrairIdades (colar uma lista)", () => {
   it("aceita vírgula, espaço, ponto e vírgula e 'e'", () => {
@@ -48,5 +48,56 @@ describe("chaveOpcao", () => {
         referencia: { px_vinculo_id: 322713, px_tabela_id: 5247, px_plano_id: 283 },
       } as Parameters<typeof chaveOpcao>[0])
     ).toBe("322713:283");
+  });
+});
+
+describe("agruparPorFaixa (linhas do cartão da proposta)", () => {
+  it("junta beneficiários da mesma faixa e valor, como a proposta da PX", () => {
+    expect(
+      agruparPorFaixa([
+        { idade: 60, faixa: "59+", valor: 1201.91 },
+        { idade: 65, faixa: "59+", valor: 1201.91 },
+      ])
+    ).toEqual([{ faixa: "59 a 100", qtd: 2, valor: 1201.91 }]);
+  });
+
+  it("ordena pela idade inicial e mantém faixas diferentes separadas", () => {
+    const linhas = agruparPorFaixa([
+      { idade: 45, faixa: "44 a 48", valor: 900 },
+      { idade: 4, faixa: "0 a 18", valor: 237.18 },
+      { idade: 34, faixa: "34 a 38", valor: 426.57 },
+      { idade: 10, faixa: "0 a 18", valor: 237.18 },
+    ]);
+    expect(linhas.map((l) => [l.faixa, l.qtd])).toEqual([
+      ["0 a 18", 2],
+      ["34 a 38", 1],
+      ["44 a 48", 1],
+    ]);
+  });
+
+  it("o total das linhas bate com a soma dos beneficiários", () => {
+    const det = [
+      { idade: 34, faixa: "34 a 38", valor: 426.57 },
+      { idade: 31, faixa: "29 a 33", valor: 406.26 },
+      { idade: 4, faixa: "0 a 18", valor: 237.18 },
+    ];
+    const total = agruparPorFaixa(det).reduce((s, l) => s + Math.round(l.qtd * l.valor * 100), 0);
+    expect(total).toBe(107001);
+  });
+});
+
+describe("rotuloTabela", () => {
+  it("monta 'Completa | Sem obstetrícia | Black'", () => {
+    expect(
+      rotuloTabela({ coparticipacao: "Completa", obstetricia: false, linha: "Black", contratacao: null })
+    ).toBe("Completa | Sem obstetrícia | Black");
+  });
+  it("ignora contratação Indiferente e cotações antigas sem o campo obstetrícia", () => {
+    expect(
+      rotuloTabela({ coparticipacao: "Parcial", linha: "Amil", contratacao: "Indiferente" })
+    ).toBe("Parcial | Amil");
+    expect(
+      rotuloTabela({ coparticipacao: null, obstetricia: true, linha: null, contratacao: "Compulsório" })
+    ).toBe("Com obstetrícia | Compulsório");
   });
 });

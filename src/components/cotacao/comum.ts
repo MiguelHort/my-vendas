@@ -91,3 +91,39 @@ export function resumoEntrada(e: EntradaCotacao): string {
   if (e.entidade) partes.push(`entidade ${e.entidade}`);
   return partes.join(" · ");
 }
+
+export type LinhaFaixa = { faixa: string; qtd: number; valor: number };
+
+/** Agrupa beneficiários da mesma faixa e valor: "59 a 100: 2 x R$ 1.201,91". */
+export function agruparPorFaixa(
+  detalhamento: { idade: number; faixa: string; valor: number }[]
+): LinhaFaixa[] {
+  const grupos = new Map<string, LinhaFaixa & { inicio: number }>();
+  for (const d of detalhamento) {
+    const faixa = d.faixa.endsWith("+") ? `${d.faixa.slice(0, -1)} a 100` : d.faixa;
+    const chave = `${faixa}|${d.valor}`;
+    const g = grupos.get(chave);
+    if (g) g.qtd += 1;
+    else grupos.set(chave, { faixa, qtd: 1, valor: d.valor, inicio: parseInt(faixa, 10) || 0 });
+  }
+  return [...grupos.values()]
+    .sort((a, b) => a.inicio - b.inicio)
+    .map(({ faixa, qtd, valor }) => ({ faixa, qtd, valor }));
+}
+
+/** "Completa | Sem obstetrícia | Black" — descrição da tabela na proposta. */
+export function rotuloTabela(r: {
+  coparticipacao: string | null;
+  obstetricia?: boolean;
+  linha: string | null;
+  contratacao: string | null;
+}): string {
+  return [
+    r.coparticipacao,
+    r.obstetricia === undefined ? null : r.obstetricia ? "Com obstetrícia" : "Sem obstetrícia",
+    r.linha,
+    r.contratacao && r.contratacao !== "Indiferente" ? r.contratacao : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}

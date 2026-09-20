@@ -7,6 +7,7 @@ import {
   Calculator,
   ChevronDown,
   ChevronRight,
+  FileText,
   Loader2,
   Plus,
   Save,
@@ -35,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { EntradaCotacao, Modalidade } from "@/lib/px/cotacao";
+import type { EntradaCotacao, Modalidade, ResultadoCotacao } from "@/lib/px/cotacao";
 import {
   brl,
   chaveOpcao,
@@ -91,12 +92,18 @@ export function NovaCotacao({
   leadInicial,
   produtos,
   onSalva,
+  leadFixo,
+  onGerarProposta,
 }: {
   authHeader: AuthHeader;
   produtos: StatusSyncDto["produtos"];
   leads: LeadResumo[];
   leadInicial: string | null;
   onSalva: () => void;
+  /** Dentro de uma conversa: o lead já é conhecido (ou null = sem lead) e some o seletor. */
+  leadFixo?: { id: string; nome: string } | null;
+  /** Mostra o botão "Proposta" em cada opção (gera o cartão pra print). */
+  onGerarProposta?: (opcao: ResultadoCotacao) => void;
 }) {
   // ----- entrada -----
   const [idades, setIdades] = React.useState<number[]>([]);
@@ -112,7 +119,9 @@ export function NovaCotacao({
   const [produtoId, setProdutoId] = React.useState("");
 
   // ----- lead (opcional) -----
-  const [leadId, setLeadId] = React.useState<string | null>(leadInicial);
+  const [leadId, setLeadId] = React.useState<string | null>(
+    leadFixo !== undefined ? (leadFixo?.id ?? null) : leadInicial
+  );
   const [buscaLead, setBuscaLead] = React.useState("");
 
   // ----- resultado -----
@@ -129,7 +138,9 @@ export function NovaCotacao({
   const [rapidoCoparticipacao, setRapidoCoparticipacao] = React.useState("");
   const [rapidoLinha, setRapidoLinha] = React.useState("");
 
-  const leadSelecionado = leads.find((l) => l.id === leadId) ?? null;
+  const leadSelecionado: LeadResumo | null = leadFixo
+    ? { id: leadFixo.id, nome: leadFixo.nome, telefone: null }
+    : (leads.find((l) => l.id === leadId) ?? null);
 
   // ---------------------------------------------------------------- idades
   function adicionarIdades() {
@@ -452,7 +463,7 @@ export function NovaCotacao({
           </div>
 
           {/* Lead (opcional) */}
-          <div className="space-y-1.5">
+          <div className={leadFixo !== undefined ? "hidden" : "space-y-1.5"}>
             <Label className="text-xs">Lead (opcional — pra guardar a cotação nele)</Label>
             {leadSelecionado ? (
               <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
@@ -587,6 +598,7 @@ export function NovaCotacao({
                       <TableHead>Coparticipação</TableHead>
                       <TableHead>Contratação</TableHead>
                       <TableHead className="text-right">Total mensal</TableHead>
+                      {onGerarProposta && <TableHead className="w-28" />}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -627,11 +639,25 @@ export function NovaCotacao({
                             <TableCell className="text-right font-semibold tabular-nums">
                               {brl(r.total)}
                             </TableCell>
+                            {onGerarProposta && (
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 gap-1.5 px-2 text-xs"
+                                  onClick={() => onGerarProposta(r)}
+                                >
+                                  <FileText className="size-3.5" />
+                                  Proposta
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                           {aberta && (
                             <TableRow className="bg-muted/30 hover:bg-muted/30">
                               <TableCell />
-                              <TableCell colSpan={8}>
+                              <TableCell colSpan={onGerarProposta ? 9 : 8}>
                                 <div className="flex flex-wrap gap-x-6 gap-y-1 py-1 text-sm">
                                   {r.detalhamento.map((d, i) => (
                                     <span key={i} className="tabular-nums">
