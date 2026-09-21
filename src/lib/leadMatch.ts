@@ -48,3 +48,26 @@ export async function markLeadChamado(waId: string): Promise<void> {
 
   await prisma.lead.update({ where: { id: leadId }, data: { lastChamadoAt: new Date() } });
 }
+
+/**
+ * Sufixos de telefone (ver `phoneSuffix`) dos contatos cujo lead está em
+ * "Dispensado" no funil — essas conversas saem do inbox do WhatsApp. Quando há
+ * mais de um lead com o mesmo número, vale o mais recente (mesma regra das tags).
+ */
+export async function getDispensedPhoneSuffixes(): Promise<Set<string>> {
+  const leads = await prisma.lead.findMany({
+    where: { telefone: { not: null } },
+    select: { telefone: true, status: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const seen = new Set<string>();
+  const dispensed = new Set<string>();
+  for (const l of leads) {
+    const suffix = phoneSuffix(l.telefone);
+    if (!suffix || seen.has(suffix)) continue;
+    seen.add(suffix);
+    if (l.status === "Dispensado") dispensed.add(suffix);
+  }
+  return dispensed;
+}

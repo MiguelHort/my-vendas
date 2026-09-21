@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
-import { phoneSuffix } from "@/lib/leadMatch";
+import { getDispensedPhoneSuffixes, phoneSuffix } from "@/lib/leadMatch";
 import { toAdReferralDto } from "@/lib/adReferral";
 
 export const runtime = "nodejs";
@@ -15,9 +15,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const conversations = await prisma.whatsAppConversation.findMany({
-    orderBy: { lastMessageAt: "desc" },
-  });
+  const [allConversations, dispensed] = await Promise.all([
+    prisma.whatsAppConversation.findMany({ orderBy: { lastMessageAt: "desc" } }),
+    getDispensedPhoneSuffixes(),
+  ]);
+  // Lead dispensado no funil não aparece mais nas conversas.
+  const conversations = allConversations.filter((c) => !dispensed.has(phoneSuffix(c.waId)));
 
   // Última mensagem de cada conversa (direção + status) pra mostrar o "visto" na lista.
   const lastMessages = await prisma.whatsAppMessage.findMany({

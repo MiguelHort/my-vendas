@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authServer";
+import { getDispensedPhoneSuffixes, phoneSuffix } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +17,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const result = await prisma.whatsAppConversation.aggregate({
-    _sum: { unreadCount: true },
-  });
+  // Conversas de leads dispensados ficam escondidas do inbox — não contam no badge.
+  const [unread, dispensed] = await Promise.all([
+    prisma.whatsAppConversation.findMany({
+      where: { unreadCount: { gt: 0 } },
+      select: { waId: true, unreadCount: true },
+    }),
+    getDispensedPhoneSuffixes(),
+  ]);
+  const count = unread
+    .filter((c) => !dispensed.has(phoneSuffix(c.waId)))
+    .reduce((sum, c) => sum + c.unreadCount, 0);
 
-  return NextResponse.json({ count: result._sum.unreadCount ?? 0 });
+  return NextResponse.json({ count });
 }
