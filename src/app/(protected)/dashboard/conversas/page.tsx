@@ -92,6 +92,7 @@ type Conversation = {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  follow_up_count: number;
   last_message_direction?: "INBOUND" | "OUTBOUND" | null;
   last_message_status?: Message["status"] | null;
   tags: Tag[];
@@ -324,8 +325,10 @@ export default function ConversasPage() {
 
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
+  const [followUpFilter, setFollowUpFilter] = useState<Set<number>>(new Set());
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [savingTags, setSavingTags] = useState(false);
+  const [addingFollowUp, setAddingFollowUp] = useState(false);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -477,6 +480,29 @@ export default function ConversasPage() {
     fetchTemplates();
   }, [firebaseUser, fetchTemplates]);
 
+  async function handleAddFollowUp() {
+    if (!selectedId || addingFollowUp) return;
+    setAddingFollowUp(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/followup`, {
+        method: "POST",
+        headers,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao registrar follow-up");
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, follow_up_count: data.follow_up_count } : c))
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível registrar o follow-up");
+    } finally {
+      setAddingFollowUp(false);
+    }
+  }
+
   async function handleSaveLeadTags(tagIds: string[]) {
     if (!leadInfo || savingTags) return;
     setSavingTags(true);
@@ -568,6 +594,15 @@ export default function ConversasPage() {
     isNearBottomRef.current = distanceFromBottom < 120;
   }
 
+  // Quantidades de follow-up que existem hoje (sempre inclui 0) e quantas conversas há em cada.
+  const followUpOptions = useMemo(() => {
+    const counts = new Map<number, number>([[0, 0]]);
+    for (const c of conversations) {
+      counts.set(c.follow_up_count, (counts.get(c.follow_up_count) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => a[0] - b[0]);
+  }, [conversations]);
+
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
     const qDigits = q.replace(/\D/g, "");
@@ -576,13 +611,14 @@ export default function ConversasPage() {
         const has = c.tags.some((t) => tagFilter.has(t.id));
         if (!has) return false;
       }
+      if (followUpFilter.size > 0 && !followUpFilter.has(c.follow_up_count)) return false;
       if (!q) return true;
       const name = (c.contact_name || "").toLowerCase();
       if (name.includes(q)) return true;
       if (qDigits && c.wa_id.includes(qDigits)) return true;
       return false;
     });
-  }, [conversations, search, tagFilter]);
+  }, [conversations, search, tagFilter, followUpFilter]);
 
   const groupedMessages = useMemo(() => {
     const groups: { label: string; items: Message[] }[] = [];
@@ -1151,6 +1187,55 @@ export default function ConversasPage() {
                 </PopoverContent>
               </Popover>
 
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-7 rounded-full gap-1.5 text-xs",
+                      followUpFilter.size > 0 && "border-amber-500 text-amber-600"
+                    )}
+                  >
+                    <ListFilter className="size-3.5" />
+                    {followUpFilter.size > 0
+                      ? `Follow-up: ${[...followUpFilter].sort((a, b) => a - b).join(", ")}`
+                      : "Filtrar por follow-up"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-1.5">
+                  <div className="max-h-64 overflow-y-auto">
+                    {followUpOptions.map(([n, total]) => (
+                      <button
+                        key={n}
+                        onClick={() =>
+                          setFollowUpFilter((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(n)) next.delete(n);
+                            else next.add(n);
+                            return next;
+                          })
+                        }
+                        className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-left"
+                      >
+                        <Checkbox checked={followUpFilter.has(n)} className="pointer-events-none" />
+                        <span className="flex-1 truncate">{n} follow-up</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">{total}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {followUpFilter.size > 0 && (
+                <button
+                  onClick={() => setFollowUpFilter(new Set())}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                >
+                  limpar follow-up
+                </button>
+              )}
+
               {[...tagFilter].map((id) => {
                 const t = allTags.find((x) => x.id === id);
                 if (!t) return null;
@@ -1237,6 +1322,12 @@ export default function ConversasPage() {
                               aria-label="Veio de anúncio"
                             />
                           )}
+                          <span
+                            className="text-[9px] leading-none px-1 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 font-medium shrink-0 tabular-nums"
+                            title="Follow-ups feitos"
+                          >
+                            {c.follow_up_count} follow-up
+                          </span>
                           {c.tags.slice(0, 3).map((t) => (
                             <span
                               key={t.id}
@@ -1364,6 +1455,14 @@ export default function ConversasPage() {
                         {formatCurrency(leadInfo.valor_mensalidade)}
                       </span>
                     )}
+                    <button
+                      onClick={() => void handleAddFollowUp()}
+                      disabled={addingFollowUp}
+                      className="text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-amber-500 text-white font-medium tabular-nums hover:bg-amber-600 disabled:opacity-60"
+                      title="Etiqueta fixa — clique para somar +1 follow-up"
+                    >
+                      {conversations.find((x) => x.id === selectedId)?.follow_up_count ?? 0} follow-up +
+                    </button>
                     {leadInfo?.tags.slice(0, 3).map((t) => (
                       <span
                         key={t.id}

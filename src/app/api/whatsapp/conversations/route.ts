@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
       last_message_at: c.lastMessageAt ? c.lastMessageAt.toISOString() : null,
       last_message_preview: c.lastMessagePreview,
       unread_count: c.unreadCount,
+      follow_up_count: c.followUpCount,
       last_message_direction: lastByConversation.get(c.id)?.direction ?? null,
       last_message_status: lastByConversation.get(c.id)?.status ?? null,
       tags: tagsBySuffix.get(phoneSuffix(c.waId)) ?? [],
