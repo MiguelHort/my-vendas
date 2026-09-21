@@ -167,6 +167,8 @@ model WhatsAppConversation {
   unreadCount        Int       @default(0) @map("unread_count")
   /// Etiqueta fixa de follow-up: começa em 0, só aumenta (nunca é removida)
   followUpCount      Int       @default(0) @map("follow_up_count")
+  /// Observações internas da equipe sobre a conversa (texto livre)
+  notes              String?   @db.Text
   /// Click-to-WhatsApp: dados do anúncio de onde o contato veio (bloco "referral" do webhook da Meta)
   adReferral         Json?     @map("ad_referral")
   /// id do anúncio (referral.source_id) — indexado pra contar conversas por anúncio

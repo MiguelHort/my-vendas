@@ -21,6 +21,7 @@ import {
   Kanban,
   Wallet,
   Calculator,
+  CalendarDays,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -90,6 +91,7 @@ const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
+  { href: "/dashboard/calendario", label: "Calendário", icon: CalendarDays },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
   { href: "/dashboard/cotacao", label: "Cotação", icon: Calculator },
   { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
@@ -110,6 +112,7 @@ const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   funil: "Funil",
   demandas: "Demandas",
+  calendario: "Calendário",
   financeiro: "Financeiro",
   conversas: "Conversas",
   etiquetas: "Etiquetas",

@@ -19,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -65,6 +66,7 @@ import {
   Megaphone,
   ExternalLink,
   Calculator,
+  StickyNote,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { CotacaoConversaModal } from "@/components/cotacao/CotacaoConversaModal";
@@ -93,6 +95,7 @@ type Conversation = {
   last_message_preview: string | null;
   unread_count: number;
   follow_up_count: number;
+  notes: string | null;
   last_message_direction?: "INBOUND" | "OUTBOUND" | null;
   last_message_status?: Message["status"] | null;
   tags: Tag[];
@@ -329,6 +332,9 @@ export default function ConversasPage() {
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [savingTags, setSavingTags] = useState(false);
   const [addingFollowUp, setAddingFollowUp] = useState(false);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -480,6 +486,38 @@ export default function ConversasPage() {
     fetchTemplates();
   }, [firebaseUser, fetchTemplates]);
 
+  function openNotesModal() {
+    const c = conversations.find((x) => x.id === selectedId);
+    setNotesDraft(c?.notes ?? "");
+    setNotesModalOpen(true);
+  }
+
+  async function handleSaveNotes() {
+    if (!selectedId || savingNotes) return;
+    setSavingNotes(true);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/notes`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar observações");
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, notes: data.notes } : c))
+      );
+      setNotesModalOpen(false);
+      toast.success("Observações salvas");
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Não foi possível salvar as observações");
+    } finally {
+      setSavingNotes(false);
+    }
+  }
+
   async function handleAddFollowUp() {
     if (!selectedId || addingFollowUp) return;
     setAddingFollowUp(true);
@@ -555,6 +593,7 @@ export default function ConversasPage() {
       setLeadInfo(null);
       setQuizInfo(null);
       setTagModalOpen(false);
+      setNotesModalOpen(false);
       setQuizModalOpen(false);
       return;
     }
@@ -1322,6 +1361,12 @@ export default function ConversasPage() {
                               aria-label="Veio de anúncio"
                             />
                           )}
+                          {c.notes && (
+                            <StickyNote
+                              className="size-3 shrink-0 text-amber-500"
+                              aria-label="Tem observações"
+                            />
+                          )}
                           <span
                             className="text-[9px] leading-none px-1 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 font-medium shrink-0 tabular-nums"
                             title="Follow-ups feitos"
@@ -1486,50 +1531,57 @@ export default function ConversasPage() {
                     )}
                   </div>
                 </div>
-                {quizInfo && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-muted-foreground hover:text-foreground"
-                    title="Respostas do quiz"
-                    onClick={() => setQuizModalOpen(true)}
-                  >
-                    <ClipboardList className="size-4" />
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground hover:text-foreground"
-                  title="Fazer cotação"
-                  onClick={() => setCotacaoModalOpen(true)}
-                >
-                  <Calculator className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground hover:text-foreground"
-                  title="Adicionar etiqueta"
-                  onClick={() => {
-                    void fetchTags();
-                    setTagModalOpen(true);
-                  }}
-                >
-                  <TagIcon className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                  title="Excluir conversa"
-                  onClick={() => {
-                    const c = conversations.find((x) => x.id === selectedId);
-                    if (c) openDeleteDialog(c);
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative size-8 text-muted-foreground hover:text-foreground"
+                      aria-label="Mais opções da conversa"
+                    >
+                      <MoreVertical className="size-4" />
+                      {conversations.find((x) => x.id === selectedId)?.notes && (
+                        <span className="absolute top-1 right-1 size-2 rounded-full bg-amber-500" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {quizInfo && (
+                      <DropdownMenuItem onClick={() => setQuizModalOpen(true)}>
+                        <ClipboardList className="size-4" />
+                        Respostas do quiz
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setCotacaoModalOpen(true)}>
+                      <Calculator className="size-4" />
+                      Fazer cotação
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        void fetchTags();
+                        setTagModalOpen(true);
+                      }}
+                    >
+                      <TagIcon className="size-4" />
+                      Etiquetas
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openNotesModal}>
+                      <StickyNote className="size-4" />
+                      Observações
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        const c = conversations.find((x) => x.id === selectedId);
+                        if (c) openDeleteDialog(c);
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                      Excluir conversa
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div
@@ -1822,6 +1874,42 @@ export default function ConversasPage() {
           void fetchConversations();
         }}
       />
+
+      {/* ── Modal de observações da conversa ───────────────── */}
+      <Dialog open={notesModalOpen} onOpenChange={setNotesModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <StickyNote className="size-5" />
+              <DialogTitle>Observações</DialogTitle>
+            </div>
+            <DialogDescription>
+              {contactHeader?.name ||
+                formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")}
+              {" — visível só para a equipe, o contato não recebe."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Textarea
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            placeholder="Anote aqui o que for importante sobre esse contato…"
+            rows={8}
+            maxLength={5000}
+            disabled={savingNotes}
+          />
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotesModalOpen(false)} disabled={savingNotes}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void handleSaveNotes()} disabled={savingNotes}>
+              {savingNotes && <Loader2 className="size-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Modal de etiquetas do contato ──────────────────── */}
       <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}>
