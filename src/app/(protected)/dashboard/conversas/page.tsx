@@ -68,6 +68,7 @@ import {
   ExternalLink,
   Calculator,
   StickyNote,
+  XCircle,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { CotacaoConversaModal } from "@/components/cotacao/CotacaoConversaModal";
@@ -353,6 +354,9 @@ export default function ConversasPage() {
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [dispensarModalOpen, setDispensarModalOpen] = useState(false);
+  const [motivoDispensar, setMotivoDispensar] = useState("");
+  const [dispensando, setDispensando] = useState(false);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -558,6 +562,55 @@ export default function ConversasPage() {
     }
   }
 
+  function openDispensarModal() {
+    setMotivoDispensar("");
+    setDispensarModalOpen(true);
+  }
+
+  /**
+   * Dispensa o lead vinculado à conversa — mesmo endpoint e mesmo efeito de
+   * arrastar o card pra coluna "Dispensado" no funil (ver funil/page.tsx). Ao
+   * ficar "Dispensado", o lead já some do inbox sozinho (ver
+   * api/whatsapp/conversations, filtro por `getHiddenPhoneSuffixes`), então
+   * aqui só tiramos a conversa da lista local pra resposta imediata.
+   */
+  async function handleConfirmDispensar() {
+    if (!leadInfo || !firebaseUser || dispensando) return;
+    if (!motivoDispensar.trim()) {
+      toast.error("Informe o motivo da dispensa");
+      return;
+    }
+
+    setDispensando(true);
+    try {
+      const params = new URLSearchParams({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+      });
+      const res = await fetch(`/api/leads/dispensa?${params.toString()}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadInfo.id, motivo_dispensa: motivoDispensar.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao dispensar lead");
+
+      setDispensarModalOpen(false);
+      setMotivoDispensar("");
+      toast.success("Lead dispensado — a conversa saiu do inbox.");
+
+      const dispensedId = selectedId;
+      setConversations((prev) => prev.filter((c) => c.id !== dispensedId));
+      setSelectedId(null);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Não foi possível dispensar o lead");
+    } finally {
+      setDispensando(false);
+    }
+  }
+
   async function handleAddFollowUp() {
     if (!selectedId || addingFollowUp) return;
     setAddingFollowUp(true);
@@ -663,6 +716,7 @@ export default function ConversasPage() {
       setTagModalOpen(false);
       setNotesModalOpen(false);
       setQuizModalOpen(false);
+      setDispensarModalOpen(false);
       return;
     }
     isNearBottomRef.current = true; // abrindo a conversa: sempre começa no fim
@@ -1645,6 +1699,19 @@ export default function ConversasPage() {
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={() => {
+                        if (!leadInfo) {
+                          toast.error("Essa conversa não tem um lead vinculado, então não dá pra dispensar.");
+                          return;
+                        }
+                        openDispensarModal();
+                      }}
+                    >
+                      <XCircle className="size-4" />
+                      Dispensar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => {
                         const c = conversations.find((x) => x.id === selectedId);
                         if (c) openDeleteDialog(c);
                       }}
@@ -1946,6 +2013,57 @@ export default function ConversasPage() {
           void fetchConversations();
         }}
       />
+
+      {/* ── Modal de dispensar o lead a partir da conversa ──── */}
+      <Dialog
+        open={dispensarModalOpen}
+        onOpenChange={(open) => {
+          if (!open && !dispensando) {
+            setDispensarModalOpen(false);
+            setMotivoDispensar("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <XCircle className="size-5" />
+              <DialogTitle>Dispensar lead</DialogTitle>
+            </div>
+            <DialogDescription>
+              {contactHeader?.name ||
+                formatPhoneNumber(contactHeader?.wa_id?.replace(/^55/, "") || "")}
+              {" — o lead vai pra coluna \"Dispensado\" no funil e essa conversa some do inbox."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Textarea
+            value={motivoDispensar}
+            onChange={(e) => setMotivoDispensar(e.target.value)}
+            placeholder="Motivo da dispensa…"
+            rows={4}
+            autoFocus
+            disabled={dispensando}
+          />
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDispensarModalOpen(false);
+                setMotivoDispensar("");
+              }}
+              disabled={dispensando}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => void handleConfirmDispensar()} disabled={dispensando}>
+              {dispensando ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
+              Confirmar dispensa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Modal de observações da conversa ───────────────── */}
       <Dialog open={notesModalOpen} onOpenChange={setNotesModalOpen}>
