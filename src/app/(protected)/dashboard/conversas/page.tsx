@@ -318,6 +318,10 @@ export default function ConversasPage() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // Preferência do usuário (Configurações > Preferências) — se abrir uma
+  // conversa marca ela como lida. true até a gente confirmar o valor real,
+  // pra não "piscar" um badge que o servidor não vai zerar mesmo.
+  const [markReadOnOpen, setMarkReadOnOpen] = useState(true);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -467,6 +471,25 @@ export default function ConversasPage() {
     fetchTags();
   }, [firebaseUser, fetchTags]);
 
+  // Preferência "marcar como lida ao abrir" (Configurações) — pra não zerar o
+  // badge localmente quando o servidor não vai zerar de verdade.
+  useEffect(() => {
+    if (!firebaseUser) return;
+    (async () => {
+      const headers = await authHeader();
+      if (!headers) return;
+      try {
+        const res = await fetch("/api/me/profile", { headers });
+        const data = await res.json();
+        if (data.ok && typeof data.profile?.mark_read_on_open === "boolean") {
+          setMarkReadOnOpen(data.profile.mark_read_on_open);
+        }
+      } catch {
+        // silencioso — mantém o default (true)
+      }
+    })();
+  }, [firebaseUser, authHeader]);
+
   const fetchTemplates = useCallback(async () => {
     const headers = await authHeader();
     if (!headers) return;
@@ -602,14 +625,18 @@ export default function ConversasPage() {
     fetchMessages(selectedId).finally(() => setLoadingMessages(false));
     fetchLeadInfo(selectedId); // só na abertura — não precisa de polling
 
-    // zera badge de não lidas localmente pra resposta imediata
-    setConversations((prev) =>
-      prev.map((c) => (c.id === selectedId ? { ...c, unread_count: 0 } : c))
-    );
+    // zera badge de não lidas localmente pra resposta imediata — só quando a
+    // preferência está ligada, senão o servidor não zera e o próximo poll
+    // da lista traria o contador de volta (efeito "pisca").
+    if (markReadOnOpen) {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedId ? { ...c, unread_count: 0 } : c))
+      );
+    }
 
     const interval = setInterval(() => fetchMessages(selectedId), MESSAGES_POLL_MS);
     return () => clearInterval(interval);
-  }, [selectedId, fetchMessages, fetchLeadInfo]);
+  }, [selectedId, fetchMessages, fetchLeadInfo, markReadOnOpen]);
 
   // Troca de conversa com uma pré-visualização de imagem aberta: descarta, pra
   // nunca mandar a imagem pro contato errado.

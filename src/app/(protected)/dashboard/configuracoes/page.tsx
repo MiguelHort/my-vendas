@@ -58,6 +58,7 @@ type Profile = {
   email: string;
   createdAt: string;
   role: "ADMIN" | "VENDEDOR";
+  mark_read_on_open: boolean;
 };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -214,6 +215,7 @@ function MyAccountTab({ token }: { token: string }) {
   const [name, setName] = React.useState("");
   const [savingName, setSavingName] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [savingMarkReadOnOpen, setSavingMarkReadOnOpen] = React.useState(false);
 
   const headers = React.useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
@@ -252,6 +254,26 @@ function MyAccountTab({ token }: { token: string }) {
       toast.error("Erro ao salvar nome.");
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handleToggleMarkReadOnOpen = async (checked: boolean) => {
+    setSavingMarkReadOnOpen(true);
+    const previous = profile?.mark_read_on_open;
+    setProfile((p) => (p ? { ...p, mark_read_on_open: checked } : p));
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ mark_read_on_open: checked }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message);
+    } catch {
+      setProfile((p) => (p ? { ...p, mark_read_on_open: previous ?? true } : p));
+      toast.error("Erro ao salvar preferência.");
+    } finally {
+      setSavingMarkReadOnOpen(false);
     }
   };
 
@@ -362,6 +384,33 @@ function MyAccountTab({ token }: { token: string }) {
           <p className="text-xs text-muted-foreground">
             O e-mail é gerenciado pela sua conta Google e não pode ser alterado aqui.
           </p>
+        </div>
+      </div>
+
+      {/* Preferências */}
+      <div className="rounded-2xl border overflow-hidden shadow-sm">
+        <div className="px-4 py-2.5 bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Preferências
+        </div>
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="mark-read-on-open" className="text-sm font-medium">
+                Marcar como lida ao abrir a conversa
+              </Label>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Com isso desligado, abrir uma conversa no WhatsApp não zera o contador de
+                não lidas dela — vale só pra sua sessão; se outra pessoa da equipe abrir a
+                mesma conversa com a opção ligada, o contador zera do mesmo jeito.
+              </p>
+            </div>
+            <Switch
+              id="mark-read-on-open"
+              checked={profile.mark_read_on_open}
+              disabled={savingMarkReadOnOpen}
+              onCheckedChange={handleToggleMarkReadOnOpen}
+            />
+          </div>
         </div>
       </div>
 

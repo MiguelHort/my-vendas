@@ -32,7 +32,11 @@ export async function GET(
     take: 500,
   });
 
-  if (conversation.unreadCount > 0) {
+  // Preferência do usuário (users.mark_read_on_open) — quem desligou essa opção
+  // não marca a conversa como lida só de abrir; o contador continua até
+  // alguém com a opção ligada abrir a mesma conversa (é por conversa, não por
+  // usuário — ver comentário no schema).
+  if (conversation.unreadCount > 0 && auth.user.markReadOnOpen) {
     await prisma.whatsAppConversation.update({
       where: { id },
       data: { unreadCount: 0 },

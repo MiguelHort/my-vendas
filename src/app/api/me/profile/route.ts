@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         createdAt: user.createdAt,
         role: user.role,
+        mark_read_on_open: user.markReadOnOpen,
       },
     });
   } catch (err) {
@@ -44,16 +45,34 @@ export async function PUT(req: NextRequest) {
     if (!user) return NextResponse.json({ ok: false }, { status: 404 });
 
     const body = await req.json();
-    const name = typeof body.name === "string" ? body.name.trim() : undefined;
+    const nameProvided = typeof body.name === "string";
+    const name = nameProvided ? body.name.trim() : undefined;
+    const markReadOnOpenProvided = typeof body.mark_read_on_open === "boolean";
 
-    if (!name) return NextResponse.json({ ok: false, message: "Nome inválido." }, { status: 400 });
+    if (nameProvided && !name) {
+      return NextResponse.json({ ok: false, message: "Nome inválido." }, { status: 400 });
+    }
+    if (!nameProvided && !markReadOnOpenProvided) {
+      return NextResponse.json({ ok: false, message: "Nada para atualizar." }, { status: 400 });
+    }
 
     const updated = await prisma.user.update({
       where: { id: user.id },
-      data: { name },
+      data: {
+        ...(name ? { name } : {}),
+        ...(markReadOnOpenProvided ? { markReadOnOpen: body.mark_read_on_open } : {}),
+      },
     });
 
-    return NextResponse.json({ ok: true, profile: { id: updated.id, name: updated.name, email: updated.email } });
+    return NextResponse.json({
+      ok: true,
+      profile: {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        mark_read_on_open: updated.markReadOnOpen,
+      },
+    });
   } catch (err) {
     console.error("Erro em PUT /api/me/profile:", err);
     return NextResponse.json({ ok: false }, { status: 500 });

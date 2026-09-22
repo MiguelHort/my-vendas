@@ -120,6 +120,8 @@ model User {
 
   role     Role    @default(VENDEDOR)
   approved Boolean @default(false)
+  /// Se true (padrão), abrir uma conversa do WhatsApp marca ela como lida. Preferência do próprio usuário.
+  markReadOnOpen Boolean @default(true) @map("mark_read_on_open")
 
   whatsappMessagesSent WhatsAppMessage[]
   tasksCreated         Task[]            @relation("TaskCreatedBy")
