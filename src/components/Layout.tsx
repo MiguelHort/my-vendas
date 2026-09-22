@@ -22,6 +22,7 @@ import {
   Wallet,
   Calculator,
   CalendarDays,
+  BarChart3,
 } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
@@ -89,6 +90,7 @@ type MeUser = {
 
 const crmItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/metricas", label: "Métricas", icon: BarChart3 },
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
   { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
   { href: "/dashboard/calendario", label: "Calendário", icon: CalendarDays },
@@ -110,6 +112,7 @@ const assistentesItems = [
 
 const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
+  metricas: "Métricas",
   funil: "Funil",
   demandas: "Demandas",
   calendario: "Calendário",
