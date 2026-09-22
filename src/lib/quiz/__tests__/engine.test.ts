@@ -57,6 +57,7 @@ describe("advance — caminhos completos", () => {
       click("motivo_trocar", null),
       click("atendimento_melhor", null),
       click("pessoas_2_4", null),
+      text("34, 30"),
       click("cnpj_sim", null),
       click("cobertura_nacional", null),
       text("  Florianópolis  "),
@@ -71,6 +72,7 @@ describe("advance — caminhos completos", () => {
       { step: "motivo", optionId: "motivo_trocar", optionTitle: "Trocar plano atual", at: NOW.toISOString() },
       { step: "atendimento", optionId: "atendimento_melhor", optionTitle: "Melhor atendimento", at: NOW.toISOString() },
       { step: "pessoas", optionId: "pessoas_2_4", optionTitle: "2 a 4 pessoas", at: NOW.toISOString() },
+      { step: "idades", optionId: null, optionTitle: "34, 30", at: NOW.toISOString() },
       { step: "cnpj", optionId: "cnpj_sim", optionTitle: "Sim", at: NOW.toISOString() },
       { step: "cobertura", optionId: "cobertura_nacional", optionTitle: "Completo/nacional", at: NOW.toISOString() },
       { step: "cidade", optionId: null, optionTitle: "Florianópolis", at: NOW.toISOString() },
@@ -78,16 +80,17 @@ describe("advance — caminhos completos", () => {
 
     const finalAction = sends.at(-1);
     expect(finalAction).toEqual({ type: "send_text", body: QUIZ_DEFINITION.mensagemFinal });
-    // perguntas enviadas ao longo do caminho: atendimento, pessoas, cnpj, cobertura, cidade
+    // perguntas enviadas ao longo do caminho: atendimento, pessoas, idades, cnpj, cobertura, cidade
     expect(
       sends.filter((s) => s.type === "send_question").map((s) => (s.type === "send_question" ? s.step : ""))
-    ).toEqual(["atendimento", "pessoas", "cnpj", "cobertura", "cidade"]);
+    ).toEqual(["atendimento", "pessoas", "idades", "cnpj", "cobertura", "cidade"]);
   });
 
   it("caminho sem troca de plano pula a sub-pergunta de atendimento", () => {
     const { state, sends } = walk([
       click("motivo_seguranca", null),
       click("pessoas_1", null),
+      text("29"),
       click("cnpj_nao", null),
       click("cobertura_regional", null),
       text("Curitiba"),
@@ -99,6 +102,7 @@ describe("advance — caminhos completos", () => {
     expect(state.answers.map((a) => a.optionId)).toEqual([
       "motivo_seguranca",
       "pessoas_1",
+      null,
       "cnpj_nao",
       "cobertura_regional",
       null,
@@ -108,7 +112,7 @@ describe("advance — caminhos completos", () => {
     const steps = sends
       .filter((s) => s.type === "send_question")
       .map((s) => (s.type === "send_question" ? s.step : ""));
-    expect(steps).toEqual(["pessoas", "cnpj", "cobertura", "cidade"]); // nunca "atendimento"
+    expect(steps).toEqual(["pessoas", "idades", "cnpj", "cobertura", "cidade"]); // nunca "atendimento"
     expect(sends.at(-1)).toEqual({ type: "send_text", body: QUIZ_DEFINITION.mensagemFinal });
   });
 
@@ -116,6 +120,7 @@ describe("advance — caminhos completos", () => {
     const { state } = walk([
       click("motivo_tratar", null),
       click("pessoas_5_mais", null),
+      text("40, 38, 10, 8, 5"),
       click("cnpj_sim", null),
       click("cobertura_nacional", null),
       text("Curitiba"),

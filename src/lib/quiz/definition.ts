@@ -45,10 +45,17 @@ export const QUIZ_DEFINITION: QuizDefinition = {
     pessoas: {
       corpo: "Perfeito, para quantas pessoas gostaria de ver um plano?",
       opcoes: [
-        { id: "pessoas_1", titulo: "Somente 1", proxima: "cnpj" },
-        { id: "pessoas_2_4", titulo: "2 a 4 pessoas", proxima: "cnpj" },
-        { id: "pessoas_5_mais", titulo: "5 ou mais pessoas", proxima: "cnpj" },
+        { id: "pessoas_1", titulo: "Somente 1", proxima: "idades" },
+        { id: "pessoas_2_4", titulo: "2 a 4 pessoas", proxima: "idades" },
+        { id: "pessoas_5_mais", titulo: "5 ou mais pessoas", proxima: "idades" },
       ],
+    },
+
+    // pergunta de texto livre — sem botões, a resposta é o que o contato escrever.
+    idades: {
+      corpo: "Qual a idade de cada pessoa que ficaria no plano? 👇🏼",
+      opcoes: [],
+      proximaSeTexto: "cnpj",
     },
 
     cnpj: {
