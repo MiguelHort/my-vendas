@@ -4,6 +4,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -197,13 +198,20 @@ const LeadCard: React.FC<LeadCardProps> = ({
   commissionMap = {},
   hideMonthlyValue = false,
 }) => {
+  const router = useRouter();
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [editFormData, setEditFormData] = React.useState<Partial<Lead>>({});
 
   // estado para controlar se mostra input de operadora customizada
   const [operadoraCustom, setOperadoraCustom] = React.useState(false);
 
-  const openWhatsApp = (telefone: string | null) => {
+  /**
+   * Leva pra tela de Conversas já na conversa desse contato (casamento por
+   * telefone, igual o resto do app). Se ainda não existir conversa, a própria
+   * tela de Conversas abre o fluxo de iniciar uma nova (Meta exige Message
+   * Template pra falar com quem nunca mandou mensagem).
+   */
+  const openWhatsApp = (telefone: string | null, nome: string) => {
     if (!telefone) {
       toast.error("Este lead não possui telefone cadastrado.");
       return;
@@ -213,10 +221,9 @@ const LeadCard: React.FC<LeadCardProps> = ({
       toast.error("Telefone inválido para este lead.");
       return;
     }
-    window.open(
-      `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`,
-      "_blank",
-    );
+    const params = new URLSearchParams({ telefone: digits });
+    if (nome) params.set("nome", nome);
+    router.push(`/dashboard/conversas?${params.toString()}`);
   };
 
   const handleOpenEditModal = () => {
@@ -406,9 +413,9 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   className="h-7 w-7 rounded-full text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600"
                   onClick={(e) => {
                     e.stopPropagation();
-                    openWhatsApp(lead.telefone);
+                    openWhatsApp(lead.telefone, lead.nome);
                   }}
-                  title="Abrir WhatsApp"
+                  title="Abrir conversa no WhatsApp"
                 >
                   <WhatsappIcon />
                 </Button>

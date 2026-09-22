@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { Layout } from "@/components/Layout";
@@ -184,6 +185,18 @@ function displayName(c: { contact_name: string | null; wa_id: string }) {
   return c.contact_name || formatPhoneNumber(c.wa_id.replace(/^55/, ""));
 }
 
+/**
+ * Últimos 8 dígitos de um telefone (número do assinante, sem DDI/DDD) — mesmo
+ * critério de `phoneSuffix` em lib/leadMatch.ts, reimplementado aqui (puro, sem
+ * `prisma`) pra casar o `?telefone=` do deep link do funil com uma conversa
+ * existente sem puxar código server-only pro bundle do cliente.
+ */
+function phoneSuffixClient(raw: string | null | undefined) {
+  let digits = (raw || "").replace(/\D/g, "");
+  if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2);
+  return digits.length >= 8 ? digits.slice(-8) : "";
+}
+
 function initialsFor(name: string) {
   return name
     .split(" ")
@@ -313,6 +326,7 @@ function AdReferralCard({ ad }: { ad: AdInfo }) {
 
 export default function ConversasPage() {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
+  const router = useRouter();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -375,6 +389,9 @@ export default function ConversasPage() {
   const isNearBottomRef = useRef(true);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+  // Evita reprocessar o ?telefone= do deep link a cada poll (conversations e
+  // templates mudam de referência a cada refetch) — só trata uma vez.
+  const deepLinkHandledRef = useRef(false);
 
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
@@ -607,6 +624,34 @@ export default function ConversasPage() {
     const interval = setInterval(fetchConversations, CONVERSATIONS_POLL_MS);
     return () => clearInterval(interval);
   }, [firebaseUser, fetchConversations]);
+
+  // Deep link vindo de fora (ex: ícone do WhatsApp no card do lead, no funil):
+  // /dashboard/conversas?telefone=...&nome=... — abre a conversa desse contato
+  // se já existir; senão, abre o fluxo de iniciar conversa já preenchido (a
+  // Meta só aceita Message Template com quem nunca te mandou mensagem).
+  useEffect(() => {
+    if (!firebaseUser || loadingConversations || deepLinkHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const telefoneParam = params.get("telefone");
+    if (!telefoneParam) return;
+
+    deepLinkHandledRef.current = true;
+    const suffix = phoneSuffixClient(telefoneParam);
+    const match = suffix ? conversations.find((c) => phoneSuffixClient(c.wa_id) === suffix) : undefined;
+
+    if (match) {
+      setSelectedId(match.id);
+    } else {
+      const digits = telefoneParam.replace(/\D/g, "");
+      setNewContactName(params.get("nome") ?? "");
+      setNewContactPhone(digits);
+      setNewContactTemplateId(templates[0]?.id ?? "");
+      setNewContactParamValues(templates[0] ? Array(templates[0].param_tokens.length).fill("") : []);
+      setNewContactModalOpen(true);
+    }
+
+    router.replace("/dashboard/conversas", { scroll: false });
+  }, [firebaseUser, loadingConversations, conversations, templates, router]);
 
   // Thread selecionada: carga inicial + polling
   useEffect(() => {
@@ -2399,11 +2444,24 @@ function MessageBubble({
   const isAudio = message.type === "audio";
   const isImage = message.type === "image";
   const isDocument = message.type === "document";
+  const isReaction = message.type === "reaction";
   const isFixedWidth = isAudio || isImage || isDocument;
   const time = new Date(message.timestamp).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  // Reação a uma mensagem: não é uma mensagem "de verdade" (não tem lado, não
+  // manda resposta) — mostra como aviso central, igual o divisor de data.
+  if (isReaction) {
+    return (
+      <div className="flex justify-center my-1">
+        <span className="text-[11px] font-medium text-muted-foreground bg-background/80 backdrop-blur-sm rounded-lg px-2.5 py-1 shadow-sm text-center max-w-[85%]">
+          {message.body || "Reagiu"} · {time}
+        </span>
+      </div>
+    );
+  }
 
   const bubbleBg = isOutbound
     ? "bg-[#d9fdd3] dark:bg-[#005c4b]"

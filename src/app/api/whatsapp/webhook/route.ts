@@ -48,6 +48,11 @@ type WaMessage = {
   context?: { id?: string };
   /** Só vem quando o contato chegou clicando num anúncio Click-to-WhatsApp. */
   referral?: Record<string, unknown>;
+  /**
+   * Reação a uma mensagem (👍, ❤️...). `emoji` vem como string vazia quando o
+   * contato REMOVE uma reação que tinha dado antes (não vem ausente).
+   */
+  reaction?: { message_id?: string; emoji?: string };
 };
 
 type WaStatus = {
@@ -74,6 +79,11 @@ const TYPE_LABELS: Record<string, string> = {
   interactive: "[Resposta interativa]",
 };
 
+/** "Reagiu 👍" / "Removeu a reação" — usado tanto no preview da lista quanto no corpo salvo. */
+function reactionLabel(emoji: string | null | undefined) {
+  return emoji ? `Reagiu ${emoji}` : "Removeu a reação";
+}
+
 /** Texto que o contato "disse" ao tocar num botão (resposta interativa ou quick reply). */
 function buttonReplyText(msg: WaMessage): string | null {
   if (msg.type === "interactive") {
@@ -89,6 +99,7 @@ function buttonReplyText(msg: WaMessage): string | null {
 
 function previewFor(msg: WaMessage) {
   if (msg.type === "text") return msg.text?.body ?? "";
+  if (msg.type === "reaction") return reactionLabel(msg.reaction?.emoji);
   const buttonText = buttonReplyText(msg);
   if (buttonText) return buttonText;
   const caption = msg.image?.caption || msg.document?.caption;
@@ -123,6 +134,30 @@ function extractContent(msg: WaMessage) {
     default:
       return { body: previewFor(msg), mediaId: null, mimeType: null, filename: null };
   }
+}
+
+/**
+ * Reação: além do emoji, busca a mensagem original (por `waMessageId`) pra
+ * gravar um corpo legível ("Reagiu 👍 à mensagem: ..."), já que o wamid da
+ * Meta sozinho não diz nada pra quem olha o inbox depois.
+ */
+async function extractReactionContent(msg: WaMessage) {
+  const emoji = msg.reaction?.emoji || null;
+  const targetWamid = msg.reaction?.message_id || null;
+
+  let quoted: string | null = null;
+  if (targetWamid) {
+    const target = await prisma.whatsAppMessage.findUnique({
+      where: { waMessageId: targetWamid },
+      select: { body: true, type: true },
+    });
+    quoted = target?.body?.trim() || (target ? TYPE_LABELS[target.type] : null) || null;
+  }
+
+  const label = reactionLabel(emoji);
+  const body = quoted ? `${label} à mensagem: "${quoted.slice(0, 80)}"` : label;
+
+  return { body, mediaId: null, mimeType: null, filename: null };
 }
 
 /**
@@ -290,7 +325,7 @@ async function processChangeValue(value: WaChangeValue) {
       }
     }
 
-    const content = extractContent(msg);
+    const content = msg.type === "reaction" ? await extractReactionContent(msg) : extractContent(msg);
 
     try {
       await prisma.whatsAppMessage.create({
