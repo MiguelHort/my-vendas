@@ -12,7 +12,7 @@ import { validateQuizDefinition } from "./validate";
  * NÃO altere os textos sem alinhar com o produto.
  */
 export const QUIZ_DEFINITION: QuizDefinition = {
-  primeiraPergunta: "motivo",
+  primeiraPergunta: "canal",
 
   mensagemAbertura: [
     "Opa! Fico feliz que tenha interesse em planos de saúde",
@@ -21,6 +21,16 @@ export const QUIZ_DEFINITION: QuizDefinition = {
   ].join("\n"),
 
   perguntas: {
+    // primeira pergunta do quiz — define se o atendimento segue por aqui
+    // (mensagem) ou se um corretor liga pro contato.
+    canal: {
+      corpo: "Antes de mais nada, como você prefere ser atendido: por mensagem aqui mesmo, ou prefere que um corretor te ligue?",
+      opcoes: [
+        { id: "canal_mensagem", titulo: "Mensagem", proxima: "motivo" },
+        { id: "canal_ligacao", titulo: "Ligação", proxima: "motivo" },
+      ],
+    },
+
     motivo: {
       corpo: "Por qual motivo estaria procurando um novo plano de saúde?",
       opcoes: [

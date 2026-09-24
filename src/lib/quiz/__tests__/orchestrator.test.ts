@@ -110,6 +110,28 @@ describe("runQuizForInbound", () => {
     expect(sender.sent).toHaveLength(0);
   });
 
+  it("contato novo: primeira mensagem qualquer dispara abertura + 1ª pergunta (canal), e respondê-la avança pra 'motivo'", async () => {
+    const store = new FakeStore(storedQuiz({ currentStep: "canal", lastQuestionWamid: null }));
+    const sender = new FakeSender();
+    const deps = makeDeps(store, sender);
+
+    await runQuizForInbound({ waId: WA_ID, message: inbound("m1") }, deps);
+
+    expect(sender.sent.map((s) => s.action.type)).toEqual(["send_text", "send_question"]);
+    expect(sender.sent[1].action).toMatchObject({ type: "send_question", step: "canal" });
+    expect(store.quiz?.currentStep).toBe("canal"); // ainda não respondida
+    expect(store.quiz?.lastQuestionWamid).toBe("sent-2"); // wamid do send_question (2º envio)
+
+    await runQuizForInbound(
+      { waId: WA_ID, message: inbound("m2", { id: "canal_mensagem", contextId: "sent-2" }) },
+      deps
+    );
+
+    expect(store.quiz?.currentStep).toBe("motivo");
+    expect(store.quiz?.answers.map((a) => a.optionId)).toEqual(["canal_mensagem"]);
+    expect(sender.sent.at(-1)!.action).toMatchObject({ type: "send_question", step: "motivo" });
+  });
+
   it("o mesmo webhook entregue duas vezes é processado uma única vez", async () => {
     const store = new FakeStore(storedQuiz());
     const sender = new FakeSender();
@@ -182,7 +204,8 @@ describe("runQuizForInbound", () => {
   });
 
   it("ao concluir pelo caminho de troca de plano, envia a mensagem final e chama aoConcluirQuiz com os derivados", async () => {
-    // começa já na "motivo", primeira pergunta do quiz
+    // começa já na "motivo" — simula uma conversa que já respondeu "canal"
+    // (1ª pergunta do quiz) antes deste teste, sem precisar repetir esse passo aqui
     const store = new FakeStore(storedQuiz());
     const sender = new FakeSender();
     const deps = makeDeps(store, sender);

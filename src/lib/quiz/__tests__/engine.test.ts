@@ -9,8 +9,8 @@ const now = () => NOW;
 function freshState(over: Partial<QuizState> = {}): QuizState {
   return {
     status: "EM_ANDAMENTO",
-    currentStep: "motivo",
-    lastQuestionWamid: "wamid-motivo", // "motivo" já foi enviada
+    currentStep: "canal",
+    lastQuestionWamid: "wamid-canal", // "canal" (1ª pergunta) já foi enviada
     invalidCount: 0,
     answers: [],
     temPlanoAtual: null,
@@ -32,7 +32,7 @@ function text(body: string): QuizInboundEvent {
 function walk(steps: QuizInboundEvent[]) {
   let state = freshState();
   const sends: QuizOutboundAction[] = [];
-  let questionWamid = "wamid-motivo";
+  let questionWamid = "wamid-canal";
 
   for (const event of steps) {
     const evt: QuizInboundEvent =
@@ -54,6 +54,7 @@ function walk(steps: QuizInboundEvent[]) {
 describe("advance — caminhos completos", () => {
   it("caminho de troca de plano (com sub-pergunta de atendimento) até a mensagem final", () => {
     const { state, sends } = walk([
+      click("canal_mensagem", null),
       click("motivo_trocar", null),
       click("atendimento_melhor", null),
       click("pessoas_2_4", null),
@@ -69,6 +70,7 @@ describe("advance — caminhos completos", () => {
     expect(state.necessidadePrincipal).toBeNull(); // eixo não coletado nesse caminho
     expect(state.completedAt).toBe(NOW.toISOString());
     expect(state.answers).toEqual([
+      { step: "canal", optionId: "canal_mensagem", optionTitle: "Mensagem", at: NOW.toISOString() },
       { step: "motivo", optionId: "motivo_trocar", optionTitle: "Trocar plano atual", at: NOW.toISOString() },
       { step: "atendimento", optionId: "atendimento_melhor", optionTitle: "Melhor atendimento", at: NOW.toISOString() },
       { step: "pessoas", optionId: "pessoas_2_4", optionTitle: "2 a 4 pessoas", at: NOW.toISOString() },
@@ -80,14 +82,15 @@ describe("advance — caminhos completos", () => {
 
     const finalAction = sends.at(-1);
     expect(finalAction).toEqual({ type: "send_text", body: QUIZ_DEFINITION.mensagemFinal });
-    // perguntas enviadas ao longo do caminho: atendimento, pessoas, idades, cnpj, cobertura, cidade
+    // perguntas enviadas ao longo do caminho: motivo, atendimento, pessoas, idades, cnpj, cobertura, cidade
     expect(
       sends.filter((s) => s.type === "send_question").map((s) => (s.type === "send_question" ? s.step : ""))
-    ).toEqual(["atendimento", "pessoas", "idades", "cnpj", "cobertura", "cidade"]);
+    ).toEqual(["motivo", "atendimento", "pessoas", "idades", "cnpj", "cobertura", "cidade"]);
   });
 
   it("caminho sem troca de plano pula a sub-pergunta de atendimento", () => {
     const { state, sends } = walk([
+      click("canal_ligacao", null),
       click("motivo_seguranca", null),
       click("pessoas_1", null),
       text("29"),
@@ -100,6 +103,7 @@ describe("advance — caminhos completos", () => {
     expect(state.temPlanoAtual).toBe(false);
     expect(state.necessidadePrincipal).toBe("prevencao");
     expect(state.answers.map((a) => a.optionId)).toEqual([
+      "canal_ligacao",
       "motivo_seguranca",
       "pessoas_1",
       null,
@@ -112,12 +116,13 @@ describe("advance — caminhos completos", () => {
     const steps = sends
       .filter((s) => s.type === "send_question")
       .map((s) => (s.type === "send_question" ? s.step : ""));
-    expect(steps).toEqual(["pessoas", "idades", "cnpj", "cobertura", "cidade"]); // nunca "atendimento"
+    expect(steps).toEqual(["motivo", "pessoas", "idades", "cnpj", "cobertura", "cidade"]); // nunca "atendimento"
     expect(sends.at(-1)).toEqual({ type: "send_text", body: QUIZ_DEFINITION.mensagemFinal });
   });
 
   it("motivo 'tratar situação' deriva necessidade = tratamento", () => {
     const { state } = walk([
+      click("canal_mensagem", null),
       click("motivo_tratar", null),
       click("pessoas_5_mais", null),
       text("40, 38, 10, 8, 5"),
@@ -239,9 +244,9 @@ describe("advance — resposta inválida (pergunta com botões)", () => {
 
   it("uma resposta válida zera o contador de inválidas", () => {
     const withInvalids = freshState({ invalidCount: 2 });
-    const res = advance(withInvalids, click("motivo_seguranca", "wamid-motivo"), { now });
+    const res = advance(withInvalids, click("canal_mensagem", "wamid-canal"), { now });
     expect(res.state.invalidCount).toBe(0);
-    expect(res.state.currentStep).toBe("pessoas");
+    expect(res.state.currentStep).toBe("motivo");
   });
 });
 
@@ -261,7 +266,7 @@ describe("advance — quiz terminado", () => {
 
 describe("advance — pergunta ainda não entregue (primeiro contato / envio falhou)", () => {
   it("no primeiríssimo turno, manda a mensagem de abertura + a 1ª pergunta, sem contador nem resposta", () => {
-    const state = freshState({ currentStep: "motivo", lastQuestionWamid: null, invalidCount: 0, answers: [] });
+    const state = freshState({ currentStep: "canal", lastQuestionWamid: null, invalidCount: 0, answers: [] });
 
     const res = advance(state, { kind: "other" }, { now });
     expect(res.state).toEqual(state); // nada mudou
@@ -269,9 +274,9 @@ describe("advance — pergunta ainda não entregue (primeiro contato / envio fal
       { type: "send_text", body: QUIZ_DEFINITION.mensagemAbertura },
       {
         type: "send_question",
-        step: "motivo",
-        body: QUIZ_DEFINITION.perguntas.motivo.corpo,
-        buttons: QUIZ_DEFINITION.perguntas.motivo.opcoes.map((o) => ({ id: o.id, title: o.titulo })),
+        step: "canal",
+        body: QUIZ_DEFINITION.perguntas.canal.corpo,
+        buttons: QUIZ_DEFINITION.perguntas.canal.opcoes.map((o) => ({ id: o.id, title: o.titulo })),
       },
     ]);
   });
@@ -280,7 +285,10 @@ describe("advance — pergunta ainda não entregue (primeiro contato / envio fal
     const state = freshState({
       currentStep: "pessoas",
       lastQuestionWamid: null,
-      answers: [{ step: "motivo", optionId: "motivo_seguranca", optionTitle: "Segurança/prevenção", at: NOW.toISOString() }],
+      answers: [
+        { step: "canal", optionId: "canal_mensagem", optionTitle: "Mensagem", at: NOW.toISOString() },
+        { step: "motivo", optionId: "motivo_seguranca", optionTitle: "Segurança/prevenção", at: NOW.toISOString() },
+      ],
     });
 
     const res = advance(state, { kind: "other" }, { now });
