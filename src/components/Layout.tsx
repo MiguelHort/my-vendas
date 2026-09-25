@@ -88,18 +88,31 @@ type MeUser = {
    NAV CONFIG
 ======================== */
 
-const crmItems = [
+/**
+ * Grupos do menu — organizados por função, não por ordem de criação:
+ * - Visão Geral: telas de número/relatório (nada se edita aqui).
+ * - Operação: o trabalho do dia a dia com lead e conversa.
+ * - Vendas: cotar e registrar o fechamento.
+ * Admin e Assistentes continuam como grupos à parte (abaixo).
+ */
+const visaoGeralItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/metricas", label: "Métricas", icon: BarChart3 },
-  { href: "/dashboard/funil", label: "Funil", icon: Workflow },
-  { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
-  { href: "/dashboard/calendario", label: "Calendário", icon: CalendarDays },
-  { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
-  { href: "/dashboard/cotacao", label: "Cotação", icon: Calculator },
-  { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
   { href: "/dashboard/anuncios", label: "Anúncios", icon: Megaphone },
-  { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
   { href: "/dashboard/mapa-estados", label: "Mapa", icon: MapPinned },
+];
+
+const operacaoItems = [
+  { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
+  { href: "/dashboard/calendario", label: "Calendário", icon: CalendarDays },
+  { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
+  { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
+];
+
+const vendasItems = [
+  { href: "/dashboard/cotacao", label: "Cotação", icon: Calculator },
+  { href: "/dashboard/minhas-vendas", label: "Minhas Vendas", icon: History },
 ];
 
 const assistentesItems = [
@@ -157,6 +170,51 @@ function isRouteActive(pathname: string | null, href: string, exact = false) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+
+/** Um grupo de itens do menu lateral — usado pelos 3 grupos do CRM e pelo de Assistentes. */
+function NavGroup({
+  label,
+  items,
+  pathname,
+  unreadCount,
+}: {
+  label: string;
+  items: NavItem[];
+  pathname: string | null;
+  unreadCount: number;
+}) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = isRouteActive(pathname, item.href);
+            const showUnreadBadge = item.href === "/dashboard/conversas" && unreadCount > 0;
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                  <Link href={item.href}>
+                    <Icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+                {showUnreadBadge && (
+                  <SidebarMenuBadge className="bg-[#00a884] text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 /* ========================
    SIDEBAR COMPONENT
 ======================== */
@@ -205,56 +263,10 @@ function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* CRM */}
-        <SidebarGroup>
-          <SidebarGroupLabel>CRM</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {crmItems.map((item) => {
-                const Icon = item.icon;
-                const active = isRouteActive(pathname, item.href);
-                const showUnreadBadge = item.href === "/dashboard/conversas" && unreadCount > 0;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    {showUnreadBadge && (
-                      <SidebarMenuBadge className="bg-[#00a884] text-white">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Assistentes (Will)</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {assistentesItems.map((item) => {
-                const Icon = item.icon;
-                const active = isRouteActive(pathname, item.href);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavGroup label="Visão Geral" items={visaoGeralItems} pathname={pathname} unreadCount={unreadCount} />
+        <NavGroup label="Operação" items={operacaoItems} pathname={pathname} unreadCount={unreadCount} />
+        <NavGroup label="Vendas" items={vendasItems} pathname={pathname} unreadCount={unreadCount} />
+        <NavGroup label="Assistentes (Will)" items={assistentesItems} pathname={pathname} unreadCount={unreadCount} />
 
         {/* Admin */}
         {isAdmin && (
