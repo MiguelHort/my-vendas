@@ -167,7 +167,7 @@ const DashboardPage = () => {
   };
 
   const isLeadAtivo = (status: string) =>
-    ["Cotação", "Avaliando", "Fechamento"].includes(status);
+    ["Cotação Enviada", "Avaliando Cotação", "Fechamento", "Aguardando Pagamento"].includes(status);
 
   const leadPrecisaRetorno = (lead: Lead) => {
     if (!isLeadAtivo(lead.status)) return false;
@@ -339,7 +339,7 @@ const DashboardPage = () => {
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const leadsQualificados = filteredLeads.filter((l) =>
-    ["Avaliando", "Fechamento", "Concluído"].includes(l.status)
+    ["Avaliando Cotação", "Fechamento", "Aguardando Pagamento", "Concluído"].includes(l.status)
   ).length;
 
   const taxaQualificacao =
@@ -551,9 +551,12 @@ const DashboardPage = () => {
       const key = lead.estado || "N/D";
       if (!acc[key]) acc[key] = { qualificados: 0, vendas: 0 };
 
-      const ehQualificado = ["Avaliando", "Fechamento", "Concluído"].includes(
-        lead.status
-      );
+      const ehQualificado = [
+        "Avaliando Cotação",
+        "Fechamento",
+        "Aguardando Pagamento",
+        "Concluído",
+      ].includes(lead.status);
       if (ehQualificado) acc[key].qualificados++;
 
       if (lead.status === "Concluído") acc[key].vendas++;

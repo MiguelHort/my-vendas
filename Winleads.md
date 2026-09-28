@@ -68,7 +68,8 @@ não num grupo de página.
 ## Funcionalidades
 
 ### Funil de leads (`/dashboard/funil`)
-Kanban com as colunas Backlog, Triagem, Cotação, Avaliando, Fechamento,
+Kanban com as colunas Backlog, Início, Triagem Iniciada, Triagem Completa,
+Cotação Enviada, Avaliando Cotação, Fechamento, Aguardando Pagamento,
 Concluído, Retornar Futuramente e Dispensado. Cada card tem telefone, origem,
 localização, operadora ofertada, valor e um atalho direto pro WhatsApp da
 conversa (abre em `/dashboard/conversas`, e se não existir conversa ainda,
@@ -170,7 +171,7 @@ série de vendas, retornos pendentes (leads sem contato há +24h) e top estados.
 - **Lead × Conversa do WhatsApp:** não tem chave estrangeira — o vínculo é
   pelo telefone (últimos 8 dígitos, ignorando o "9" a mais/a menos e o DDI),
   em `src/lib/leadMatch.ts`. Todo contato novo no WhatsApp vira lead
-  automaticamente (status "Triagem").
+  automaticamente (status "Triagem Iniciada").
 - **Janela de 24h da Meta:** fora dela só dá pra mandar Message Template
   aprovado — regra da plataforma, tratada em `src/lib/whatsapp.ts` /
   `whatsappErrors.ts`.

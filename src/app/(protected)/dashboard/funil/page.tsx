@@ -316,10 +316,13 @@ function KanbanMinimap({
 
 const FIXED_COLUMNS: FunnelColumn[] = [
   { id: "Backlog", title: "Backlog", color: "#94a3b8" },
-  { id: "Triagem", title: "Triagem", color: "#6366f1" },
-  { id: "Cotação", title: "Cotação", color: "#3b82f6" },
-  { id: "Avaliando", title: "Avaliando", color: "#eab308" },
-  { id: "Fechamento", title: "Fechamento", color: "#8b5cf6" },
+  { id: "Início", title: "Início", color: "#38bdf8" },
+  { id: "Triagem Iniciada", title: "Triagem Iniciada", color: "#6366f1" },
+  { id: "Triagem Completa", title: "Triagem Completa", color: "#8b5cf6" },
+  { id: "Cotação Enviada", title: "Cotação Enviada", color: "#3b82f6" },
+  { id: "Avaliando Cotação", title: "Avaliando Cotação", color: "#eab308" },
+  { id: "Fechamento", title: "Fechamento", color: "#a855f7" },
+  { id: "Aguardando Pagamento", title: "Aguardando Pagamento", color: "#f97316" },
   { id: "Concluído", title: "Concluído", color: "#22c55e" },
   { id: "Retornar", title: "Retornar Futuramente", color: "#f59e0b" },
   { id: "Dispensado", title: "Dispensado", color: "#6b7280" },

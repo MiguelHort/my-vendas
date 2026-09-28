@@ -22,10 +22,13 @@ const TIMEZONE = "America/Sao_Paulo";
 // de propósito: esse arquivo roda no servidor, aquele é "use client".
 const STATUS_ORDER: { status: string; color: string }[] = [
   { status: "Backlog", color: "#94a3b8" },
-  { status: "Triagem", color: "#6366f1" },
-  { status: "Cotação", color: "#3b82f6" },
-  { status: "Avaliando", color: "#eab308" },
-  { status: "Fechamento", color: "#8b5cf6" },
+  { status: "Início", color: "#38bdf8" },
+  { status: "Triagem Iniciada", color: "#6366f1" },
+  { status: "Triagem Completa", color: "#8b5cf6" },
+  { status: "Cotação Enviada", color: "#3b82f6" },
+  { status: "Avaliando Cotação", color: "#eab308" },
+  { status: "Fechamento", color: "#a855f7" },
+  { status: "Aguardando Pagamento", color: "#f97316" },
   { status: "Concluído", color: "#22c55e" },
   { status: "Retornar", color: "#f59e0b" },
   { status: "Dispensado", color: "#6b7280" },

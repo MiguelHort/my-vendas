@@ -298,7 +298,7 @@ async function processChangeValue(value: WaChangeValue) {
           nome: contactName || formatPhoneNumber(waId.replace(/^55/, "")) || waId,
           telefone: waId,
           origem: adReferral ? AD_LEAD_ORIGIN : "WhatsApp",
-          status: "Triagem",
+          status: "Triagem Iniciada",
           dataEntrada: timestamp,
           qtdVidas: 1,
         },

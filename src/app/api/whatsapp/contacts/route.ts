@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         nome: contactName || formatPhoneNumber(canonicalWaId.replace(/^55/, "")) || canonicalWaId,
         telefone: canonicalWaId,
         origem: "WhatsApp",
-        status: "Triagem",
+        status: "Triagem Iniciada",
         dataEntrada: timestamp,
         qtdVidas: 1,
       },
