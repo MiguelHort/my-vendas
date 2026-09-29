@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUserByFirebaseUid } from "@/lib/user-from-firebase";
+import { getFollowUpCountsBySuffix, phoneSuffix } from "@/lib/leadMatch";
 
 export const runtime = "nodejs";
 
@@ -21,9 +22,12 @@ export async function GET(req: NextRequest) {
       name: name || undefined,
     });
 
-    const leads = await prisma.lead.findMany({
-      orderBy: { dataEntrada: "desc" },
-    });
+    const [leads, followUpBySuffix] = await Promise.all([
+      prisma.lead.findMany({
+        orderBy: { dataEntrada: "desc" },
+      }),
+      getFollowUpCountsBySuffix(),
+    ]);
 
     const payload = leads.map((l: (typeof leads)[number]) => ({
       id: l.id,
@@ -54,6 +58,7 @@ export async function GET(req: NextRequest) {
         : null,
       last_chamado_at: l.lastChamadoAt ? l.lastChamadoAt.toISOString() : null,
       retornar_em: l.retornarEm ? l.retornarEm.toISOString() : null,
+      follow_up_count: followUpBySuffix.get(phoneSuffix(l.telefone)) ?? null,
     }));
 
     return NextResponse.json(payload);

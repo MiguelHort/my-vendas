@@ -77,6 +77,8 @@ export type Lead = {
   data_pagamento_comissao?: string | null;
   last_chamado_at: string | null;
   retornar_em: string | null;
+  /** Etiqueta fixa de follow-up da conversa de WhatsApp vinculada (por telefone). Null quando não há conversa. */
+  follow_up_count?: number | null;
 };
 
 type LeadCardProps = {
@@ -486,6 +488,14 @@ const LeadCard: React.FC<LeadCardProps> = ({
                   </span>
                 )}
               </Badge>
+            )}
+            {lead.follow_up_count != null && (
+              <span
+                className="inline-flex h-5 items-center rounded-md px-1.5 text-[10px] font-medium leading-none tabular-nums bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                title="Follow-ups feitos (etiqueta da conversa no WhatsApp)"
+              >
+                {lead.follow_up_count} follow-up
+              </span>
             )}
           </div>
 

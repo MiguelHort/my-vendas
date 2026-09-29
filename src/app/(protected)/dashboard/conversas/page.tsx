@@ -69,6 +69,7 @@ import {
   Calculator,
   StickyNote,
   XCircle,
+  MailOpen,
 } from "lucide-react";
 import WhatsAppIcon from "@/components/icons/WhatsappIcon";
 import { CotacaoConversaModal } from "@/components/cotacao/CotacaoConversaModal";
@@ -351,6 +352,7 @@ export default function ConversasPage() {
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [savingTags, setSavingTags] = useState(false);
   const [addingFollowUp, setAddingFollowUp] = useState(false);
+  const [markingReadId, setMarkingReadId] = useState<string | null>(null);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
@@ -631,6 +633,29 @@ export default function ConversasPage() {
       toast.error("Não foi possível registrar o follow-up");
     } finally {
       setAddingFollowUp(false);
+    }
+  }
+
+  async function handleMarkAsRead(c: Conversation) {
+    if (c.unread_count === 0 || markingReadId === c.id) return;
+    setMarkingReadId(c.id);
+    try {
+      const headers = await authHeader();
+      if (!headers) return;
+      const res = await fetch(`/api/whatsapp/conversations/${c.id}/read`, {
+        method: "POST",
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Erro ao marcar como lida");
+      setConversations((prev) =>
+        prev.map((x) => (x.id === c.id ? { ...x, unread_count: 0 } : x))
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível marcar a conversa como lida");
+    } finally {
+      setMarkingReadId(null);
     }
   }
 
@@ -1555,6 +1580,14 @@ export default function ConversasPage() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem
+                                disabled={c.unread_count === 0 || markingReadId === c.id}
+                                onClick={() => void handleMarkAsRead(c)}
+                              >
+                                <MailOpen className="size-3.5" />
+                                Marcar como lida
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 variant="destructive"
                                 onClick={() => openDeleteDialog(c)}

@@ -49,6 +49,24 @@ export async function markLeadChamado(waId: string): Promise<void> {
   await prisma.lead.update({ where: { id: leadId }, data: { lastChamadoAt: new Date() } });
 }
 
+/**
+ * Mapa sufixo de telefone -> contador de follow-up (etiqueta fixa da conversa,
+ * ver `WhatsAppConversation.followUpCount`), pra exibir a etiqueta no card do
+ * lead mesmo sem FK entre as duas tabelas.
+ */
+export async function getFollowUpCountsBySuffix(): Promise<Map<string, number>> {
+  const conversations = await prisma.whatsAppConversation.findMany({
+    select: { waId: true, followUpCount: true },
+  });
+
+  const map = new Map<string, number>();
+  for (const c of conversations) {
+    const suffix = phoneSuffix(c.waId);
+    if (suffix) map.set(suffix, c.followUpCount);
+  }
+  return map;
+}
+
 /** Status do funil cujo lead some do inbox do WhatsApp (ver `getHiddenPhoneSuffixes`). */
 const STATUS_QUE_ESCONDE_CONVERSA = new Set(["Dispensado", "Concluído"]);
 

@@ -22,6 +22,7 @@ import {
   Wallet,
   Calculator,
   CalendarDays,
+  CalendarClock,
   BarChart3,
 } from "lucide-react";
 
@@ -104,6 +105,7 @@ const visaoGeralItems = [
 
 const operacaoItems = [
   { href: "/dashboard/funil", label: "Funil", icon: Workflow },
+  { href: "/dashboard/followup", label: "Follow-up", icon: CalendarClock },
   { href: "/dashboard/conversas", label: "Conversas", icon: MessageCircle },
   { href: "/dashboard/calendario", label: "Calendário", icon: CalendarDays },
   { href: "/dashboard/demandas", label: "Demandas", icon: Kanban },
@@ -127,6 +129,7 @@ const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   metricas: "Métricas",
   funil: "Funil",
+  followup: "Follow-up",
   demandas: "Demandas",
   calendario: "Calendário",
   financeiro: "Financeiro",
